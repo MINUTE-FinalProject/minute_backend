@@ -51,7 +51,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @ColumnDefault("'USER'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 USER)
-    private Role role = Role.USER; // 자바 객체 기본값 설정
+    private Role role = Role.User; // 자바 객체 기본값 설정
 
     @CreationTimestamp // 엔티티 생성 시 자동으로 현재 시간 저장
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -75,7 +75,7 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "user_gender", nullable = false)
     @ColumnDefault("'MALE'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 MALE)
-    private UserGender userGender = UserGender.MALE; // 자바 객체 기본값 설정
+    private UserGender userGender = UserGender.Male; // 자바 객체 기본값 설정
 
     @Column(name = "user_no", nullable = false) // PK가 아니므로 @GeneratedValue 제거
     private Integer userNo;
