@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.minute.user.entity.User;
 import jakarta.persistence.*;
 
 import java.time.LocalDateTime;
