@@ -34,7 +34,7 @@ import java.util.List;
 @Entity
 @Table(name = "user")
 public class User {
-
+    //
     @Id
     @Column(name = "user_id", length = 100)
     private String userId;
