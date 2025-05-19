@@ -2,11 +2,19 @@ package com.minute.video.Entity;
 
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "watch_history")
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class WatchHistory {
 
     @Id

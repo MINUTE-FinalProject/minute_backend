@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "tag")
 @Getter
@@ -20,4 +23,7 @@ public class Tag {
 
     @Column(length = 100,nullable = false)
     private String tagName;
+
+    @OneToMany(mappedBy = "tag",cascade = CascadeType.ALL,orphanRemoval = true)
+    private List<VideoTag> videoTags = new ArrayList<>();
 }
