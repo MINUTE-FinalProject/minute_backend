@@ -12,9 +12,10 @@ import com.minute.board.qna.entity.Qna;
 import com.minute.board.qna.entity.QnaReply;
 import com.minute.board.qna.entity.QnaReport;
 // User 관련 Enum import (별도 파일로 분리된 경우)
-import com.minute.user.enumpackage.Gender;
+import com.minute.user.dto.request.auth.SignUpRequestDTO;
 import com.minute.user.enumpackage.Role;
-import com.minute.user.enumpackage.Status;
+import com.minute.user.enumpackage.UserStatus;
+import com.minute.user.enumpackage.UserGender;
 
 import jakarta.persistence.*;
 import lombok.*; // Getter, Setter, Builder, NoArgsConstructor, AllArgsConstructor
@@ -46,12 +47,12 @@ public class User {
     private String userName;
 
     @Column(name = "user_nickname", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
-    private String userNickname;
+    private String userNickName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @ColumnDefault("'USER'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 USER)
-    private Role role = Role.User; // 자바 객체 기본값 설정
+    private Role role = Role.USER; // 자바 객체 기본값 설정
 
     @CreationTimestamp // 엔티티 생성 시 자동으로 현재 시간 저장
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -70,19 +71,29 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(name = "user_status", nullable = false)
     @ColumnDefault("'N'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 N)
-    private Status userStatus = Status.N; // 자바 객체 기본값 설정
+    private UserStatus userStatus = UserStatus.N; // 자바 객체 기본값 설정
 
     @Enumerated(EnumType.STRING)
     @Column(name = "user_gender", nullable = false)
     @ColumnDefault("'MALE'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 MALE)
-    private Gender userGender = Gender.Male; // 자바 객체 기본값 설정
+    private UserGender userGender = UserGender.MALE; // 자바 객체 기본값 설정
 
-    @Column(name = "user_no", nullable = false) // PK가 아니므로 @GeneratedValue 제거
+    @Column(name = "user_no", nullable = false)// PK가 아니므로 @GeneratedValue 제거
     private Integer userNo;
 
     @Column(name = "user_report", nullable = false)
     @ColumnDefault("0") // DB 기본값과 동일하게 설정
     private Integer userReport = 0; // 자바 객체 기본값 설정
+
+    public User (SignUpRequestDTO dto){
+        this.userId = dto.getUserId();
+        this.userName = dto.getUserName();
+        this.userEmail = dto.getUserEmail();
+        this.userPhone = dto.getUserPhone();
+        this.userNickName = dto.getUserNickName();
+        this.userPw = dto.getUserPw();
+        this.userGender = dto.getUserGender();
+    }
 
     // --- 팀원이 편리하게 사용할 연관관계 매핑 ---
     // mappedBy는 각 대상 엔티티(예: Notice)에 있는 User 타입 필드명과 일치해야 합니다.

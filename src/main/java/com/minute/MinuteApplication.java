@@ -29,7 +29,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
         // servers = { // 선택 사항: API 서버 URL들을 명시합니다.
         //     @Server(url = "http://localhost:8080", description = "로컬 개발 서버"),
         //     @Server(url = "https://dev-api.minute.com", description = "개발 환경 서버"), // 팀의 개발 서버 주소
-        //     @Server(url = "https://api.minute.com", description = "운영 환경 서버")       // 팀의 운영 서버 주소
+//             @Server(url = "https://api.minute.com", description = "운영 환경 서버")       // 팀의 운영 서버 주소
         // }
 )
 public class MinuteApplication {
