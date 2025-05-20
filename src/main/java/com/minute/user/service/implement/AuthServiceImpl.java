@@ -3,9 +3,11 @@ package com.minute.user.service.implement;
 import com.minute.security.handler.JwtProvider;
 import com.minute.user.dto.request.auth.SignInRequestDto;
 import com.minute.user.dto.request.auth.SignUpRequestDTO;
+import com.minute.user.dto.request.auth.SignupValidateRequestDto;
 import com.minute.user.dto.response.ResponseDto;
 import com.minute.user.dto.response.auth.SignInResponseDto;
 import com.minute.user.dto.response.auth.SignupResponseDto;
+import com.minute.user.dto.response.auth.SignupValidateResponseDto;
 import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
 import com.minute.user.service.AuthService;
@@ -25,6 +27,31 @@ public class AuthServiceImpl implements AuthService {
 
     private PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
+    private boolean isValidPassword(String password) {
+        if (password == null || password.length() < 8 || password.length() > 20)
+            return false;
+        // 영문/숫자/특수문자 조합 정규식
+        String pattern = "^(?=.*[A-Za-z])(?=.*\\d)(?=.*[!@#$%^&*()_+=\\-{}\\[\\]:;\"'<>,.?/~`]).{8,20}$";
+        return password.matches(pattern);
+    }
+
+    @Override
+    public ResponseEntity<? super SignupValidateResponseDto> validateSignUp(SignupValidateRequestDto dto) {
+        try {
+            String userId = dto.getUserId();
+            boolean existedId = userRepository.existsByUserId(userId);
+            if (existedId) return SignupValidateResponseDto.duplicateId();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseDto.databaseError();
+        }
+
+        return SignupValidateResponseDto.success();
+    }
+
+
+
     @Override
     public ResponseEntity<? super SignupResponseDto> signUp(SignUpRequestDTO dto) {
 
@@ -34,21 +61,27 @@ public class AuthServiceImpl implements AuthService {
             boolean existedId = userRepository.existsByUserId(id);
             if (existedId) return SignupResponseDto.duplicateId();
 
+            // 비밀번호 조건 검사 추가
+            String password = dto.getUserPw();
+            if (!isValidPassword(password)) {
+                return SignupResponseDto.invalidPassword(); //
+            }
+
             String email = dto.getUserEmail();
             boolean existedEmail = userRepository.existsByUserEmail(email);
             if (existedEmail) return SignupResponseDto.duplicateEmail();
 
-            String nickname = dto.getUserNickname();
-            boolean existedNickname = userRepository.existsByUserNickname(nickname);
-            if (existedNickname) return SignupResponseDto.duplicateNickname();
+            String nickname = dto.getUserNickName();
+            boolean existedNickname = userRepository.existsByUserNickName(nickname);
+            if (existedNickname) return SignupResponseDto.duplicateNickName();
 
             String phone = dto.getUserPhone();
             boolean existedPhone = userRepository.existsByUserPhone(phone);
             if (existedPhone) return SignupResponseDto.duplicatePhone();
 
             //비번 암호화
-            String password = dto.getUserPw();
-            String encodedPassword = passwordEncoder.encode(password);
+            String pw = dto.getUserPw();
+            String encodedPassword = passwordEncoder.encode(pw);
             dto.setUserPw(encodedPassword);
 
             // 2. userNo 자동 할당

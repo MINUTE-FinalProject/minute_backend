@@ -47,7 +47,7 @@ public class User {
     private String userName;
 
     @Column(name = "user_nickname", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
-    private String userNickname;
+    private String userNickName;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
@@ -90,7 +90,7 @@ public class User {
         this.userName = dto.getUserName();
         this.userEmail = dto.getUserEmail();
         this.userPhone = dto.getUserPhone();
-        this.userNickname = dto.getUserNickname();
+        this.userNickName = dto.getUserNickName();
         this.userPw = dto.getUserPw();
         this.userGender = dto.getUserGender();
     }
