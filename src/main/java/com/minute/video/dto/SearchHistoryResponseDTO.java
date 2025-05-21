@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class SearchHistoryResponseDTO {
-    // 검색 기록 조회용
+    // 검색 기록 조회 응답
     private String userId;
     private String keyword;
     private LocalDateTime searchedAt;
