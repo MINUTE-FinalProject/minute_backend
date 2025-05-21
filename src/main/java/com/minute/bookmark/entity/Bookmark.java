@@ -2,6 +2,7 @@ package com.minute.bookmark.entity;
 
 import com.minute.folder.entity.Folder;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Entity
@@ -10,8 +11,9 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "bookmark",
-        uniqueConstraints = {@UniqueConstraint(columnNames = {"user_id", "video_id", "folder_id"})})
+@Table(name = "bookmark", uniqueConstraints = {
+        @UniqueConstraint(columnNames = {"user_id", "video_id", "folder_id"})
+})
 public class Bookmark {
 
     @Id

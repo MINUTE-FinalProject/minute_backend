@@ -1,5 +1,6 @@
 package com.minute.plan.entity;
 
+import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
