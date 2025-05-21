@@ -17,8 +17,9 @@ public class SwaggerConfig {
     @Bean
     public GroupedOpenApi publicApi() {
         return GroupedOpenApi.builder()
-                .group("public") // API 그룹 이름
-                .packagesToScan("com.minute.controller") // API Controller 패키지 위치
+                .group("public")
+                .packagesToScan("com.minute") // ← 패키지 전체를 스캔하도록 변경
                 .build();
     }
+
 }
