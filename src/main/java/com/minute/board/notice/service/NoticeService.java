@@ -1,9 +1,11 @@
 package com.minute.board.notice.service;
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.notice.dto.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.NoticeListResponseDTO;
 import com.minute.board.notice.entity.Notice;
 import com.minute.board.notice.repository.NoticeRepository;
+import jakarta.persistence.EntityNotFoundException; // 표준 예외 사용 가능
 import lombok.RequiredArgsConstructor; // 생성자 주입을 위해 사용
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -18,6 +20,8 @@ import java.util.stream.Collectors;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository; // NoticeRepository 의존성 주입
+
+    // 전체 목록 조회 기능 관련
 
     @Transactional(readOnly = true) // 읽기 작업에 대한 좋은 습관입니다.
     public PageResponseDTO<NoticeListResponseDTO> getNoticeList(Pageable pageable) {
@@ -49,6 +53,34 @@ public class NoticeService {
                 .first(noticePage.isFirst())
                 .last(noticePage.isLast())
                 .empty(noticePage.isEmpty())
+                .build();
+    }
+
+    // 공지사항 상세 조회 기능 관련
+
+    @Transactional // 조회수 증가가 있으므로 readOnly = false (기본값)
+    public NoticeDetailResponseDTO getNoticeDetail(Integer noticeId) {
+        // 1. noticeId로 공지사항 조회
+        Notice notice = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 ID의 공지사항을 찾을 수 없습니다: " + noticeId));
+        // 또는 커스텀 예외 사용: .orElseThrow(() -> new ResourceNotFoundException("Notice", "id", noticeId));
+
+        // 2. 조회수 증가 (단순 증가 로직)
+        notice.setNoticeViewCount(notice.getNoticeViewCount() + 1);
+        // noticeRepository.save(notice); // JPA의 영속성 컨텍스트 'dirty checking'으로 인해 @Transactional 범위 내에서는 명시적 save 호출이 필수는 아닐 수 있으나,
+        // 명확성을 위해 또는 특정 상황(예: 트랜잭션 전파 옵션)에서는 필요할 수 있습니다.
+        // 일반적으로 변경 감지가 동작하여 트랜잭션 커밋 시 업데이트됩니다.
+
+        // 3. Notice 엔티티를 NoticeDetailResponseDTO로 변환
+        return NoticeDetailResponseDTO.builder()
+                .noticeId(notice.getNoticeId())
+                .noticeTitle(notice.getNoticeTitle())
+                .noticeContent(notice.getNoticeContent())
+                .authorId(notice.getUser().getUserId())
+                .authorNickname(notice.getUser().getUserNickName())
+                .noticeCreatedAt(notice.getNoticeCreatedAt())
+                .noticeViewCount(notice.getNoticeViewCount()) // 증가된 조회수
+                .noticeIsImportant(notice.isNoticeIsImportant())
                 .build();
     }
 }

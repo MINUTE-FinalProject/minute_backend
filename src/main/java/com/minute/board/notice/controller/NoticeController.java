@@ -1,6 +1,7 @@
 package com.minute.board.notice.controller;
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.notice.dto.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.NoticeListResponseDTO;
 import com.minute.board.notice.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -63,5 +65,24 @@ public class NoticeController {
 
         PageResponseDTO<NoticeListResponseDTO> response = noticeService.getNoticeList(pageable);
         return ResponseEntity.ok(response);
+    }
+
+    // GET /api/notices/{id}
+    @Operation(summary = "공지사항 상세 조회",
+            description = "특정 ID의 공지사항 상세 정보를 조회합니다. 조회 시 해당 공지사항의 조회수가 1 증가합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "공지사항 상세 조회 성공",
+                    content = @Content(schema = @Schema(implementation = NoticeDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "요청한 ID에 해당하는 공지사항을 찾을 수 없음 (GlobalExceptionHandler 처리)",
+                    content = @Content(schema = @Schema(example = "{\"status\":\"error\",\"message\":\"해당 ID의 공지사항을 찾을 수 없습니다: 999\"}"))),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @GetMapping("/{noticeId}") // 경로 변수로 noticeId를 받습니다.
+    public ResponseEntity<NoticeDetailResponseDTO> getNoticeDetail(
+            @Parameter(name = "noticeId", description = "조회할 공지사항의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer noticeId) { // @PathVariable을 사용하여 경로 변수 값을 가져옵니다.
+
+        NoticeDetailResponseDTO response = noticeService.getNoticeDetail(noticeId);
+        return ResponseEntity.ok(response); // 200 OK 상태와 함께 응답 본문 반환
     }
 }
