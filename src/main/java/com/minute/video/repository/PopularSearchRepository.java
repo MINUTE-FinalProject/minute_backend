@@ -5,11 +5,8 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.List;
 
-public interface PopularSearchRepository extends JpaRepository<PopularSearch, Integer> {
+public interface PopularSearchRepository extends JpaRepository<PopularSearch, String> {
 
-    // 인기 검색어
-    List<PopularSearch> findTop10ByOrderByCountDesc();
-
-    // 특정 검색어가 있는지 확인
-    boolean existsByKeyword(String keyword);
+    // 상위 5개 키워드 조회
+    List<PopularSearch> findTop5ByOrderBySearchCountDesc();
 }
