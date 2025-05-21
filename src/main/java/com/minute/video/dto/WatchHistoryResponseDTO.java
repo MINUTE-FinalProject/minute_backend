@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @Builder
 public class WatchHistoryResponseDTO {
-    // 사용자가 시청한 영상 목록
+    // 시청 기록 조회 응답
     private String videoId;
     private String videoTitle;
     private String videoUrl;

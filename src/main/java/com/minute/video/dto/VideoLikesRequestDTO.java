@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class VideoLikesRequestDTO {
-    // 사용자의 좋아요 기록 저장용
+    // 좋아요 저장 요청
     private String userId;
     private String videoId;
 }

@@ -38,9 +38,12 @@ public class Video {
     private Channel channel;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<VideoCategory> videoCategories = new ArrayList<>();
+    private List<VideoCategory> videoCategories;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<VideoTag> videoTags = new ArrayList<>();
+    private List<VideoTag> videoTags;
 
+    // 추천 로직에 필요한 속성
+    private long views;
+    private long likes;
 }

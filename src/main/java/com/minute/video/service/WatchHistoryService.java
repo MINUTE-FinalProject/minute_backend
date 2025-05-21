@@ -4,8 +4,10 @@ import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
 import com.minute.video.Entity.Video;
 import com.minute.video.Entity.WatchHistory;
+import com.minute.video.dto.VideoResponseDTO;
 import com.minute.video.dto.WatchHistoryRequestDTO;
 import com.minute.video.dto.WatchHistoryResponseDTO;
+import com.minute.video.mapper.VideoMapper;
 import com.minute.video.repository.VideoRepository;
 import com.minute.video.repository.WatchHistoryRepository;
 import lombok.RequiredArgsConstructor;
@@ -23,6 +25,7 @@ public class WatchHistoryService {
     private final WatchHistoryRepository watchHistoryRepository;
     private final UserRepository userRepository;
     private final VideoRepository videoRepository;
+    private final VideoMapper videoMapper;
 
     // 시청기록저장
     public void saveWatchHistory(WatchHistoryRequestDTO watchHistoryRequestDTO) {
@@ -48,13 +51,20 @@ public class WatchHistoryService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        return watchHistoryRepository.findByUserIdOrderByWatchedAtDesc(userId).stream()
+        return watchHistoryRepository.findByUserUserIdOrderByWatchedAtDesc(userId).stream()
                 .map(watchHistory -> new WatchHistoryResponseDTO(
                         watchHistory.getVideo().getVideoId(),
                         watchHistory.getVideo().getVideoTitle(),
                         watchHistory.getVideo().getVideoUrl(),
                         watchHistory.getVideo().getThumbnailUrl(),
                         watchHistory.getWatchedAt()))
+                .collect(Collectors.toList());
+    }
+
+    // 조회수(시청기록 수) 기준 인기 영상 조회
+    public List<VideoResponseDTO> getPopularByWatchCount(){
+        return watchHistoryRepository.findMostWatchedVideos().stream()
+                .map(videoMapper::toDto)
                 .collect(Collectors.toList());
     }
 }

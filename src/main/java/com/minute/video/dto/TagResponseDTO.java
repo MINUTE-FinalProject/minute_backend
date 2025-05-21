@@ -10,6 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class TagResponseDTO {
+    // 태그 목록 조회
 
     private int tagId;
     private String tagName;

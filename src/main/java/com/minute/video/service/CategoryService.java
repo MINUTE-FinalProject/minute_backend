@@ -2,6 +2,7 @@ package com.minute.video.service;
 
 import com.minute.video.dto.CategoryDTO;
 import com.minute.video.dto.VideoResponseDTO;
+import com.minute.video.mapper.VideoMapper;
 import com.minute.video.repository.CategoryRepository;
 import com.minute.video.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
@@ -16,7 +17,6 @@ public class CategoryService {
     // 카테고리 조회 및 카테고리 기반 영상 조회
 
     private final CategoryRepository categoryRepository;
-    private final VideoRepository videoRepository;
 
     // 모든 카테고리 조회
     public List<CategoryDTO> getCategoryList() {
@@ -28,31 +28,4 @@ public class CategoryService {
                 .collect(Collectors.toList());
     }
 
-    // 특정 카테고의 영상 목록 조회
-    public List<VideoResponseDTO> getVideoByCategory(String categoryName) {
-        return videoRepository.findByCategoriesName(categoryName).stream()
-                .map(video -> {
-                    // 모든 태그 이름 추출
-                    List<String> tagNames = video.getVideoTags().stream()
-                            .map(videoTag -> videoTag.getTag().getTagName())
-                            .collect(Collectors.toList());
-
-                    // 모든 카테고리 이름 추출
-                    List<String> categoryNames = video.getVideoCategories().stream()
-                            .map(videoCategory -> videoCategory.getCategory().getCategoryName())
-                            .collect(Collectors.toList());
-
-                    return new VideoResponseDTO(
-                            video.getVideoId(),
-                            video.getVideoTitle(),
-                            video.getVideoDescription(),
-                            video.getVideoUrl(),
-                            video.getThumbnailUrl(),
-                            categoryNames,
-                            video.getChannel().getChannelName(),
-                            tagNames
-                    );
-                })
-                .collect(Collectors.toList());
-    }
 }

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @Builder
 public class VideoLikesResponseDTO {
-    // 사용자가 좋아요를 누른 영상 목록
+    // 좋아요한 영상 목록 조회 응답
     private String videoId;
     private String videoTitle;
     private String videoUrl;

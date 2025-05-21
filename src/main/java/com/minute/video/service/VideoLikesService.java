@@ -7,6 +7,8 @@ import com.minute.video.Entity.VideoLikes;
 import com.minute.video.dto.SearchHistoryResponseDTO;
 import com.minute.video.dto.VideoLikesRequestDTO;
 import com.minute.video.dto.VideoLikesResponseDTO;
+import com.minute.video.dto.VideoResponseDTO;
+import com.minute.video.mapper.VideoMapper;
 import com.minute.video.repository.VideoLikesRepository;
 import com.minute.video.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +26,7 @@ public class VideoLikesService {
     private final VideoLikesRepository videoLikesRepository;
     private final UserRepository userRepository;
     private final VideoRepository videoRepository;
+    private final VideoMapper videoMapper;
 
     // 좋아요 저장
     public void savelike(VideoLikesRequestDTO videoLikesRequestDTO) {
@@ -54,12 +57,19 @@ public class VideoLikesService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        return videoLikesRepository.findByUserId(userId).stream()
+        return videoLikesRepository.findByUserUserId(userId).stream()
                 .map(videoLikes -> new VideoLikesResponseDTO(
                         videoLikes.getVideo().getVideoId(),
                         videoLikes.getVideo().getVideoTitle(),
                         videoLikes.getVideo().getVideoUrl(),
                         videoLikes.getVideo().getThumbnailUrl()))
+                .collect(Collectors.toList());
+    }
+
+    // 좋아요 수 기준 인기 영상 조회
+    public List<VideoResponseDTO> getPopularByLikeCount(){
+        return videoLikesRepository.findMostLikedVideos().stream()
+                .map(videoMapper::toDto)
                 .collect(Collectors.toList());
     }
 }
