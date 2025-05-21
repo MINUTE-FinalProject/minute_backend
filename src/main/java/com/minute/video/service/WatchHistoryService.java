@@ -60,11 +60,4 @@ public class WatchHistoryService {
                         watchHistory.getWatchedAt()))
                 .collect(Collectors.toList());
     }
-
-    // 조회수(시청기록 수) 기준 인기 영상 조회
-    public List<VideoResponseDTO> getPopularByWatchCount(){
-        return watchHistoryRepository.findMostWatchedVideos().stream()
-                .map(videoMapper::toDto)
-                .collect(Collectors.toList());
-    }
 }

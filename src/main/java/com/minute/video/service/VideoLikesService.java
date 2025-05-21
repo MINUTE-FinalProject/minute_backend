@@ -65,11 +65,4 @@ public class VideoLikesService {
                         videoLikes.getVideo().getThumbnailUrl()))
                 .collect(Collectors.toList());
     }
-
-    // 좋아요 수 기준 인기 영상 조회
-    public List<VideoResponseDTO> getPopularByLikeCount(){
-        return videoLikesRepository.findMostLikedVideos().stream()
-                .map(videoMapper::toDto)
-                .collect(Collectors.toList());
-    }
 }

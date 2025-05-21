@@ -30,8 +30,9 @@ public class VideoResponseDTO {
     private String channelName;
     @Schema(description = "태그리스트",example = "[\"부산\", \"서울\"]")
     private List<String> tagNames;
-
+    @Schema(description = "조회수 수")
     private Long views;
+    @Schema(description = "좋아요 수")
     private Long likes;
 
 }

@@ -5,6 +5,7 @@ import com.minute.video.Entity.Video;
 import com.minute.video.Entity.VideoCategory;
 import com.minute.video.dto.VideoResponseDTO;
 import com.minute.video.mapper.VideoMapper;
+import com.minute.video.mapper.VideoResponseMapper;
 import com.minute.video.repository.SearchHistoryRepository;
 import com.minute.video.repository.VideoLikesRepository;
 import com.minute.video.repository.VideoRepository;
@@ -29,6 +30,7 @@ public class VideoService {
     private final VideoLikesRepository videoLikesRepository;
     private final SearchHistoryRepository searchHistoryRepository;
     private final VideoMapper videoMapper;
+    private final VideoResponseMapper videoResponseMapper;
 
     /* 로그인 여부에 따라 전체 조회 or 추천 영상 조회를 분기 */
     public List<VideoResponseDTO> getVideos(String userId){
@@ -44,15 +46,7 @@ public class VideoService {
     // 전체 영상 조회
     public List<VideoResponseDTO> getAllVideos() {
         return videoRepository.findTop50ByOrderByVideoIdDesc().stream()
-                .map(video -> {
-                    // 1. 기본 필드 매핑
-                    VideoResponseDTO dto = videoMapper.toDto(video);
-                    // 2. 좋아요 개수 조회
-                    long likeCount = videoLikesRepository.countByVideo(video);
-                    // 3. DTO에 세팅
-                    dto.setLikes(likeCount);
-                    return dto;
-                })
+                .map(videoResponseMapper::toDtoWithStats)
                 .collect(Collectors.toList());
     }
 
@@ -102,37 +96,21 @@ public class VideoService {
                         .reversed())
 
                 // DTO 변환 및 좋아요/조회수 주입
-                .map(video -> {
-                    VideoResponseDTO dto = videoMapper.toDto(video);
-                    dto.setLikes(videoLikesRepository.countByVideo(video));
-                    dto.setViews(video.getViews());
-                    return dto;
-                })
+                .map(videoResponseMapper::toDtoWithStats)
                 .collect(Collectors.toList());
     }
 
     // 카테고리별 영상 조회
     public List<VideoResponseDTO> getVideoByCategory(String categoryName) {
         return videoRepository.findByCategoryName(categoryName).stream()
-                .map(video -> {
-                    VideoResponseDTO dto = videoMapper.toDto(video);
-                    dto.setLikes(videoLikesRepository.countByVideo(video));
-                    dto.setViews(video.getViews());
-                    return dto;
-                })
+                .map(videoResponseMapper::toDtoWithStats)
                 .collect(Collectors.toList());
     }
 
     // 태그별 영상 조회
     public List<VideoResponseDTO> getVideosByTag(String tagName) {
-        List<Video> videos = videoRepository.findByTagName(tagName);
         return videoRepository.findByTagName(tagName).stream()
-                .map(video -> {
-                    VideoResponseDTO dto = videoMapper.toDto(video);
-                    dto.setLikes(videoLikesRepository.countByVideo(video));
-                    dto.setViews(video.getViews());
-                    return dto;
-                })
+                .map(videoResponseMapper::toDtoWithStats)
                 .collect(Collectors.toList());
     }
 
@@ -141,11 +119,39 @@ public class VideoService {
     public VideoResponseDTO getVideoDetail(String videoId){
         Video video = videoRepository.findById(videoId)
                 .orElseThrow(() -> new EntityNotFoundException("video not found: " + videoId));
-        VideoResponseDTO dto = videoMapper.toDto(video);
-        dto.setLikes(videoLikesRepository.countByVideo(video));
-        dto.setViews(video.getViews());
-        return dto;
+        return videoResponseMapper.toDtoWithStats(video);
     }
+
+    // 인기 영상 조회
+    /* 좋아요 기준 인기 영상 조회 (fallback: 조회수 → 최신순)*/
+    public List<VideoResponseDTO> getPopularByLikeCount(){
+        List<Video> videos = videoRepository.findTop50ByOrderByLikesDesc();
+        if (videos.isEmpty()){
+            // 좋아요 데이터가 없을 때 조회수기준으로 조회
+            videos = videoRepository.findTop50ByOrderByViewsDesc();
+        }
+        if(videos.isEmpty()){
+            // 조회수 데이터가 없을 때 videoId기분 최신순
+            videos = videoRepository.findTop50ByOrderByVideoIdDesc();
+        }
+        return videos.stream()
+                .map(videoResponseMapper::toDtoWithStats)
+                .collect(Collectors.toList());
+    }
+    /* 조회수 기준 인기 영상 조회 (fallback: 최신순)*/
+    public List<VideoResponseDTO> getPopularByWatchCount(){
+        List<Video> videos = watchHistoryRepository.findMostWatchedVideos();
+        if(videos.isEmpty()){
+            videos = videoRepository.findTop50ByOrderByViewsDesc();
+        }
+        if(videos.isEmpty()){
+            videos = videoRepository.findTop50ByOrderByVideoIdDesc();
+        }
+        return videos.stream()
+                .map(videoResponseMapper::toDtoWithStats)
+                .collect(Collectors.toList());
+    }
+
 }
 
 

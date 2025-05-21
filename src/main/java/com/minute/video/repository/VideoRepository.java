@@ -26,4 +26,5 @@ public interface VideoRepository extends JpaRepository<Video, String> {
 
     // 좋아요 순
     List<Video> findTop50ByOrderByLikesDesc();
+
 }
