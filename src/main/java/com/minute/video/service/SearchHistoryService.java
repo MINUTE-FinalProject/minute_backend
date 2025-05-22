@@ -9,6 +9,7 @@ import com.minute.video.dto.SearchHistoryResponseDTO;
 import com.minute.video.dto.SearchSuggestionsDTO;
 import com.minute.video.repository.PopularSearchRepository;
 import com.minute.video.repository.SearchHistoryRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -89,4 +90,9 @@ public class SearchHistoryService {
         return new SearchSuggestionsDTO(recent,popular);
     }
 
+    // 최근 검색어 삭제
+    @Transactional
+    public void deleteSearchHistory(String userId, String keyword) {
+        searchHistoryRepository.deleteByUserUserIdAndKeyword(userId, keyword);
+    }
 }
