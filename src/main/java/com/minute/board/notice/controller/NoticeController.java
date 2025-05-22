@@ -2,6 +2,7 @@ package com.minute.board.notice.controller;
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.request.NoticeImportanceUpdateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
 import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.response.NoticeListResponseDTO;
@@ -192,4 +193,36 @@ public class NoticeController {
         // 만약 간단한 성공 메시지를 JSON으로 보내고 싶다면 ResponseEntity.ok().body(Map.of("message", "삭제되었습니다")); 와 같이 할 수도 있습니다.
         return ResponseEntity.noContent().build();
     }//
+
+    // PATCH /api/notices/{noticeId}/importance
+    @Operation(summary = "공지사항 중요도 변경 (관리자 권한 필요)",
+            description = "특정 공지사항의 중요도(isImportant) 상태를 변경합니다. 이 API는 'ADMIN' 역할을 가진 사용자만 호출할 수 있습니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "중요도 변경 성공",
+                    content = @Content(schema = @Schema(implementation = NoticeDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: noticeIsImportant 필드 누락 또는 null)"),
+            @ApiResponse(responseCode = "401", description = "인증 실패"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "해당 공지사항을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @PatchMapping("/{noticeId}/importance")
+    public ResponseEntity<NoticeDetailResponseDTO> updateNoticeImportance(
+            @Parameter(name = "noticeId", description = "중요도를 변경할 공지사항의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer noticeId,
+            @Valid
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "새로운 중요도 상태",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = NoticeImportanceUpdateRequestDTO.class))
+            )
+            @RequestBody NoticeImportanceUpdateRequestDTO requestDto,
+            Authentication authentication) {
+
+        String authenticatedUserId = authentication.getName();
+        NoticeDetailResponseDTO updatedNotice = noticeService.updateNoticeImportance(noticeId, requestDto, authenticatedUserId);
+        return ResponseEntity.ok(updatedNotice);
+    }
+
 }

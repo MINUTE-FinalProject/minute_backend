@@ -2,6 +2,7 @@ package com.minute.board.notice.service;
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.request.NoticeImportanceUpdateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
 import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.response.NoticeListResponseDTO;
@@ -207,5 +208,41 @@ public class NoticeService {
         // deleteById의 경우, 해당 ID의 엔티티가 없으면 EmptyResultDataAccessException이 발생할 수 있으므로,
         // findById로 먼저 조회 후 delete(entity)를 하는 것이 조금 더 안전하거나, deleteById의 예외를 처리할 수 있습니다.
         // 여기서는 이미 findById로 조회했으므로 delete(entity)를 사용합니다.
+    }
+
+    // 공지사항 중요도 변경 기능 관련
+
+    @Transactional // 데이터 변경(수정)이 있으므로 @Transactional 추가
+    public NoticeDetailResponseDTO updateNoticeImportance(Integer noticeId, NoticeImportanceUpdateRequestDTO requestDto, String authenticatedUserId) {
+        // 1. 수정할 공지사항 조회
+        Notice noticeToUpdate = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new EntityNotFoundException("중요도를 변경할 공지사항을 찾을 수 없습니다 (ID: " + noticeId + ")"));
+
+        // 2. 권한 확인 (임시: 현재는 이 로직이 완전하지 않음)
+        //    - 실제로는 authenticatedUserId가 ADMIN 역할을 가졌는지 확인해야 합니다.
+        //    - 팀원분의 인증/인가 기능이 완성되면 이 부분을 강화해야 합니다.
+        //    - 예시: if (!/* authenticatedUserHasAdminRole */) {
+        //                throw new AccessDeniedException("이 공지사항의 중요도를 변경할 권한이 없습니다.");
+        //            }
+
+        // 3. DTO로부터 받은 값으로 공지사항 중요도 업데이트
+        // requestDto.getNoticeIsImportant()는 @NotNull이므로 null이 아님을 보장받습니다.
+        noticeToUpdate.setNoticeIsImportant(requestDto.getNoticeIsImportant());
+
+        // 4. 변경 사항 저장 (JPA의 Dirty Checking 기능으로 @Transactional 범위 내에서 자동 반영)
+        // noticeRepository.save(noticeToUpdate); // 명시적으로 호출해도 괜찮습니다.
+
+        // 5. 업데이트된 Notice 엔티티를 NoticeDetailResponseDTO로 변환하여 반환
+        //    (클라이언트가 변경된 전체 상태를 확인할 수 있도록)
+        return NoticeDetailResponseDTO.builder()
+                .noticeId(noticeToUpdate.getNoticeId())
+                .noticeTitle(noticeToUpdate.getNoticeTitle())
+                .noticeContent(noticeToUpdate.getNoticeContent())
+                .authorId(noticeToUpdate.getUser().getUserId())
+                .authorNickname(noticeToUpdate.getUser().getUserNickName())
+                .noticeCreatedAt(noticeToUpdate.getNoticeCreatedAt())
+                .noticeViewCount(noticeToUpdate.getNoticeViewCount()) // 조회수는 이 작업으로 변경되지 않음
+                .noticeIsImportant(noticeToUpdate.isNoticeIsImportant()) // 변경된 중요도
+                .build();
     }
 }
