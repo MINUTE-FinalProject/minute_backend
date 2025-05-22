@@ -21,6 +21,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -161,5 +162,34 @@ public class NoticeController {
         String authenticatedUserId = authentication.getName(); // 현재 인증된 사용자의 ID
         NoticeDetailResponseDTO updatedNotice = noticeService.updateNotice(noticeId, requestDto, authenticatedUserId);
         return ResponseEntity.ok(updatedNotice); // 200 OK와 함께 수정된 공지사항 정보 반환
+    }
+
+    // DELETE /api/notices/{noticeId}
+    @Operation(summary = "공지사항 삭제 (관리자 권한 필요)",
+            description = "특정 ID의 공지사항을 삭제합니다. 이 API는 'ADMIN' 역할을 가진 사용자만 호출할 수 있습니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "공지사항 삭제 성공 (No Content)"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (토큰 누락 또는 유효하지 않은 토큰)"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (ADMIN 역할이 아님 또는 해당 공지 삭제 권한 없음)"),
+            @ApiResponse(responseCode = "404", description = "삭제할 공지사항을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @DeleteMapping("/{noticeId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT) // 성공 시 HTTP 204 No Content 응답을 명시적으로 반환
+    public ResponseEntity<Void> deleteNotice(
+            @Parameter(name = "noticeId", description = "삭제할 공지사항의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer noticeId,
+            Authentication authentication) {
+
+        String authenticatedUserId = authentication.getName(); // 현재 인증된 사용자의 ID
+        noticeService.deleteNotice(noticeId, authenticatedUserId);
+
+        // 성공적으로 삭제되면 내용 없이 204 No Content 응답을 보내는 것이 일반적입니다.
+        // @ResponseStatus(HttpStatus.NO_CONTENT)를 사용하거나,
+        // return ResponseEntity.noContent().build(); 를 사용할 수 있습니다.
+        // 여기서는 @ResponseStatus를 사용하고 ResponseEntity<Void>를 반환하도록 했습니다.
+        // 만약 간단한 성공 메시지를 JSON으로 보내고 싶다면 ResponseEntity.ok().body(Map.of("message", "삭제되었습니다")); 와 같이 할 수도 있습니다.
+        return ResponseEntity.noContent().build();
     }
 }

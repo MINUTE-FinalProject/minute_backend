@@ -56,9 +56,10 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/v1/auth/sign-up").permitAll()
                         .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 조회
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN") //공지사항 삭제
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandle -> exceptionHandle

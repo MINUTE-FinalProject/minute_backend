@@ -184,4 +184,28 @@ public class NoticeService {
                 .noticeIsImportant(noticeToUpdate.isNoticeIsImportant())
                 .build();
     }
+
+    // 공지사항 삭제 기능 관련
+
+    @Transactional // 데이터 변경(삭제)이 있으므로 @Transactional 추가
+    public void deleteNotice(Integer noticeId, String authenticatedUserId) {
+        // 1. 삭제할 공지사항 조회 (존재 여부 확인)
+        Notice noticeToDelete = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new EntityNotFoundException("삭제할 공지사항을 찾을 수 없습니다 (ID: " + noticeId + ")"));
+
+        // 2. 권한 확인 (임시: 현재는 이 로직이 완전하지 않음)
+        //    - 실제로는 authenticatedUserId가 ADMIN 역할을 가졌는지,
+        //    - 또는 특정 조건(예: 본인 게시물)을 만족하는지 등을 확인해야 합니다.
+        //    - 팀원분의 인증/인가 기능이 완성되면 이 부분을 강화해야 합니다.
+        //    - 예시: if (!/* authenticatedUserHasAdminRole */ && !noticeToDelete.getUser().getUserId().equals(authenticatedUserId)) {
+        //                throw new AccessDeniedException("이 공지사항을 삭제할 권한이 없습니다.");
+        //            }
+
+        // 3. 공지사항 삭제
+        noticeRepository.delete(noticeToDelete);
+        // 또는 noticeRepository.deleteById(noticeId); 를 사용할 수 있습니다.
+        // deleteById의 경우, 해당 ID의 엔티티가 없으면 EmptyResultDataAccessException이 발생할 수 있으므로,
+        // findById로 먼저 조회 후 delete(entity)를 하는 것이 조금 더 안전하거나, deleteById의 예외를 처리할 수 있습니다.
+        // 여기서는 이미 findById로 조회했으므로 delete(entity)를 사용합니다.
+    }
 }
