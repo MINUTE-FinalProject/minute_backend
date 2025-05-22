@@ -60,7 +60,8 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
                         .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN") //공지사항 삭제
-                        .requestMatchers(HttpMethod.PATCH, "/api/notices/**/importance").hasRole("ADMIN") //공지사항 중요도 변경
+//                        .requestMatchers(HttpMethod.PATCH, "/api/notices/**/importance").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/notices/{noticeId}/importance").hasRole("ADMIN") //공지사항 중요도 변경
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandle -> exceptionHandle
