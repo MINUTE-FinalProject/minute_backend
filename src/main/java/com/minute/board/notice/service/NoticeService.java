@@ -2,6 +2,7 @@ package com.minute.board.notice.service;
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
 import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.response.NoticeListResponseDTO;
 import com.minute.board.notice.entity.Notice;
@@ -123,6 +124,64 @@ public class NoticeService {
                 .noticeCreatedAt(savedNotice.getNoticeCreatedAt())
                 .noticeViewCount(savedNotice.getNoticeViewCount())
                 .noticeIsImportant(savedNotice.isNoticeIsImportant())
+                .build();
+    }
+
+    // 공지사항 수정 기능 관련
+
+    @Transactional // 데이터 변경이 있으므로 @Transactional 추가
+    public NoticeDetailResponseDTO updateNotice(Integer noticeId, NoticeUpdateRequestDTO requestDto, String authenticatedUserId) {
+        // 1. 수정할 공지사항 조회
+        Notice noticeToUpdate = noticeRepository.findById(noticeId)
+                .orElseThrow(() -> new EntityNotFoundException("수정할 공지사항을 찾을 수 없습니다 (ID: " + noticeId + ")"));
+
+        // 2. 권한 확인 (임시: 현재는 이 로직이 완전하지 않음. ADMIN 역할 확인은 SecurityContext에서 이루어져야 함)
+        //    - 실제로는 authenticatedUserId가 ADMIN 역할을 가졌는지,
+        //    - 또는 이 공지사항의 작성자인지 등을 확인해야 합니다.
+        //    - 지금은 ADMIN 역할 검사는 SecurityConfig에서 경로별로 하고,
+        //      여기서는 일단 특정 사용자만 수정 가능하게 하려면 noticeToUpdate.getUser().getUserId().equals(authenticatedUserId) 같은 조건을 추가할 수 있습니다.
+        //    - 팀원분의 인증/인가 기능이 완성되면 이 부분을 강화해야 합니다.
+        //    - 예시: if (!noticeToUpdate.getUser().getUserId().equals(authenticatedUserId) && !/* authenticatedUserHasAdminRole */) {
+        //                throw new AccessDeniedException("이 공지사항을 수정할 권한이 없습니다.");
+        //            }
+
+
+        // 3. DTO로부터 받은 값으로 공지사항 정보 업데이트 (null이 아닌 필드만)
+        boolean updated = false;
+        if (requestDto.getNoticeTitle() != null && !requestDto.getNoticeTitle().equals(noticeToUpdate.getNoticeTitle())) {
+            noticeToUpdate.setNoticeTitle(requestDto.getNoticeTitle());
+            updated = true;
+        }
+        if (requestDto.getNoticeContent() != null && !requestDto.getNoticeContent().equals(noticeToUpdate.getNoticeContent())) {
+            noticeToUpdate.setNoticeContent(requestDto.getNoticeContent());
+            updated = true;
+        }
+        if (requestDto.getNoticeIsImportant() != null && requestDto.getNoticeIsImportant() != noticeToUpdate.isNoticeIsImportant()) {
+            noticeToUpdate.setNoticeIsImportant(requestDto.getNoticeIsImportant());
+            updated = true;
+        }
+
+        // 4. 실제로 변경된 사항이 있을 경우에만 저장 (선택적: @UpdateTimestamp 때문에 어차피 업데이트될 수 있음)
+        //    JPA의 Dirty Checking 기능으로 인해 @Transactional 범위 내에서는 변경된 엔티티가 자동으로 DB에 반영됩니다.
+        //    따라서, 명시적인 save 호출은 필수는 아니지만, updated 플래그를 통해 실제로 변경이 있었는지 로깅하거나
+        //    다른 처리를 할 때 유용할 수 있습니다. @UpdateTimestamp는 필드 값 변경 여부와 관계없이 엔티티가 persist/merge 될 때 갱신될 수 있습니다.
+        //    정확한 동작은 @UpdateTimestamp의 구현과 JPA provider에 따라 다를 수 있으므로,
+        //    변경이 있을 때만 save를 호출하거나, 항상 save를 호출하는 것 중 선택할 수 있습니다.
+        //    여기서는 변경이 없으면 굳이 save를 호출하지 않는 로직은 생략하고, dirty checking에 의존합니다.
+        //    만약 @UpdateTimestamp가 항상 갱신되길 원치 않는다면, updated 플래그를 활용하세요.
+
+        // noticeRepository.save(noticeToUpdate); // 명시적으로 호출하거나 Dirty Checking에 의존
+
+        // 5. 업데이트된 Notice 엔티티를 NoticeDetailResponseDTO로 변환하여 반환
+        return NoticeDetailResponseDTO.builder()
+                .noticeId(noticeToUpdate.getNoticeId())
+                .noticeTitle(noticeToUpdate.getNoticeTitle())
+                .noticeContent(noticeToUpdate.getNoticeContent())
+                .authorId(noticeToUpdate.getUser().getUserId())
+                .authorNickname(noticeToUpdate.getUser().getUserNickName())
+                .noticeCreatedAt(noticeToUpdate.getNoticeCreatedAt()) // 생성일은 변경되지 않음
+                .noticeViewCount(noticeToUpdate.getNoticeViewCount()) // 조회수는 변경되지 않음
+                .noticeIsImportant(noticeToUpdate.isNoticeIsImportant())
                 .build();
     }
 }

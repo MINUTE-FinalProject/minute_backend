@@ -2,6 +2,7 @@ package com.minute.board.notice.controller;
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
 import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
 import com.minute.board.notice.dto.response.NoticeListResponseDTO;
 import com.minute.board.notice.service.NoticeService;
@@ -129,5 +130,36 @@ public class NoticeController {
                 .toUri();
 
         return ResponseEntity.created(location).body(createdNotice);
+    }
+
+    // PUT /api/notices/{noticeId}
+    @Operation(summary = "공지사항 수정 (관리자 권한 필요)",
+            description = "기존 공지사항의 내용을 수정합니다. 이 API는 'ADMIN' 역할을 가진 사용자만 호출할 수 있습니다. DTO의 필드는 선택 사항이며, 제공된 필드만 업데이트됩니다.",
+            security = @SecurityRequirement(name = "bearerAuth"))
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "공지사항 수정 성공",
+                    content = @Content(schema = @Schema(implementation = NoticeDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (유효성 검사 실패)"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (토큰 누락 또는 유효하지 않은 토큰)"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (ADMIN 역할이 아님 또는 해당 공지 수정 권한 없음)"),
+            @ApiResponse(responseCode = "404", description = "수정할 공지사항 또는 작성자 정보를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @PutMapping("/{noticeId}")
+    public ResponseEntity<NoticeDetailResponseDTO> updateNotice(
+            @Parameter(name = "noticeId", description = "수정할 공지사항의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer noticeId,
+            @Valid
+            @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "수정할 공지사항의 정보. 모든 필드는 선택적입니다.",
+                    required = true, // 요청 본문 자체는 필수
+                    content = @Content(schema = @Schema(implementation = NoticeUpdateRequestDTO.class))
+            )
+            @RequestBody NoticeUpdateRequestDTO requestDto,
+            Authentication authentication) {
+
+        String authenticatedUserId = authentication.getName(); // 현재 인증된 사용자의 ID
+        NoticeDetailResponseDTO updatedNotice = noticeService.updateNotice(noticeId, requestDto, authenticatedUserId);
+        return ResponseEntity.ok(updatedNotice); // 200 OK와 함께 수정된 공지사항 정보 반환
     }
 }
