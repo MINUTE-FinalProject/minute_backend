@@ -31,6 +31,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
+        String pat = request.getServletPath();
+
+        // 인증 필요 없는 경로 필터링
         if (path.startsWith("/api/v1/auth")) {
             filterChain.doFilter(request, response);
             return;
@@ -61,9 +64,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.setContext(securityContext);
 
         }catch (Exception exception) {
-            exception.printStackTrace();
+            // 인증 실패 시 응답에 401 설정 후 필터 종료 권장
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json;charset=UTF-8");
+            response.getWriter().write("{\"code\":\"AP\",\"message\":\"Authorization Failed\"}");
+            return;  // 필터 체인 종료
         }
-        filterChain.doFilter(request,response);
+
+        filterChain.doFilter(request, response);
     }
 
 

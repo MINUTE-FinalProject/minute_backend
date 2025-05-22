@@ -6,6 +6,7 @@ import com.minute.video.service.VideoLikesService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -16,6 +17,7 @@ import java.util.List;
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "Like", description = "좋아요 관련 API")
+@SecurityRequirement(name = "bearerAuth")
 public class VideoLikesController {
 
     private final VideoLikesService videoLikesService;
@@ -26,7 +28,7 @@ public class VideoLikesController {
             @ApiResponse(responseCode = "400", description = "잘못된 요청입니다. userId나 videoId를 확인해 주세요."),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
-    @PostMapping("/api/videos/{videoId}/like")
+    @PostMapping("/api/v1/videos/{videoId}/like")
     public ResponseEntity<Void> like(@PathVariable String videoId, @RequestParam String userId){
         VideoLikesRequestDTO dto = VideoLikesRequestDTO.builder()
                 .userId(userId)
@@ -44,7 +46,7 @@ public class VideoLikesController {
             @ApiResponse(responseCode = "400", description = "잘못된 사용자 ID입니다. 다시 확인해 주세요."),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
-    @GetMapping("/api/users/{userId}/likes")
+    @GetMapping("/api/v1/auth/{userId}/likes")
     public List<VideoLikesResponseDTO> list(@PathVariable String userId) {
         return videoLikesService.getUserLikedVideos(userId);
     }

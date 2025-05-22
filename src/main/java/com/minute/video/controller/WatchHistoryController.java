@@ -4,21 +4,19 @@ import com.minute.video.dto.WatchHistoryRequestDTO;
 import com.minute.video.dto.WatchHistoryResponseDTO;
 import com.minute.video.service.WatchHistoryService;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.parameters.RequestBody;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
 @Tag(name = "WatchHistory",description = "영상 시청 기록 API")
+@SecurityRequirement(name = "bearerAuth")
 public class WatchHistoryController {
 
     private final WatchHistoryService watchHistoryService;
@@ -29,7 +27,7 @@ public class WatchHistoryController {
             @ApiResponse(responseCode = "400", description = "요청하신 시청 기록 정보가 올바르지 않습니다. 다시 확인해 주세요."),
             @ApiResponse(responseCode = "500", description = "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
-    @PostMapping("/api/watch-history")
+    @PostMapping("/api/v1/watch-history")
     public void save(@RequestBody WatchHistoryRequestDTO dto) {
         watchHistoryService.saveWatchHistory(dto);
     }
@@ -40,7 +38,7 @@ public class WatchHistoryController {
             @ApiResponse(responseCode = "400", description = "잘못된 사용자 ID입니다. 다시 확인해 주세요."),
             @ApiResponse(responseCode = "500", description = "서버 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
-    @GetMapping("/api/users/{userId}/watch-history")
+    @GetMapping("/api/v1/auth/{userId}/watch-history")
     public List<WatchHistoryResponseDTO> list(@PathVariable String userId){
         return watchHistoryService.getUserWatchHistory(userId);
     }
