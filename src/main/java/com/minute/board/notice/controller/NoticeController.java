@@ -191,5 +191,5 @@ public class NoticeController {
         // 여기서는 @ResponseStatus를 사용하고 ResponseEntity<Void>를 반환하도록 했습니다.
         // 만약 간단한 성공 메시지를 JSON으로 보내고 싶다면 ResponseEntity.ok().body(Map.of("message", "삭제되었습니다")); 와 같이 할 수도 있습니다.
         return ResponseEntity.noContent().build();
-    }
+    }//
 }
