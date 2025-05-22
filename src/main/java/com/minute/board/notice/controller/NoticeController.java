@@ -1,8 +1,9 @@
 package com.minute.board.notice.controller;
 
 import com.minute.board.common.dto.PageResponseDTO;
-import com.minute.board.notice.dto.NoticeDetailResponseDTO;
-import com.minute.board.notice.dto.NoticeListResponseDTO;
+import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
+import com.minute.board.notice.dto.response.NoticeListResponseDTO;
 import com.minute.board.notice.service.NoticeService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -12,16 +13,19 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 
 @Tag(name = "01. 공지사항 API", description = "공지사항 관련 API 목록입니다.") // API 그룹화
 @RestController
@@ -84,5 +88,46 @@ public class NoticeController {
 
         NoticeDetailResponseDTO response = noticeService.getNoticeDetail(noticeId);
         return ResponseEntity.ok(response); // 200 OK 상태와 함께 응답 본문 반환
+    }
+
+    // POST /api/notices
+    @Operation(summary = "새 공지사항 작성 (관리자 권한 필요)",
+            description = "새로운 공지사항을 등록합니다. 이 API는 'ADMIN' 역할을 가진 사용자만 호출할 수 있습니다.",
+            security = @SecurityRequirement(name = "bearerAuth")) // 스웨거에서 JWT 인증 필요 명시
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "공지사항 생성 성공",
+                    content = @Content(schema = @Schema(implementation = NoticeDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (유효성 검사 실패)"),
+            @ApiResponse(responseCode = "401", description = "인증 실패 (토큰 누락 또는 유효하지 않은 토큰)"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (ADMIN 역할이 아님)"),
+            @ApiResponse(responseCode = "404", description = "작성자 정보를 찾을 수 없음"), // 서비스에서 발생 가능
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @PostMapping
+    public ResponseEntity<NoticeDetailResponseDTO> createNotice(
+            @Valid @io.swagger.v3.oas.annotations.parameters.RequestBody(
+                    description = "생성할 공지사항의 정보",
+                    required = true,
+                    content = @Content(schema = @Schema(implementation = NoticeCreateRequestDTO.class))
+            )
+            @RequestBody NoticeCreateRequestDTO requestDto, // Spring의 @RequestBody 어노테이션
+            Authentication authentication) { // Spring Security의 Authentication 객체를 통해 현재 사용자 정보 접근
+
+        // 현재 인증된 사용자의 ID (principal의 name을 userId로 사용한다고 가정)
+        // UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        // String authenticatedUserId = userDetails.getUsername();
+        // 또는 만약 Principal 객체가 User 엔티티의 ID를 직접 반환하도록 커스터마이징했다면,
+        String authenticatedUserId = authentication.getName(); // 일반적으로 username(ID)을 반환
+
+        // 서비스 호출하여 공지사항 생성
+        NoticeDetailResponseDTO createdNotice = noticeService.createNotice(requestDto, authenticatedUserId);
+
+        // 생성된 리소스의 URI를 Location 헤더에 포함하여 201 Created 응답 반환
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(createdNotice.getNoticeId())
+                .toUri();
+
+        return ResponseEntity.created(location).body(createdNotice);
     }
 }

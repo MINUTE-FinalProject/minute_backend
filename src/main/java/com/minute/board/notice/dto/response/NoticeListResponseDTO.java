@@ -1,24 +1,20 @@
-package com.minute.board.notice.dto;
+package com.minute.board.notice.dto.response;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.media.Schema; // Schema 임포트
 import lombok.Builder;
 import lombok.Getter;
-
 import java.time.LocalDateTime;
 
+@Schema(description = "공지사항 목록 항목 응답 DTO") // 클래스에 대한 설명
 @Getter
 @Builder
-@Schema(description = "공지사항 상세 조회 응답 DTO")
-public class NoticeDetailResponseDTO {
+public class NoticeListResponseDTO {
 
     @Schema(description = "공지사항 ID", example = "1")
     private Integer noticeId;
 
     @Schema(description = "공지사항 제목", example = "서버 점검 안내")
     private String noticeTitle;
-
-    @Schema(description = "공지사항 내용", example = "안녕하세요. 서버 점검이 있을 예정입니다...")
-    private String noticeContent;
 
     @Schema(description = "작성자 ID (User의 userId)", example = "adminUser")
     private String authorId;
@@ -29,13 +25,9 @@ public class NoticeDetailResponseDTO {
     @Schema(description = "작성일", example = "2025-05-21T10:00:00")
     private LocalDateTime noticeCreatedAt;
 
-    @Schema(description = "조회수", example = "153")
+    @Schema(description = "조회수", example = "150")
     private int noticeViewCount;
 
     @Schema(description = "중요 공지 여부", example = "true")
     private boolean noticeIsImportant;
-
-    // 필요하다면 이전 글/다음 글 정보도 추가할 수 있습니다. (선택 사항)
-    // private SimpleNoticeInfo prevNotice;
-    // private SimpleNoticeInfo nextNotice;
 }

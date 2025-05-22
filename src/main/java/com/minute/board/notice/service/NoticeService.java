@@ -1,10 +1,13 @@
 package com.minute.board.notice.service;
 
 import com.minute.board.common.dto.PageResponseDTO;
-import com.minute.board.notice.dto.NoticeDetailResponseDTO;
-import com.minute.board.notice.dto.NoticeListResponseDTO;
+import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
+import com.minute.board.notice.dto.response.NoticeDetailResponseDTO;
+import com.minute.board.notice.dto.response.NoticeListResponseDTO;
 import com.minute.board.notice.entity.Notice;
 import com.minute.board.notice.repository.NoticeRepository;
+import com.minute.user.entity.User;
+import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException; // 표준 예외 사용 가능
 import lombok.RequiredArgsConstructor; // 생성자 주입을 위해 사용
 import org.springframework.data.domain.Page;
@@ -20,6 +23,7 @@ import java.util.stream.Collectors;
 public class NoticeService {
 
     private final NoticeRepository noticeRepository; // NoticeRepository 의존성 주입
+    private final UserRepository userRepository;
 
     // 전체 목록 조회 기능 관련
 
@@ -81,6 +85,44 @@ public class NoticeService {
                 .noticeCreatedAt(notice.getNoticeCreatedAt())
                 .noticeViewCount(notice.getNoticeViewCount()) // 증가된 조회수
                 .noticeIsImportant(notice.isNoticeIsImportant())
+                .build();
+    }
+
+    // 공지사항 작성 기능 관련
+
+    @Transactional // 데이터 변경이 있으므로 @Transactional 추가
+    public NoticeDetailResponseDTO createNotice(NoticeCreateRequestDTO requestDto, String authenticatedUserId) {
+        // 1. 작성자(User) 정보 조회
+        User author = userRepository.findUserByUserId(authenticatedUserId);
+        if (author == null) {
+            // 또는 findByUserId가 Optional<User>를 반환한다면 .orElseThrow() 사용
+            throw new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + authenticatedUserId);
+        }
+
+        // 2. Notice 엔티티 생성 및 정보 설정
+        Notice newNotice = Notice.builder()
+                .noticeTitle(requestDto.getNoticeTitle())
+                .noticeContent(requestDto.getNoticeContent())
+                .noticeIsImportant(requestDto.isNoticeIsImportant())
+                .user(author) // 작성자 엔티티 설정
+                .noticeViewCount(0) // 초기 조회수는 0
+                // noticeCreatedAt, noticeUpdatedAt는 Notice 엔티티의 @CreationTimestamp, @UpdateTimestamp에 의해 자동 설정됨
+                .build();
+
+        // 3. 생성된 Notice 엔티티 저장
+        Notice savedNotice = noticeRepository.save(newNotice);
+
+        // 4. 저장된 Notice 엔티티를 NoticeDetailResponseDTO로 변환하여 반환
+        //    (방금 만든 공지사항의 상세 정보를 바로 보여주기 위함)
+        return NoticeDetailResponseDTO.builder()
+                .noticeId(savedNotice.getNoticeId())
+                .noticeTitle(savedNotice.getNoticeTitle())
+                .noticeContent(savedNotice.getNoticeContent())
+                .authorId(savedNotice.getUser().getUserId())
+                .authorNickname(savedNotice.getUser().getUserNickName())
+                .noticeCreatedAt(savedNotice.getNoticeCreatedAt())
+                .noticeViewCount(savedNotice.getNoticeViewCount())
+                .noticeIsImportant(savedNotice.isNoticeIsImportant())
                 .build();
     }
 }
