@@ -22,6 +22,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 
 @Tag(name = "01. 공지사항 API", description = "공지사항 관련 API 목록입니다.") // API 그룹화
 @RestController
@@ -38,19 +40,16 @@ public class NoticeController {
 
     private final NoticeService noticeService;
 
-    @Operation(summary = "공지사항 전체 목록 조회", // API 요약 설명
-            description = "페이징 처리된 공지사항 전체 목록을 조회합니다. 중요 공지 상단 정렬 및 최신순으로 기본 정렬됩니다.") // API 상세 설명
+    @Operation(summary = "공지사항 전체 목록 및 검색/필터 조회", // API 요약 설명 변경
+            description = "페이징, 정렬, 텍스트 검색(searchType, searchKeyword), 중요도 필터(isImportant), 날짜 범위 필터(dateFrom, dateTo)와 함께 공지사항 목록을 조회합니다. 중요 공지 상단 정렬 및 최신순으로 기본 정렬됩니다.") // API 상세 설명 변경
     @ApiResponses(value = { // API 응답 케이스 정의
             @ApiResponse(responseCode = "200", description = "공지사항 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 성공 응답 DTO 명시
-            // 여기에 PageResponseDTO<NoticeListResponseDTO>를 명시적으로 표현하려면 springdoc-openapi의 도움을 받거나,
-            // 응답 스키마를 더 상세히 기술해야 할 수 있습니다.
-            // 우선은 PageResponseDTO.class로 두고, 실제 Swagger UI에서 어떻게 보이는지 확인 후 조정합니다.
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터 (예: 페이지 번호 음수)"),
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터 (예: 날짜 형식 오류 또는 페이지 번호 음수)"), // 상세화
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
-    // Pageable 파라미터에 대한 설명 (springdoc-openapi 사용 시 자동 생성되는 경우가 많음)
-    // 명시적으로 추가하여 더 자세한 정보를 제공할 수 있습니다.
+    // Pageable 및 검색/필터 파라미터에 대한 설명
+    // @Parameters 어노테이션으로 그룹화하거나 각 파라미터에 @Parameter를 직접 사용할 수 있습니다.
     @Parameters({
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", in = ParameterIn.QUERY,
                     schema = @Schema(type = "integer", defaultValue = "0")),
@@ -59,18 +58,39 @@ public class NoticeController {
             @Parameter(name = "sort", description = "정렬 기준 (예: 'noticeIsImportant,desc' 또는 'noticeCreatedAt,asc'). " +
                     "여러 정렬 기준을 함께 사용할 수 있습니다 (예: 'noticeIsImportant,desc&sort=noticeCreatedAt,desc'). " +
                     "기본값: 중요도 내림차순, 작성일 내림차순.",
-                    in = ParameterIn.QUERY, allowEmptyValue = true,
-                    schema = @Schema(type = "array", implementation = String.class, example = "[\"noticeIsImportant,desc\", \"noticeCreatedAt,desc\"]"))
+                    in = ParameterIn.QUERY, allowEmptyValue = true, // allowEmptyValue=true는 sort 파라미터가 비어있어도 오류 아님
+                    schema = @Schema(type = "array", implementation = String.class, example = "[\"noticeIsImportant,desc\", \"noticeCreatedAt,desc\"]")),
+            @Parameter(name = "searchType", description = "텍스트 검색 유형 (예: 'title', 'content', 'author_nickname', 'author_id', 'all')",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", example = "title")),
+            @Parameter(name = "searchKeyword", description = "텍스트 검색어",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", example = "안내")),
+            @Parameter(name = "isImportant", description = "중요 공지 필터 (true 또는 false)",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "boolean", example = "true")),
+            @Parameter(name = "dateFrom", description = "검색 시작일 (작성일 기준, ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", format = "date-time", example = "2025-05-01T00:00:00")),
+            @Parameter(name = "dateTo", description = "검색 종료일 (작성일 기준, ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", format = "date-time", example = "2025-05-22T23:59:59"))
     })
     @GetMapping
     public ResponseEntity<PageResponseDTO<NoticeListResponseDTO>> getNoticeList(
             @PageableDefault(
-                    size = 10,
-                    sort = {"noticeIsImportant", "noticeCreatedAt"},
-                    direction = Sort.Direction.DESC
-            ) Pageable pageable) { // @Parameter 어노테이션을 Pageable 파라미터 자체에 달 수도 있습니다.
+                    size = 10, // 기본 페이지 크기
+                    sort = {"noticeIsImportant", "noticeCreatedAt"}, // 기본 정렬 필드: 중요도, 그 다음 작성일
+                    direction = Sort.Direction.DESC // 기본 정렬 방향: 내림차순
+            ) Pageable pageable,
+            // 텍스트 검색 파라미터
+            @RequestParam(name = "searchType", required = false) String searchType,
+            @RequestParam(name = "searchKeyword", required = false) String searchKeyword,
+            // 새로운 필터 파라미터
+            @RequestParam(name = "isImportant", required = false) Boolean isImportant,
+            @RequestParam(name = "dateFrom", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateFrom,
+            @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo
+    ) {
 
-        PageResponseDTO<NoticeListResponseDTO> response = noticeService.getNoticeList(pageable);
+        // 서비스 메소드 호출 시 모든 파라미터 전달
+        PageResponseDTO<NoticeListResponseDTO> response = noticeService.getNoticeList(
+                pageable, searchType, searchKeyword, isImportant, dateFrom, dateTo
+        );
         return ResponseEntity.ok(response);
     }
 
