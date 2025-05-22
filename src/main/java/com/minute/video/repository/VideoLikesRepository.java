@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface VideoLikesRepository extends JpaRepository<VideoLikes, Integer> {
 
@@ -19,11 +20,7 @@ public interface VideoLikesRepository extends JpaRepository<VideoLikes, Integer>
     // 영상 좋아요 개수 조회
     Long countByVideo(Video video);
 
-    @Query("""
-      SELECT vl.video
-      FROM VideoLikes vl
-      GROUP BY vl.video
-      ORDER BY COUNT(vl) DESC
-      """)
-    List<Video> findMostLikedVideos();
+    // 영상 좋아요 삭제
+    void deleteByUserUserIdAndVideoVideoId(String userId, String videoId);
+
 }

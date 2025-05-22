@@ -45,6 +45,25 @@ public class WatchHistoryService {
                 .build();
         watchHistoryRepository.save(watchHistory);
     }
+
+    // 시청 기록 삭제
+    public void deleteWatchHistory(String userId, String videoId) {
+        // User 객체 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        // Video 객체 조회
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new RuntimeException("Video not found with ID: " + videoId));
+
+        // 해당 사용자와 영상에 대한 시청기록 찾아서 삭제
+        List<WatchHistory> watchHistories = watchHistoryRepository.findByUserAndVideo(user, video);
+        if (watchHistories.isEmpty()) {
+            throw new RuntimeException("Watch history not found for user and video");
+        }
+        watchHistoryRepository.deleteAll(watchHistories);
+    }
+
     // 특정 사용자의 시청 기록 조회
     public List<WatchHistoryResponseDTO> getUserWatchHistory(String userId){
         // User 객체 조회

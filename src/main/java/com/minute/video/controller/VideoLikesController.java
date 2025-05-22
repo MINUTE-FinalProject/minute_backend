@@ -40,6 +40,21 @@ public class VideoLikesController {
         return ResponseEntity.noContent().build();
     }
 
+    @Operation(summary = "영상 좋아요 삭제",description = "사용자가 해당 영상에 대한 좋아요를 취소합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "좋아요 정상적으로 삭제되었습니다."),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다. userId나 videoId를 확인해 주세요."),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+    })
+    @DeleteMapping("/api/v1/videos/{videoId}/like")
+    public ResponseEntity<Void> delete(
+            @PathVariable String videoId,
+            @RequestParam String userId) {
+
+        videoLikesService.deleteLike(userId, videoId);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "사용자 좋아요 영상 조회", description = "해당 사용자가 좋아요 한 영상 목록을 반환합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "좋아요한 영상 목록을 정상적으로 조회하였습니다."),

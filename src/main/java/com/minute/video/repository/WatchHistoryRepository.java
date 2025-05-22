@@ -21,4 +21,6 @@ public interface WatchHistoryRepository extends JpaRepository<WatchHistory, Inte
         ORDER BY COUNT(wh) DESC 
         """)
     List<Video> findMostWatchedVideos();
+
+    List<WatchHistory> findByUserAndVideo(User user, Video video);
 }

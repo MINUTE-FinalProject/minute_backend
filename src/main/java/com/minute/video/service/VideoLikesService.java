@@ -11,6 +11,7 @@ import com.minute.video.dto.VideoResponseDTO;
 import com.minute.video.mapper.VideoMapper;
 import com.minute.video.repository.VideoLikesRepository;
 import com.minute.video.repository.VideoRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,20 @@ public class VideoLikesService {
                 .video(video)
                 .build();
         videoLikesRepository.save(videoLikes);
+    }
+
+    @Transactional
+    public void deleteLike(String userId, String videoId) {
+        // User 객체 조회
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
+
+        // Video 객체 조회
+        Video video = videoRepository.findById(videoId)
+                .orElseThrow(() -> new RuntimeException("Video not found with ID: " + videoId));
+
+        // 해당 좋아요 정보가 있는지 확인 후 삭제
+        videoLikesRepository.deleteByUserUserIdAndVideoVideoId(userId, videoId);
     }
 
     // 사용자가 좋아요한 영상 목록 조회
