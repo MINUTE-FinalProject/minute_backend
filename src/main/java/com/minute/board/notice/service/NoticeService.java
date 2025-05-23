@@ -35,7 +35,6 @@ public class NoticeService {
     @Transactional(readOnly = true) // 읽기 작업에 대한 좋은 습관입니다.
     public PageResponseDTO<NoticeListResponseDTO> getNoticeList(
             Pageable pageable,
-            String searchType,
             String searchKeyword,
             Boolean isImportant,
             LocalDateTime dateFrom,
@@ -44,20 +43,18 @@ public class NoticeService {
         // 1. 검색 조건 Specification 생성
         Specification<Notice> spec = Specification.where(null); // 기본적으로 모든 데이터 조회 (조건 없음)
 
-        // 1-1. 텍스트 키워드 검색 조건
-        if (StringUtils.hasText(searchKeyword) && StringUtils.hasText(searchType)) {
-            // NoticeSpecification의 searchByKeyword 메소드 사용
-            // searchByKeyword 내부에서 searchType에 따라 적절한 검색 조건을 만들어줌
-            spec = spec.and(NoticeSpecification.searchByKeyword(searchType, searchKeyword));
+        // 1-1. 텍스트 키워드 통합 검색 조건 (searchKeyword만 사용)
+        if (StringUtils.hasText(searchKeyword)) {
+            // NoticeSpecification의 searchByCombinedFields 메소드를 사용하여 여러 필드 통합 검색
+            spec = spec.and(NoticeSpecification.searchByCombinedFields(searchKeyword));
         }
-        // 중요! 만약 searchType 없이 searchKeyword만 있거나, 그 반대의 경우에 대한 정책이 있다면 추가 로직 필요
-        // 예를 들어, searchType이 없으면 기본으로 'title' 검색을 한다던가 등.
-        // 현재 NoticeSpecification.searchByKeyword는 searchType이 없으면 기본 'title'로 동작하도록 되어있음.
-
-        // (선택 사항) 관리자 페이지에서 사용하는 다른 필터 조건 (예: 중요도, 날짜 범위)이 있다면
-        // 여기서 spec = spec.and(NoticeSpecification.isImportant(isImportantFilterValue)); 와 같이 추가할 수 있습니다.
+        // 주석: searchKeyword가 제공되면, NoticeSpecification.searchByCombinedFields 내부에서
+        //      미리 정의된 여러 필드(예: 제목, 내용, 작성자ID, 작성자 닉네임)를 대상으로 OR 검색을 수행합니다.
 
         // 1-2. 중요도 필터 조건 추가 (새로운 로직)
+        // (선택 사항) 관리자 페이지에서 사용하는 다른 필터 조건 (예: 중요도)이 있다면
+        // 여기서 spec = spec.and(NoticeSpecification.isImportant(isImportantFilterValue)); 와 같이 추가할 수 있습니다.
+        // -> 위 주석을 참고하여 아래와 같이 isImportant 파라미터를 사용합니다.
         if (isImportant != null) {
             spec = spec.and(NoticeSpecification.isImportant(isImportant));
         }
@@ -69,10 +66,9 @@ public class NoticeService {
             spec = spec.and(NoticeSpecification.createdAtBetween(dateFrom, dateTo));
         }
 
-
         // 2. 레포지토리에서 데이터 조회하기 (Specification 적용)
         //    Pageable 객체는 이상적으로 이미 정렬 설정(예: 중요 공지 우선, 그 다음 작성일 순)을 포함해야 합니다.
-        //    그렇지 않다면, 여기서 특정 Sort 객체를 포함한 PageRequest를 새로 만들어야 할 수 있습니다.
+        //    (이 부분은 컨트롤러의 @PageableDefault 로 처리되고 있습니다.)
         Page<Notice> noticePage = noticeRepository.findAll(spec, pageable); // findAll(Specification, Pageable) 사용
 
         // 3. Page<Notice> 내용을 List<NoticeListResponseDTO>로 변환하기
@@ -88,11 +84,10 @@ public class NoticeService {
                         .build())
                 .collect(Collectors.toList());
 
-
         // 4. PageResponseDTO 생성 및 반환
         return PageResponseDTO.<NoticeListResponseDTO>builder()
                 .content(dtoList)
-                .currentPage(noticePage.getNumber() + 1)
+                .currentPage(noticePage.getNumber() + 1) // 0-based를 1-based로 변환
                 .totalPages(noticePage.getTotalPages())
                 .totalElements(noticePage.getTotalElements())
                 .size(noticePage.getSize())

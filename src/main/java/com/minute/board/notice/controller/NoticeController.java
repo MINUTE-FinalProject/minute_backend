@@ -40,12 +40,12 @@ public class NoticeController {
 
     private final NoticeService noticeService;
 
-    @Operation(summary = "공지사항 전체 목록 및 검색/필터 조회", // API 요약 설명 변경
-            description = "페이징, 정렬, 텍스트 검색(searchType, searchKeyword), 중요도 필터(isImportant), 날짜 범위 필터(dateFrom, dateTo)와 함께 공지사항 목록을 조회합니다. 중요 공지 상단 정렬 및 최신순으로 기본 정렬됩니다.") // API 상세 설명 변경
+    @Operation(summary = "공지사항 전체 목록 및 검색/필터 조회", // API 요약 설명
+            description = "페이징, 정렬, 통합 텍스트 검색(searchKeyword), 중요도 필터(isImportant), 날짜 범위 필터(dateFrom, dateTo)와 함께 공지사항 목록을 조회합니다. 중요 공지 상단 정렬 및 최신순으로 기본 정렬됩니다.") // API 상세 설명 (searchType 제거)
     @ApiResponses(value = { // API 응답 케이스 정의
             @ApiResponse(responseCode = "200", description = "공지사항 목록 조회 성공",
                     content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
-            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터 (예: 날짜 형식 오류 또는 페이지 번호 음수)"), // 상세화
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 파라미터 (예: 날짜 형식 오류 또는 페이지 번호 음수)"),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     // Pageable 및 검색/필터 파라미터에 대한 설명
@@ -60,16 +60,15 @@ public class NoticeController {
                     "기본값: 중요도 내림차순, 작성일 내림차순.",
                     in = ParameterIn.QUERY, allowEmptyValue = true, // allowEmptyValue=true는 sort 파라미터가 비어있어도 오류 아님
                     schema = @Schema(type = "array", implementation = String.class, example = "[\"noticeIsImportant,desc\", \"noticeCreatedAt,desc\"]")),
-            @Parameter(name = "searchType", description = "텍스트 검색 유형 (예: 'title', 'content', 'author_nickname', 'author_id', 'all')",
-                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", example = "title")),
-            @Parameter(name = "searchKeyword", description = "텍스트 검색어",
-                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", example = "안내")),
+            // @Parameter(name = "searchType", description = "텍스트 검색 유형...", schema = @Schema(type = "string", example = "title")), // searchType 파라미터 설명 제거
+            @Parameter(name = "searchKeyword", description = "통합 검색어 (제목, 내용, 작성자ID/닉네임 대상)", // 설명 변경
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", example = "중요 안내")),
             @Parameter(name = "isImportant", description = "중요 공지 필터 (true 또는 false)",
                     in = ParameterIn.QUERY, required = false, schema = @Schema(type = "boolean", example = "true")),
-            @Parameter(name = "dateFrom", description = "검색 시작일 (작성일 기준, ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)",
+            @Parameter(name = "dateFrom", description = "검색 시작일 (작성일 기준, ISO 8601 형식: yyyy-MM-ddTHH:mm:ss)",
                     in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", format = "date-time", example = "2025-05-01T00:00:00")),
-            @Parameter(name = "dateTo", description = "검색 종료일 (작성일 기준, ISO 8601 형식: YYYY-MM-DDTHH:MM:SS)",
-                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", format = "date-time", example = "2025-05-22T23:59:59"))
+            @Parameter(name = "dateTo", description = "검색 종료일 (작성일 기준, ISO 8601 형식: yyyy-MM-ddTHH:mm:ss)",
+                    in = ParameterIn.QUERY, required = false, schema = @Schema(type = "string", format = "date-time", example = "2025-05-23T23:59:59")) // 예시 날짜 현재 날짜로 수정
     })
     @GetMapping
     public ResponseEntity<PageResponseDTO<NoticeListResponseDTO>> getNoticeList(
@@ -78,8 +77,8 @@ public class NoticeController {
                     sort = {"noticeIsImportant", "noticeCreatedAt"}, // 기본 정렬 필드: 중요도, 그 다음 작성일
                     direction = Sort.Direction.DESC // 기본 정렬 방향: 내림차순
             ) Pageable pageable,
-            // 텍스트 검색 파라미터
-            @RequestParam(name = "searchType", required = false) String searchType,
+            // 텍스트 검색 파라미터 (searchType 제거)
+            // @RequestParam(name = "searchType", required = false) String searchType, // searchType 파라미터 제거
             @RequestParam(name = "searchKeyword", required = false) String searchKeyword,
             // 새로운 필터 파라미터
             @RequestParam(name = "isImportant", required = false) Boolean isImportant,
@@ -87,9 +86,9 @@ public class NoticeController {
             @RequestParam(name = "dateTo", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime dateTo
     ) {
 
-        // 서비스 메소드 호출 시 모든 파라미터 전달
+        // 서비스 메소드 호출 시 searchType 파라미터 제거
         PageResponseDTO<NoticeListResponseDTO> response = noticeService.getNoticeList(
-                pageable, searchType, searchKeyword, isImportant, dateFrom, dateTo
+                pageable, /* searchType 제거 */ searchKeyword, isImportant, dateFrom, dateTo
         );
         return ResponseEntity.ok(response);
     }

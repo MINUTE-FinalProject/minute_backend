@@ -10,47 +10,36 @@ import java.time.LocalDateTime;
 
 public class NoticeSpecification {
 
+    // --- 아래 통합 검색 메소드 사용 ---
     /**
-     * 검색 유형(searchType)과 검색어(keyword)를 받아 적절한 Specification을 반환합니다.
-     *
-     * @param searchType 검색할 필드 또는 방식 (예: "title", "content", "author_nickname", "author_id", "all")
-     * @param keyword    검색어
-     * @return 생성된 Specification 객체, 조건이 없으면 null 대신 항상 참인 조건을 반환할 수도 있습니다.
-     * 여기서는 null을 반환하고 서비스에서 null 체크 후 and로 조합합니다.
+     * 여러 필드(제목, 내용, 작성자ID, 작성자 닉네임)에서 키워드로 통합 검색하는 Specification
+     * @param keyword 검색어
+     * @return Specification 객체
      */
-    public static Specification<Notice> searchByKeyword(final String searchType, final String keyword) {
-        // keyword가 비어있거나 공백이면 조건을 적용하지 않고 null 반환 (서비스에서 처리)
-        if (!StringUtils.hasText(keyword) || !StringUtils.hasText(searchType)) {
-            return null; // 또는 Specification.where(null) 과 같이 항상 참인 조건을 반환해도 됩니다.
+    public static Specification<Notice> searchByCombinedFields(final String keyword) {
+        // keyword가 비어있거나 공백이면 조건을 적용하지 않음
+        if (!StringUtils.hasText(keyword)) {
+            return null;
         }
 
         return (Root<Notice> root, CriteriaQuery<?> query, CriteriaBuilder cb) -> {
-            // Notice와 User 엔티티를 조인합니다. 검색 조건에 따라 필요할 수 있습니다.
-            // N+1 문제를 피하기 위해 fetch join을 고려할 수 있으나, 여기서는 단순 join을 사용합니다.
-            // distinct(true)는 join으로 인해 결과가 중복될 경우를 대비해 설정할 수 있습니다.
-            // query.distinct(true);
+            Join<Notice, User> userJoin = root.join("user", JoinType.LEFT);
+            // query.distinct(true); // 조인으로 인해 결과가 중복될 경우
 
-            Join<Notice, User> userJoin = root.join("user", JoinType.LEFT); // LEFT JOIN 사용
+            String lowerKeyword = keyword.toLowerCase(); // 대소문자 구분 없는 검색
 
-            switch (searchType.toLowerCase()) {
-                case "title":
-                    return cb.like(root.get("noticeTitle"), "%" + keyword + "%");
-                case "content": // 내용 검색 조건 추가
-                    return cb.like(root.get("noticeContent"), "%" + keyword + "%");
-                case "author_nickname":
-                    return cb.like(userJoin.get("userNickName"), "%" + keyword + "%");
-                case "author_id":
-                    return cb.like(userJoin.get("userId"), "%" + keyword + "%");
-                case "all": // 제목 OR 내용 OR 작성자 닉네임 OR 작성자 ID
-                    Predicate titlePredicate = cb.like(root.get("noticeTitle"), "%" + keyword + "%");
-                    Predicate contentPredicate = cb.like(root.get("noticeContent"), "%" + keyword + "%");
-                    Predicate nicknamePredicate = cb.like(userJoin.get("userNickName"), "%" + keyword + "%");
-                    Predicate userIdPredicate = cb.like(userJoin.get("userId"), "%" + keyword + "%");
-                    return cb.or(titlePredicate, contentPredicate, nicknamePredicate, userIdPredicate);
-                default:
-                    // 유효하지 않은 searchType이거나, 기본 검색을 제목으로 하고 싶을 때
-                    return cb.like(root.get("noticeTitle"), "%" + keyword + "%");
-            }
+            // VARCHAR 타입 필드들은 cb.lower() 사용 가능성이 높음
+            Predicate titlePredicate = cb.like(cb.lower(root.get("noticeTitle")), "%" + lowerKeyword + "%");
+            Predicate nicknamePredicate = cb.like(cb.lower(userJoin.get("userNickName")), "%" + lowerKeyword + "%");
+            Predicate userIdPredicate = cb.like(cb.lower(userJoin.get("userId")), "%" + lowerKeyword + "%");
+
+            // noticeContent (TEXT 타입)에 대한 검색: cb.lower() 없이 검색
+            // DB의 utf8mb4_unicode_ci collation이 대소문자 구분 없는 검색을 지원
+            Predicate contentPredicate = cb.like(root.get("noticeContent"), "%" + keyword + "%");
+            // 또는 일관성을 위해 keyword도 소문자로 했으니 여기도 lowerKeyword 사용
+            // Predicate contentPredicate = cb.like(root.get("noticeContent"), "%" + lowerKeyword + "%");
+
+            return cb.or(titlePredicate, contentPredicate, nicknamePredicate, userIdPredicate);
         };
     }
 
