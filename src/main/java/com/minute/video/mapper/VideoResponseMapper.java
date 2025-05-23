@@ -14,7 +14,7 @@ public class VideoResponseMapper {
 
     public VideoResponseDTO toDtoWithStats(Video video) {
         VideoResponseDTO dto = videoMapper.toDto(video);
-        dto.setLikes(videoLikesRepository.countByVideo(video));
+        dto.setLikes(videoLikesRepository.countByVideoVideoId(video.getVideoId()));
         dto.setViews(video.getViews());
         return dto;
     }
