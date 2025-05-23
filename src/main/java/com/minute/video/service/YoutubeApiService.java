@@ -24,7 +24,7 @@ public class YoutubeApiService {
         String url = UriComponentsBuilder.fromHttpUrl("https://www.googleapis.com/youtube/v3/search")
                 .queryParam("key", apiKey)
                 .queryParam("part", "snippet")
-                .queryParam("type", "video")
+                .queryParam("type", "short")
                 .queryParam("maxResults", maxResults)
                 .queryParam("q", keyword)
                 .queryParam("regionCode", "KR")
