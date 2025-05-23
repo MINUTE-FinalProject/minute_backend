@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -19,15 +21,15 @@ public class Checklist {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "checklist_id")
-    private int checklistId;
+    private Integer checklistId;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id")
-    private User userId;
+    private User user;
 
     @ManyToOne
     @JoinColumn(name = "plan_id")
-    private Plan planId;
+    private Plan plan;
 
     @Column(name = "travel_date")
     private LocalDate travelDate;
@@ -36,11 +38,13 @@ public class Checklist {
     private String itemContent;
 
     @Column(name = "is_checked")
-    private Boolean isChecked;
+    private Boolean isChecked = false;  // 필드 객체 생성 시 기본 false
 
+    @CreationTimestamp  // 엔티티가 처음 persist() 될 때 한 번만 현재 시각 설정
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
+    @UpdateTimestamp    // 엔티티를 update() 할 떄마다 현재 시각으로 갱신
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 }
