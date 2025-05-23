@@ -9,9 +9,11 @@ import com.minute.video.dto.SearchHistoryResponseDTO;
 import com.minute.video.dto.SearchSuggestionsDTO;
 import com.minute.video.repository.PopularSearchRepository;
 import com.minute.video.repository.SearchHistoryRepository;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.stream.Collectors;
@@ -25,6 +27,7 @@ public class SearchHistoryService {
     private final PopularSearchRepository popularSearchRepository;
 
     // 사용자의 검색어 저장 + 인기 검색어 집계
+    @Transactional
     public void saveSearchHistory(SearchHistoryRequestDTO searchRequestDTO) {
         User user = userRepository.findById(searchRequestDTO.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + searchRequestDTO.getUserId()));
@@ -51,6 +54,7 @@ public class SearchHistoryService {
 
 
     // 사용자의 검색 기록 조회(최신순)
+    @Transactional(readOnly = true)
     public List<SearchHistoryResponseDTO> getUserSearchHistory(String userId) {
         userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found: " + userId));
@@ -58,6 +62,7 @@ public class SearchHistoryService {
         return searchHistoryRepository.findByUserUserIdOrderBySearchedAtDesc(userId).stream()
                 .map(searchHistory -> new SearchHistoryResponseDTO(
                         searchHistory.getUser().getUserId(),
+                        searchHistory.getSearchId(),
                         searchHistory.getKeyword(),
                         searchHistory.getSearchedAt()))
                 .collect(Collectors.toList());
@@ -87,6 +92,12 @@ public class SearchHistoryService {
         List<String> recent = getRecentKeywords(userId);
         List<String> popular = getPopularKeywords();
         return new SearchSuggestionsDTO(recent,popular);
+    }
+
+    // 최근 검색어 삭제
+    @Transactional
+    public void deleteSearchHistory(Integer searchId) {
+        searchHistoryRepository.deleteById(searchId);
     }
 
 }

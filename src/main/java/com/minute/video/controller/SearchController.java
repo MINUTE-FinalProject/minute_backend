@@ -47,6 +47,19 @@ public class SearchController {
         return searchHistoryService.getUserSearchHistory(userId);
     }
 
+    @Operation(summary = "최근 검색어 삭제", description = "사용자의 특정 검색 기록을 삭제합니다.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "검색 기록이 정상적으로 삭제되었습니다."),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청입니다. userId 또는 검색어를 확인해 주세요."),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
+    })
+    @DeleteMapping("/history/{searchId}")
+    public ResponseEntity<Void> deleteSearch(
+            @PathVariable Integer searchId) {
+        searchHistoryService.deleteSearchHistory(searchId);
+        return ResponseEntity.noContent().build();
+    }
+
     @Operation(summary = "인기 검색어 조회", description ="전체 사용자 기준 상위 5개 인기 검색어를 반환합니다.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "인기 검색어 목록 반환 성공하였습니다."),
