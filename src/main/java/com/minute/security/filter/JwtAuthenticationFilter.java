@@ -18,23 +18,20 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-import static org.aspectj.weaver.tools.cache.SimpleCacheFactory.path;
-
 @Component
-@RequiredArgsConstructor//필수 매개변수 생성자 생성
+@RequiredArgsConstructor //필수 매개변수 생성자 생성
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
-
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        String pat = request.getServletPath();
+        String path = request.getServletPath();
 
-        // 인증 필요 없는 경로 필터링
-        if (path.startsWith("/api/v1/auth")) {
+        // 인증 필요 없는 경로 필터링 (유튜브 API 경로 추가)
+        if (path.startsWith("/api/v1/auth") || path.startsWith("/api/v1/youtube")) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -49,7 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             String email = jwtProvider.validate(token);
 
-            if(email == null) {
+            if (email == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
@@ -63,7 +60,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder.setContext(securityContext);
 
-        }catch (Exception exception) {
+        } catch (Exception exception) {
             // 인증 실패 시 응답에 401 설정 후 필터 종료 권장
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json;charset=UTF-8");
@@ -74,20 +71,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
-
     private String parseBearerToken(HttpServletRequest request) {
-
         String authorization = request.getHeader("Authorization");
 
         boolean hasAuthorization = StringUtils.hasText(authorization);
         if (!hasAuthorization) return null;
 
         boolean isBearer = authorization.startsWith("Bearer ");
-        if(!isBearer) return null;
+        if (!isBearer) return null;
 
         String token = authorization.substring(7);
         return token;
-
-
     }
 }

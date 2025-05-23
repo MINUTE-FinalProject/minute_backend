@@ -20,3 +20,7 @@ springdoc:
     operations-sorter: alpha
     tags-sorter: alpha
     display-request-duration: true
+
+youtube:
+  api:
+    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
