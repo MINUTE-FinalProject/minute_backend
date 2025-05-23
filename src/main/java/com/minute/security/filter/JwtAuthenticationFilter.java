@@ -31,28 +31,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
 
-        if (path.startsWith("/api/v1/auth")) {
+        String requestPath = request.getRequestURI();
+
+        if (requestPath.startsWith("/api/v1/auth")) {
             filterChain.doFilter(request, response);
             return;
         }
-
         try {
             String token = parseBearerToken(request);
+
+
 
             if (token == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
-            String email = jwtProvider.validate(token);
+            String userEmail = jwtProvider.validate(token);
 
-            if(email == null) {
+            if(userEmail == null) {
                 filterChain.doFilter(request, response);
                 return;
             }
 
             AbstractAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(email, null, AuthorityUtils.NO_AUTHORITIES);
+                    new UsernamePasswordAuthenticationToken(userEmail, null, AuthorityUtils.NO_AUTHORITIES);
             authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
             SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
@@ -80,6 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String token = authorization.substring(7);
         return token;
 
-
     }
+
+
 }

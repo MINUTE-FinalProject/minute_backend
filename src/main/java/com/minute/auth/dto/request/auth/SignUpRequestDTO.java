@@ -1,4 +1,4 @@
-package com.minute.user.dto.request.auth;
+package com.minute.auth.dto.request.auth;
 
 import com.minute.user.enumpackage.UserGender;
 import jakarta.validation.constraints.*;

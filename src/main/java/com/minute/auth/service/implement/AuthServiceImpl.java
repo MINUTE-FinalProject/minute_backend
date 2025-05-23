@@ -1,16 +1,16 @@
-package com.minute.user.service.implement;
+package com.minute.auth.service.implement;
 
 import com.minute.security.handler.JwtProvider;
-import com.minute.user.dto.request.auth.SignInRequestDto;
-import com.minute.user.dto.request.auth.SignUpRequestDTO;
-import com.minute.user.dto.request.auth.SignupValidateRequestDto;
-import com.minute.user.dto.response.ResponseDto;
-import com.minute.user.dto.response.auth.SignInResponseDto;
-import com.minute.user.dto.response.auth.SignupResponseDto;
-import com.minute.user.dto.response.auth.SignupValidateResponseDto;
+import com.minute.auth.dto.request.auth.SignInRequestDto;
+import com.minute.auth.dto.request.auth.SignUpRequestDTO;
+import com.minute.auth.dto.request.auth.SignupValidateRequestDto;
+import com.minute.auth.dto.response.ResponseDto;
+import com.minute.auth.dto.response.auth.SignInResponseDto;
+import com.minute.auth.dto.response.auth.SignupResponseDto;
+import com.minute.auth.dto.response.auth.SignupValidateResponseDto;
 import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
-import com.minute.user.service.AuthService;
+import com.minute.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;

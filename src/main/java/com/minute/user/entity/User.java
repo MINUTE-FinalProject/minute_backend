@@ -12,7 +12,7 @@ import com.minute.board.qna.entity.Qna;
 import com.minute.board.qna.entity.QnaReply;
 import com.minute.board.qna.entity.QnaReport;
 // User 관련 Enum import (별도 파일로 분리된 경우)
-import com.minute.user.dto.request.auth.SignUpRequestDTO;
+import com.minute.auth.dto.request.auth.SignUpRequestDTO;
 import com.minute.user.enumpackage.Role;
 import com.minute.user.enumpackage.UserStatus;
 import com.minute.user.enumpackage.UserGender;
@@ -36,18 +36,26 @@ import java.util.List;
 @Table(name = "user")
 public class User {
 
+    @Setter
     @Id
     @Column(name = "user_id", length = 100)
     private String userId;
 
+    @Setter
     @Column(name = "user_pw", nullable = false, length = 100)
     private String userPw;
 
+    @Setter
     @Column(name = "user_name", nullable = false, length = 100)
     private String userName;
 
+    @Setter
     @Column(name = "user_nickname", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
     private String userNickName;
+
+    @Setter
+    @Column(name = "user_profile_image")
+    private String profileImage;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
@@ -62,9 +70,11 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Setter
     @Column(name = "user_phone", nullable = false, length = 100)
     private String userPhone;
 
+    @Setter
     @Column(name = "user_email", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
     private String userEmail;
 
@@ -73,6 +83,7 @@ public class User {
     @ColumnDefault("'N'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 N)
     private UserStatus userStatus = UserStatus.N; // 자바 객체 기본값 설정
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "user_gender", nullable = false)
     @ColumnDefault("'MALE'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 MALE)
