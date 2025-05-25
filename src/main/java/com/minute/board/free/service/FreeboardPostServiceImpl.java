@@ -120,6 +120,27 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         return convertToDetailDto(postToUpdate);
     }
 
+    @Override
+    @Transactional // 데이터 삭제 작업이므로 @Transactional 적용
+    public void deletePost(Integer postId, String requestUserId) {
+        // 1. 삭제할 게시글 조회
+        FreeboardPost postToDelete = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("삭제할 게시글을 찾을 수 없습니다: " + postId));
+
+        // 2. (임시) 삭제 권한 확인: 요청된 userId와 실제 게시글 작성자의 userId가 일치하는지 확인
+        //    실제 인증 연동 시에는 SecurityContextHolder에서 현재 로그인한 사용자 정보를 가져와 비교해야 합니다.
+        if (requestUserId == null || !postToDelete.getUser().getUserId().equals(requestUserId)) {
+            // 실제로는 관리자(Admin)도 삭제 가능하도록 로직 추가 필요
+            throw new AccessDeniedException("게시글 삭제 권한이 없습니다. (작성자 불일치)");
+        }
+
+        // 3. 게시글 삭제
+        // FreeboardPostLikes, FreeboardPostReports, FreeboardComments 등 연관 엔티티는
+        // DB 스키마에서 ON DELETE CASCADE로 설정되어 있다면 게시글 삭제 시 자동으로 함께 삭제됩니다.
+        // 그렇지 않다면 여기서 직접 삭제 로직을 추가해야 합니다. (현재 제공해주신 스키마는 CASCADE 설정이 되어 있습니다)
+        freeboardPostRepository.delete(postToDelete);
+    }
+
     /**
      * FreeboardPost 엔티티를 FreeboardPostSimpleResponseDTO로 변환합니다.
      *

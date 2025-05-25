@@ -120,4 +120,25 @@ public class FreeboardPostController {
         FreeboardPostResponseDTO responseDto = freeboardPostService.updatePost(postId, requestDto);
         return ResponseEntity.ok(responseDto); // HTTP 200 OK
     }
+
+    @Operation(summary = "자유게시판 게시글 삭제", description = "특정 ID의 게시글을 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "게시글 삭제 성공 (No Content)"), // 또는 200 OK 와 함께 메시지 DTO
+            @ApiResponse(responseCode = "403", description = "게시글 삭제 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "삭제할 게시글을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 처리 오류")
+    })
+    @Parameters({
+            @Parameter(name = "postId", description = "삭제할 게시글의 고유 ID", required = true, example = "1", in = ParameterIn.PATH, schema = @Schema(type = "integer")),
+            @Parameter(name = "userId", description = "삭제를 요청하는 사용자의 ID (임시 권한 확인용)", required = true, example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @DeleteMapping("/{postId}")
+    public ResponseEntity<Void> deletePost(
+            @PathVariable Integer postId,
+            @RequestParam String userId) { // 임시 권한 확인을 위해 요청 파라미터로 userId 받음
+
+        freeboardPostService.deletePost(postId, userId);
+        return ResponseEntity.noContent().build(); // HTTP 204 No Content
+        // 또는 return ResponseEntity.ok().body(new MessageResponseDto("게시글이 성공적으로 삭제되었습니다.")); 와 같이 메시지 반환 가능
+    }
 }

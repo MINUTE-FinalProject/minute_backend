@@ -59,6 +59,7 @@ public class WebSecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/api/v1/board/free").permitAll() // <<< 이 줄을 추가 (임시)자유게시판 수정 필요
                         .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/**").permitAll() // <<< 이 줄을 추가 (임시, 경로에 와일드카드 사용)
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/**").permitAll() // <<< 이 줄을 추가 (임시)
                         .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
                         .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정

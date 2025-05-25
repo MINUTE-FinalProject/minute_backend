@@ -48,5 +48,15 @@ public interface FreeboardPostService {
      * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없을 경우 (임시 로직)
      */
     FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto);
+
+    /**
+     * 특정 ID의 자유게시판 게시글을 삭제합니다.
+     *
+     * @param postId 삭제할 게시글의 ID
+     * @param requestUserId 삭제를 요청하는 사용자의 ID (임시 권한 확인용)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없을 경우
+     * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없을 경우 (임시 로직)
+     */
+    void deletePost(Integer postId, String requestUserId); // 반환 타입 void 또는 간단한 성공 메시지 DTO 가능
 }
 
