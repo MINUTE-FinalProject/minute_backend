@@ -38,4 +38,14 @@ public interface FreeboardCommentService {
      * @throws org.springframework.security.access.AccessDeniedException 댓글 수정 권한이 없을 경우 (임시 로직)
      */
     FreeboardCommentResponseDTO updateComment(Integer commentId, FreeboardCommentRequestDTO requestDto);
+
+    /**
+     * 특정 ID의 댓글을 삭제합니다.
+     *
+     * @param commentId 삭제할 댓글의 ID
+     * @param requestUserId 삭제를 요청하는 사용자의 ID (임시 권한 확인용)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글을 찾을 수 없을 경우
+     * @throws org.springframework.security.access.AccessDeniedException 댓글 삭제 권한이 없을 경우 (임시 로직)
+     */
+    void deleteComment(Integer commentId, String requestUserId);
 }

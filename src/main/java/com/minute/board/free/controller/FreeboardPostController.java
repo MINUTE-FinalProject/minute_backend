@@ -224,4 +224,24 @@ public class FreeboardPostController {
         FreeboardCommentResponseDTO responseDto = freeboardCommentService.updateComment(commentId, requestDto);
         return ResponseEntity.ok(responseDto); // HTTP 200 OK
     }
+
+    @Operation(summary = "댓글 삭제", description = "특정 ID의 댓글을 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "댓글 삭제 성공 (No Content)"),
+            @ApiResponse(responseCode = "403", description = "댓글 삭제 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "삭제할 댓글을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "commentId", description = "삭제할 댓글의 고유 ID", required = true, example = "1", in = ParameterIn.PATH, schema = @Schema(type = "integer")),
+            @Parameter(name = "userId", description = "삭제를 요청하는 사용자의 ID (임시 권한 확인용)", required = true, example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @DeleteMapping("/comments/{commentId}") // 경로 변경: 게시글 ID 없이 댓글 ID만으로 접근
+    public ResponseEntity<Void> deleteComment(
+            @PathVariable Integer commentId,
+            @RequestParam String userId) { // 임시 권한 확인을 위해 요청 파라미터로 userId 받음
+
+        freeboardCommentService.deleteComment(commentId, userId);
+        return ResponseEntity.noContent().build(); // HTTP 204 No Content
+    }
 }
