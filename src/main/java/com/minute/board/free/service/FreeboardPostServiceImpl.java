@@ -1,11 +1,13 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
+import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -23,6 +25,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     private final FreeboardPostRepository freeboardPostRepository;
     // UserRepository도 필요할 수 있습니다. (만약 User 정보가 LAZY 로딩이고, DTO 변환 시 추가 쿼리가 발생한다면 EAGER 로딩 또는 fetch join 고려)
+    private final UserRepository userRepository; // UserRepository 주입
 
     @Override
     public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {
@@ -60,6 +63,30 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         // freeboardPostRepository.save(post); // @Transactional에 의해 변경 감지되어 자동 업데이트, 명시적 save 불필요
 
         return convertToDetailDto(post);
+    }
+
+    @Override
+    @Transactional // 데이터 생성(쓰기) 작업이므로 @Transactional 적용
+    public FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto) {
+        // 1. 작성자(User) 정보 조회
+        // DTO에 userId가 포함되어 있다고 가정 (인증 연동 전 임시 처리)
+        // 실제 인증 연동 시에는 SecurityContextHolder에서 사용자 정보를 가져옵니다.
+        User author = userRepository.findUserByUserId(requestDto.getUserId()) // UserRepository에 findByUserId 메서드가 있다고 가정
+                .orElseThrow(() -> new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 2. DTO를 Entity로 변환
+        FreeboardPost newPost = FreeboardPost.builder()
+                .postTitle(requestDto.getPostTitle())
+                .postContent(requestDto.getPostContent())
+                .user(author) // 작성자 엔티티 설정
+                // postViewCount, postLikeCount, postIsHidden 등은 기본값으로 설정됨 (엔티티 정의에 따라)
+                .build();
+
+        // 3. 게시글 저장
+        FreeboardPost savedPost = freeboardPostRepository.save(newPost);
+
+        // 4. 저장된 Entity를 Response DTO로 변환하여 반환
+        return convertToDetailDto(savedPost);
     }
 
     /**

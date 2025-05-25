@@ -1,6 +1,7 @@
 package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.service.FreeboardPostService;
@@ -13,15 +14,16 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
+
+import java.net.URI;
 
 @Tag(name = "01. 자유게시판 API", description = "자유게시판 게시글 관련 API입니다.") // API 그룹 태그
 @RestController
@@ -65,5 +67,33 @@ public class FreeboardPostController {
     public ResponseEntity<FreeboardPostResponseDTO> getPostById(@PathVariable Integer postId) {
         FreeboardPostResponseDTO responseDto = freeboardPostService.getPostById(postId);
         return ResponseEntity.ok(responseDto);
+    }
+
+    @Operation(summary = "자유게시판 게시글 작성", description = "새로운 자유게시판 게시글을 작성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "게시글 작성 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardPostResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 제목/내용 누락, 사용자 ID 없음 등)"),
+            @ApiResponse(responseCode = "404", description = "요청 DTO의 userId에 해당하는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 처리 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody( // Swagger UI에서 RequestBody 명시
+            description = "생성할 게시글의 정보와 작성자 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = FreeboardPostRequestDTO.class))
+    )
+    @PostMapping
+    public ResponseEntity<FreeboardPostResponseDTO> createPost(
+            @Valid @org.springframework.web.bind.annotation.RequestBody FreeboardPostRequestDTO requestDto) { // @Valid로 DTO 유효성 검사
+
+        FreeboardPostResponseDTO responseDto = freeboardPostService.createPost(requestDto);
+
+        // 생성된 리소스의 URI를 Location 헤더에 포함하여 반환 (RESTful API 권장 사항)
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest() // 현재 요청 URI (/api/v1/board/free)
+                .path("/{id}") // 여기에 생성된 리소스의 ID를 추가
+                .buildAndExpand(responseDto.getPostId()) // responseDto에서 postId를 가져와 {id}에 바인딩
+                .toUri();
+
+        return ResponseEntity.created(location).body(responseDto); // HTTP 201 Created
     }
 }
