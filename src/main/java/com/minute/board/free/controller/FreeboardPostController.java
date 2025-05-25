@@ -1,6 +1,7 @@
 package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
@@ -165,5 +166,38 @@ public class FreeboardPostController {
 
         PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByPostId(postId, pageable);
         return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "특정 게시글에 댓글 작성", description = "새로운 댓글을 작성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "댓글 작성 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardCommentResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 내용 누락 등)"),
+            @ApiResponse(responseCode = "404", description = "게시글 또는 작성자 정보를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody( // Swagger UI에서 RequestBody 명시
+            description = "생성할 댓글의 내용과 작성자 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = FreeboardCommentRequestDTO.class))
+    )
+    @PostMapping("/{postId}/comments")
+    public ResponseEntity<FreeboardCommentResponseDTO> createComment(
+            @Parameter(description = "댓글을 작성할 게시글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer postId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody FreeboardCommentRequestDTO requestDto) {
+
+        FreeboardCommentResponseDTO responseDto = freeboardCommentService.createComment(postId, requestDto);
+
+        // 생성된 댓글 리소스의 URI (단일 댓글 조회 API가 있다면 그곳으로, 없다면 댓글 목록 또는 게시글 상세로)
+        // 여기서는 댓글 목록을 가리키도록 예시
+        URI location = ServletUriComponentsBuilder.fromCurrentContextPath()
+                .path("/api/v1/board/free/{postId}/comments") // 댓글 목록 경로
+                .queryParam("commentId", responseDto.getCommentId()) // 생성된 댓글 ID를 쿼리 파라미터로 추가 (선택적)
+                .buildAndExpand(postId)
+                .toUri();
+        // 단일 댓글 조회 API가 있다면: .path("/api/v1/board/free/comments/{commentId}").buildAndExpand(responseDto.getCommentId()).toUri();
+
+        return ResponseEntity.created(location).body(responseDto); // HTTP 201 Created
     }
 }
