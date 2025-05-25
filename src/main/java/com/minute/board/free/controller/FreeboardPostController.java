@@ -1,6 +1,7 @@
 package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.service.FreeboardPostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -18,6 +19,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -50,4 +52,18 @@ public class FreeboardPostController {
     }
 
     // 여기에 게시글 상세 조회, 작성, 수정, 삭제 등 다른 API 엔드포인트들이 추가될 예정입니다.
+
+    @Operation(summary = "자유게시판 게시글 상세 조회", description = "특정 ID의 게시글 상세 정보를 조회하고, 조회수를 1 증가시킵니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "게시글 상세 조회 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardPostResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "요청한 ID에 해당하는 게시글을 찾을 수 없음 (메시지는 GlobalExceptionHandler 또는 여기서 직접 설정 가능)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 처리 오류")
+    })
+    @Parameter(name = "postId", description = "조회할 게시글의 고유 ID", required = true, example = "1", in = ParameterIn.PATH, schema = @Schema(type = "integer"))
+    @GetMapping("/{postId}")
+    public ResponseEntity<FreeboardPostResponseDTO> getPostById(@PathVariable Integer postId) {
+        FreeboardPostResponseDTO responseDto = freeboardPostService.getPostById(postId);
+        return ResponseEntity.ok(responseDto);
+    }
 }

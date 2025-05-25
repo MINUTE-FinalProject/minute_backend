@@ -1,10 +1,12 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
+import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,6 +49,19 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
     }
 
+    @Override
+    @Transactional // 데이터 변경(조회수 증가)이 있으므로 readOnly=false로 동작
+    public FreeboardPostResponseDTO getPostById(Integer postId) {
+        FreeboardPost post = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("해당 ID의 게시글을 찾을 수 없습니다: " + postId));
+
+        // 조회수 증가 (JPA의 dirty checking 활용)
+        post.setPostViewCount(post.getPostViewCount() + 1);
+        // freeboardPostRepository.save(post); // @Transactional에 의해 변경 감지되어 자동 업데이트, 명시적 save 불필요
+
+        return convertToDetailDto(post);
+    }
+
     /**
      * FreeboardPost 엔티티를 FreeboardPostSimpleResponseDTO로 변환합니다.
      *
@@ -68,4 +83,27 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     }
 
     // 상세 조회, 생성, 수정, 삭제 등 다른 메서드들은 여기에 구현됩니다.
+
+    /** 상세 조회
+     * FreeboardPost 엔티티를 FreeboardPostResponseDTO (상세 DTO)로 변환합니다.
+     *
+     * @param post FreeboardPost 엔티티
+     * @return FreeboardPostResponseDTO
+     */
+    private FreeboardPostResponseDTO convertToDetailDto(FreeboardPost post) {
+        User user = post.getUser(); // N+1 주의! 필요시 fetch join 또는 @EntityGraph
+        return FreeboardPostResponseDTO.builder()
+                .postId(post.getPostId())
+                .postTitle(post.getPostTitle())
+                .postContent(post.getPostContent())
+                .postViewCount(post.getPostViewCount())
+                .postLikeCount(post.getPostLikeCount())
+                .postIsHidden(post.isPostIsHidden()) // 엔티티 필드명 확인 필요 (isPostIsHidden or getPostIsHidden)
+                .postCreatedAt(post.getPostCreatedAt())
+                .postUpdatedAt(post.getPostUpdatedAt())
+                .userId(user != null ? user.getUserId() : null)
+                .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
+                .build();
+    }
+
 }
