@@ -2,8 +2,10 @@ package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞�
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
+import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
+import com.minute.board.free.service.FreeboardCommentService;
 import com.minute.board.free.service.FreeboardPostService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -32,6 +34,7 @@ import java.net.URI;
 public class FreeboardPostController {
 
     private final FreeboardPostService freeboardPostService;
+    private final FreeboardCommentService freeboardCommentService; // FreeboardCommentService 주입
 
     @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다.")
     @ApiResponses(value = {
@@ -140,5 +143,27 @@ public class FreeboardPostController {
         freeboardPostService.deletePost(postId, userId);
         return ResponseEntity.noContent().build(); // HTTP 204 No Content
         // 또는 return ResponseEntity.ok().body(new MessageResponseDto("게시글이 성공적으로 삭제되었습니다.")); 와 같이 메시지 반환 가능
+    }
+
+    @Operation(summary = "특정 게시글의 댓글 목록 조회", description = "페이징 처리된 댓글 목록을 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "댓글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<FreeboardCommentResponseDTO>
+            @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음 (구현 시 추가 가능)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "postId", description = "댓글을 조회할 게시글의 ID", required = true, example = "1", in = ParameterIn.PATH, schema = @Schema(type = "integer")),
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 댓글 수", example = "5", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "sort", description = "정렬 조건 (예: commentId,asc 또는 commentCreatedAt,desc)", example = "commentCreatedAt,asc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/{postId}/comments")
+    public ResponseEntity<PageResponseDTO<FreeboardCommentResponseDTO>> getCommentsByPostId(
+            @PathVariable Integer postId,
+            @PageableDefault(size = 5, sort = "commentCreatedAt", direction = Sort.Direction.ASC) Pageable pageable) {
+
+        PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByPostId(postId, pageable);
+        return ResponseEntity.ok(response);
     }
 }
