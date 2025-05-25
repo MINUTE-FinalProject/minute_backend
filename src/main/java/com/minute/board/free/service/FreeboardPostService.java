@@ -37,5 +37,16 @@ public interface FreeboardPostService {
      * @throws jakarta.persistence.EntityNotFoundException 요청 DTO의 userId에 해당하는 사용자가 없을 경우
      */
     FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto);
+
+    /**
+     * 특정 ID의 자유게시판 게시글을 수정합니다.
+     *
+     * @param postId 수정할 게시글의 ID
+     * @param requestDto 수정할 내용 (제목, 내용). 요청 DTO의 userId는 수정 권한 확인에 임시로 사용될 수 있습니다.
+     * @return 수정된 게시글 상세 정보 (FreeboardPostResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없거나, 요청 DTO의 userId에 해당하는 사용자가 없을 경우
+     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없을 경우 (임시 로직)
+     */
+    FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto);
 }
 

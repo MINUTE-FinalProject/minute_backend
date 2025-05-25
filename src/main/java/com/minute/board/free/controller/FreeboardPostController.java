@@ -96,4 +96,28 @@ public class FreeboardPostController {
 
         return ResponseEntity.created(location).body(responseDto); // HTTP 201 Created
     }
+
+    @Operation(summary = "자유게시판 게시글 수정", description = "기존 자유게시판 게시글을 수정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "게시글 수정 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardPostResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 제목/내용 누락 등)"),
+            @ApiResponse(responseCode = "403", description = "게시글 수정 권한 없음"), // AccessDeniedException 발생 시
+            @ApiResponse(responseCode = "404", description = "수정할 게시글을 찾을 수 없거나, 요청 DTO의 userId에 해당하는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 처리 오류")
+    })
+    @Parameter(name = "postId", description = "수정할 게시글의 고유 ID", required = true, example = "1", in = ParameterIn.PATH, schema = @Schema(type = "integer"))
+    @io.swagger.v3.oas.annotations.parameters.RequestBody( // Swagger UI에서 RequestBody 명시
+            description = "수정할 게시글의 정보와 수정을 시도하는 사용자의 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = FreeboardPostRequestDTO.class))
+    )
+    @PutMapping("/{postId}")
+    public ResponseEntity<FreeboardPostResponseDTO> updatePost(
+            @PathVariable Integer postId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody FreeboardPostRequestDTO requestDto) {
+
+        FreeboardPostResponseDTO responseDto = freeboardPostService.updatePost(postId, requestDto);
+        return ResponseEntity.ok(responseDto); // HTTP 200 OK
+    }
 }
