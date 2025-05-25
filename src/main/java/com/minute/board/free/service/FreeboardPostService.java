@@ -2,8 +2,10 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
+import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
+import com.minute.board.free.dto.response.PostLikeResponseDTO;
 import org.springframework.data.domain.Pageable;
 
 public interface FreeboardPostService {
@@ -58,5 +60,15 @@ public interface FreeboardPostService {
      * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없을 경우 (임시 로직)
      */
     void deletePost(Integer postId, String requestUserId); // 반환 타입 void 또는 간단한 성공 메시지 DTO 가능
+
+    /**
+     * 특정 게시글에 대한 사용자의 좋아요 상태를 토글(추가/삭제)합니다.
+     *
+     * @param postId 게시글 ID
+     * @param requestDto 좋아요 요청 DTO (사용자 ID 포함)
+     * @return 게시글의 현재 좋아요 수와 사용자의 좋아요 상태 (PostLikeResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
+     */
+    PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto);
 }
 

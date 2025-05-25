@@ -3,9 +3,11 @@ package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞�
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
+import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
+import com.minute.board.free.dto.response.PostLikeResponseDTO;
 import com.minute.board.free.service.FreeboardCommentService;
 import com.minute.board.free.service.FreeboardPostService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -243,5 +245,28 @@ public class FreeboardPostController {
 
         freeboardCommentService.deleteComment(commentId, userId);
         return ResponseEntity.noContent().build(); // HTTP 204 No Content
+    }
+
+    @Operation(summary = "게시글 좋아요 토글", description = "특정 게시글에 대한 사용자의 좋아요 상태를 추가하거나 삭제(토글)합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "좋아요 처리 성공",
+                    content = @Content(schema = @Schema(implementation = PostLikeResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 사용자 ID 누락)"),
+            @ApiResponse(responseCode = "404", description = "게시글 또는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "좋아요를 누르는 사용자의 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = PostLikeRequestDTO.class))
+    )
+    @PostMapping("/{postId}/like")
+    public ResponseEntity<PostLikeResponseDTO> togglePostLike(
+            @Parameter(description = "좋아요를 누를 게시글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer postId,
+            @Valid @RequestBody PostLikeRequestDTO requestDto) {
+
+        PostLikeResponseDTO responseDto = freeboardPostService.togglePostLike(postId, requestDto);
+        return ResponseEntity.ok(responseDto);
     }
 }

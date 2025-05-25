@@ -2,9 +2,13 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.PageResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
+import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
+import com.minute.board.free.dto.response.PostLikeResponseDTO;
 import com.minute.board.free.entity.FreeboardPost;
+import com.minute.board.free.entity.FreeboardPostLike;
+import com.minute.board.free.repository.FreeboardPostLikeRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
 import com.minute.user.repository.UserRepository;
@@ -17,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 조회에도 필요시 readOnly=true 옵션
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,6 +32,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final FreeboardPostRepository freeboardPostRepository;
     // UserRepository도 필요할 수 있습니다. (만약 User 정보가 LAZY 로딩이고, DTO 변환 시 추가 쿼리가 발생한다면 EAGER 로딩 또는 fetch join 고려)
     private final UserRepository userRepository; // UserRepository 주입
+    private final FreeboardPostLikeRepository freeboardPostLikeRepository; // 주입 추가
 
     @Override
     public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {
@@ -158,6 +164,47 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .userId(user != null ? user.getUserId() : null) // User가 null일 경우 대비
                 .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자") // User 또는 닉네임이 null일 경우 대비
                 // .commentCount(post.getComments() != null ? post.getComments().size() : 0) // 댓글 수 필요시
+                .build();
+    }
+
+    @Override
+    @Transactional // 데이터 변경(좋아요 추가/삭제 및 게시글 좋아요 수 업데이트)
+    public PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto) {
+        // 1. 게시글 조회
+        FreeboardPost post = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 게시글을 찾을 수 없습니다: " + postId));
+
+        // 2. 사용자 조회
+        User user = userRepository.findUserByUserId(requestDto.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 3. 이미 좋아요를 눌렀는지 확인
+        Optional<FreeboardPostLike> existingLike = freeboardPostLikeRepository.findByUserAndFreeboardPost(user, post);
+
+        boolean likedByCurrentUser;
+
+        if (existingLike.isPresent()) {
+            // 이미 좋아요를 눌렀다면 -> 좋아요 취소
+            freeboardPostLikeRepository.delete(existingLike.get());
+            post.setPostLikeCount(Math.max(0, post.getPostLikeCount() - 1)); // 좋아요 수 감소 (0 미만 방지)
+            likedByCurrentUser = false;
+        } else {
+            // 좋아요를 누르지 않았다면 -> 좋아요 추가
+            FreeboardPostLike newLike = FreeboardPostLike.builder()
+                    .user(user)
+                    .freeboardPost(post)
+                    .build();
+            freeboardPostLikeRepository.save(newLike);
+            post.setPostLikeCount(post.getPostLikeCount() + 1); // 좋아요 수 증가
+            likedByCurrentUser = true;
+        }
+        // FreeboardPost의 변경된 postLikeCount는 @Transactional에 의해 자동 저장됨
+        // freeboardPostRepository.save(post); // 명시적으로 호출해도 되지만, dirty checking으로 처리됨
+
+        return PostLikeResponseDTO.builder()
+                .postId(post.getPostId())
+                .currentLikeCount(post.getPostLikeCount())
+                .likedByCurrentUser(likedByCurrentUser)
                 .build();
     }
 
