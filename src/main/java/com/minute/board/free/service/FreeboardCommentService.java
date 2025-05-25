@@ -27,4 +27,15 @@ public interface FreeboardCommentService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
      */
     FreeboardCommentResponseDTO createComment(Integer postId, FreeboardCommentRequestDTO requestDto);
+
+    /**
+     * 특정 ID의 댓글을 수정합니다.
+     *
+     * @param commentId 수정할 댓글의 ID
+     * @param requestDto 수정할 내용 (내용, 수정 요청자 ID)
+     * @return 수정된 댓글 정보 (FreeboardCommentResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글을 찾을 수 없거나, 요청 DTO의 userId에 해당하는 사용자가 없을 경우
+     * @throws org.springframework.security.access.AccessDeniedException 댓글 수정 권한이 없을 경우 (임시 로직)
+     */
+    FreeboardCommentResponseDTO updateComment(Integer commentId, FreeboardCommentRequestDTO requestDto);
 }

@@ -200,4 +200,28 @@ public class FreeboardPostController {
 
         return ResponseEntity.created(location).body(responseDto); // HTTP 201 Created
     }
+
+    @Operation(summary = "댓글 수정", description = "기존 댓글의 내용을 수정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "댓글 수정 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardCommentResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 내용 누락 등)"),
+            @ApiResponse(responseCode = "403", description = "댓글 수정 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "수정할 댓글을 찾을 수 없거나, 요청 DTO의 userId에 해당하는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "수정할 댓글의 내용과 수정을 시도하는 사용자의 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = FreeboardCommentRequestDTO.class))
+    )
+    @PutMapping("/comments/{commentId}") // 경로 변경: 게시글 ID 없이 댓글 ID만으로 접근
+    public ResponseEntity<FreeboardCommentResponseDTO> updateComment(
+            @Parameter(description = "수정할 댓글의 고유 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer commentId,
+            @Valid @org.springframework.web.bind.annotation.RequestBody FreeboardCommentRequestDTO requestDto) {
+
+        FreeboardCommentResponseDTO responseDto = freeboardCommentService.updateComment(commentId, requestDto);
+        return ResponseEntity.ok(responseDto); // HTTP 200 OK
+    }
 }

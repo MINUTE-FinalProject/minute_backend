@@ -13,6 +13,7 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -77,6 +78,34 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
         // 5. 저장된 Entity를 Response DTO로 변환하여 반환
         return convertToDto(savedComment);
+    }
+
+    @Override
+    @Transactional // 데이터 변경(수정) 작업
+    public FreeboardCommentResponseDTO updateComment(Integer commentId, FreeboardCommentRequestDTO requestDto) {
+        // 1. 수정할 댓글 조회
+        FreeboardComment commentToUpdate = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("수정할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 2. (임시) 수정 권한 확인: 요청 DTO의 userId와 실제 댓글 작성자의 userId가 일치하는지 확인
+        //    실제 인증 연동 시에는 SecurityContextHolder에서 현재 로그인한 사용자 정보를 가져와 비교해야 합니다.
+        String requestUserId = requestDto.getUserId(); // 수정을 시도하는 사용자의 ID (DTO에서 임시로 받음)
+        if (requestUserId == null || !commentToUpdate.getUser().getUserId().equals(requestUserId)) {
+            // 실제로는 관리자(Admin)도 수정 가능하도록 로직 추가 필요
+            throw new AccessDeniedException("댓글 수정 권한이 없습니다. (작성자 불일치)");
+        }
+        // User updater = userRepository.findUserByUserId(requestUserId)
+        //        .orElseThrow(() -> new EntityNotFoundException("수정자 정보를 찾을 수 없습니다: " + requestUserId));
+        // 위 라인은 requestUserId가 유효한 사용자인지 한번 더 체크하는 용도.
+
+        // 3. 댓글 내용 업데이트 (JPA의 dirty checking 활용)
+        commentToUpdate.setCommentContent(requestDto.getCommentContent());
+        // commentUpdatedAt 필드는 @UpdateTimestamp 어노테이션에 의해 자동 업데이트됩니다.
+
+        // freeboardCommentRepository.save(commentToUpdate); // @Transactional에 의해 자동 업데이트, 명시적 save 불필요
+
+        // 4. 수정된 Entity를 Response DTO로 변환하여 반환
+        return convertToDto(commentToUpdate);
     }
 
     /**
