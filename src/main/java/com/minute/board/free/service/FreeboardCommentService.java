@@ -4,6 +4,7 @@ import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.CommentLikeRequestDTO;
 import com.minute.board.free.dto.request.CommentReportRequestDTO;
+import com.minute.board.free.dto.request.CommentVisibilityRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
@@ -83,4 +84,14 @@ public interface FreeboardCommentService {
      * @return 페이징된 신고 댓글 정보 목록 (PageResponseDTO)
      */
     PageResponseDTO<ReportedCommentEntryDTO> getReportedComments(Pageable pageable);
+
+    /**
+     * [관리자] 특정 댓글의 공개/숨김 상태를 변경합니다.
+     *
+     * @param commentId 대상 댓글 ID
+     * @param requestDto 변경할 상태 정보 (isHidden)
+     * @return 업데이트된 댓글 상세 정보 (FreeboardCommentResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글이 없을 경우
+     */
+    FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto);
 }

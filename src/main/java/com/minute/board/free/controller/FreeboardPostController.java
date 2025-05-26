@@ -410,4 +410,29 @@ public class FreeboardPostController {
         FreeboardPostResponseDTO responseDto = freeboardPostService.updatePostVisibility(postId, requestDto);
         return ResponseEntity.ok(responseDto);
     }
+
+    @Operation(summary = "[관리자] 댓글 숨김/공개 처리", description = "특정 댓글의 숨김 또는 공개 상태를 변경합니다. (관리자용)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "댓글 상태 변경 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardCommentResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (isHidden 값 누락 등)"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
+            @ApiResponse(responseCode = "404", description = "댓글을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "변경할 댓글의 숨김 상태(isHidden)를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = CommentVisibilityRequestDTO.class))
+    )
+    @PatchMapping("/comments/{commentId}/visibility") // 댓글 숨김/공개 API 경로
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public ResponseEntity<FreeboardCommentResponseDTO> updateCommentVisibility(
+            @Parameter(description = "상태를 변경할 댓글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer commentId,
+            @Valid @RequestBody CommentVisibilityRequestDTO requestDto) {
+
+        FreeboardCommentResponseDTO responseDto = freeboardCommentService.updateCommentVisibility(commentId, requestDto);
+        return ResponseEntity.ok(responseDto);
+    }
 }

@@ -4,6 +4,7 @@ import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.CommentLikeRequestDTO;
 import com.minute.board.free.dto.request.CommentReportRequestDTO;
+import com.minute.board.free.dto.request.CommentVisibilityRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
@@ -228,6 +229,19 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .last(reportedCommentPage.isLast())
                 .empty(reportedCommentPage.isEmpty())
                 .build();
+    }
+
+    @Override
+    @Transactional // 데이터 변경(숨김 상태 업데이트)
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto) {
+        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
+
+        comment.setCommentIsHidden(requestDto.getIsHidden());
+        // freeboardCommentRepository.save(comment); // @Transactional에 의해 자동 업데이트
+
+        return convertToDto(comment);
     }
 
     /**
