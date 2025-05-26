@@ -314,4 +314,29 @@ public class FreeboardPostController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri(); // 현재 요청 URI를 Location으로
         return ResponseEntity.created(location).body(responseDto);
     }
+
+    @Operation(summary = "댓글 신고", description = "특정 댓글을 신고합니다. 한 사용자는 댓글당 한 번만 신고할 수 있으며, 자신의 댓글은 신고할 수 없습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "댓글 신고 성공",
+                    content = @Content(schema = @Schema(implementation = ReportSuccessResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 사용자 ID 누락)"),
+            @ApiResponse(responseCode = "404", description = "댓글 또는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "409", description = "이미 신고한 댓글이거나 자신의 댓글을 신고 시도"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "신고하는 사용자의 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = CommentReportRequestDTO.class))
+    )
+    @PostMapping("/comments/{commentId}/report")
+    public ResponseEntity<ReportSuccessResponseDTO> reportComment(
+            @Parameter(description = "신고할 댓글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer commentId,
+            @Valid @RequestBody CommentReportRequestDTO requestDto) {
+
+        ReportSuccessResponseDTO responseDto = freeboardCommentService.reportComment(commentId, requestDto);
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
+        return ResponseEntity.created(location).body(responseDto);
+    }
 }

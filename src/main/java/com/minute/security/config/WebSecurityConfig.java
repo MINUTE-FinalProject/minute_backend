@@ -66,6 +66,7 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/like").permitAll() // <<< 게시글 좋아요
                         .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/like").permitAll() // <<< 댓글 좋아요
                         .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/report").permitAll() // <<< 게시글 신고
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/report").permitAll() // <<< 댓글 신고
                         .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
                         .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정

@@ -1,14 +1,18 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.CommentLikeRequestDTO;
+import com.minute.board.free.dto.request.CommentReportRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardCommentLike;
+import com.minute.board.free.entity.FreeboardCommentReport;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.repository.FreeboardCommentLikeRepository;
+import com.minute.board.free.repository.FreeboardCommentReportRepository;
 import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import
@@ -35,6 +39,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     private final FreeboardPostRepository freeboardPostRepository; // 게시글 조회를 위해 추가
     private final UserRepository userRepository; // 사용자 조회를 위해 추가
     private final FreeboardCommentLikeRepository freeboardCommentLikeRepository; // 주입 추가
+    private final FreeboardCommentReportRepository freeboardCommentReportRepository; // 주입 추가
 
     @Override
     public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByPostId(Integer postId, Pageable pageable) {
@@ -172,6 +177,40 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .currentLikeCount(comment.getCommentLikeCount())
                 .likedByCurrentUser(likedByCurrentUser)
                 .build();
+    }
+
+    @Override
+    @Transactional // 데이터 생성(신고 기록)
+    public ReportSuccessResponseDTO reportComment(Integer commentId, CommentReportRequestDTO requestDto) {
+        // 1. 댓글 조회
+        FreeboardComment commentToReport = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("신고할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 2. 신고자 조회
+        User reporter = userRepository.findUserByUserId(requestDto.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("신고자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 3. 자신의 댓글인지 확인
+        if (commentToReport.getUser().getUserId().equals(reporter.getUserId())) {
+            throw new IllegalStateException("자신의 댓글은 신고할 수 없습니다.");
+        }
+
+        // 4. 이미 신고했는지 확인 (DB의 UNIQUE 제약 조건(uk_fcr_user_comment)으로도 방지되지만, 미리 확인)
+        // FreeboardCommentReportRepository에 existsByUserAndFreeboardComment 메서드 필요
+        boolean alreadyReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(reporter, commentToReport);
+        if (alreadyReported) {
+            throw new IllegalStateException("이미 신고한 댓글입니다.");
+        }
+
+        // 5. 신고 기록 생성 및 저장
+        FreeboardCommentReport newReport = FreeboardCommentReport.builder()
+                .user(reporter)
+                .freeboardComment(commentToReport)
+                // comment_report_date는 @CreationTimestamp로 자동 생성
+                .build();
+        freeboardCommentReportRepository.save(newReport);
+
+        return new ReportSuccessResponseDTO("댓글이 성공적으로 신고되었습니다.", commentId);
     }
 
     /**

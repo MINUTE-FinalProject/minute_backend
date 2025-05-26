@@ -1,7 +1,9 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.CommentLikeRequestDTO;
+import com.minute.board.free.dto.request.CommentReportRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
@@ -60,4 +62,16 @@ public interface FreeboardCommentService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글 또는 사용자가 없을 경우
      */
     CommentLikeResponseDTO toggleCommentLike(Integer commentId, CommentLikeRequestDTO requestDto);
+
+    /**
+     * 특정 댓글을 신고합니다. 사용자는 하나의 댓글에 대해 한 번만 신고할 수 있습니다.
+     * 자신의 댓글은 신고할 수 없습니다.
+     *
+     * @param commentId 신고할 댓글 ID
+     * @param requestDto 신고 요청 DTO (신고자 ID 포함)
+     * @return 신고 처리 결과 메시지 (ReportSuccessResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글 또는 사용자가 없을 경우
+     * @throws IllegalStateException 이미 신고한 댓글이거나 자신의 댓글을 신고하려는 경우
+     */
+    ReportSuccessResponseDTO reportComment(Integer commentId, CommentReportRequestDTO requestDto);
 }
