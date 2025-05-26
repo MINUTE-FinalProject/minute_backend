@@ -385,4 +385,29 @@ public class FreeboardPostController {
         PageResponseDTO<ReportedCommentEntryDTO> response = freeboardCommentService.getReportedComments(pageable);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "[관리자] 게시글 숨김/공개 처리", description = "특정 게시글의 숨김 또는 공개 상태를 변경합니다. (관리자용)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "게시글 상태 변경 성공",
+                    content = @Content(schema = @Schema(implementation = FreeboardPostResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (isHidden 값 누락 등)"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
+            @ApiResponse(responseCode = "404", description = "게시글을 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "변경할 게시글의 숨김 상태(isHidden)를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = PostVisibilityRequestDTO.class))
+    )
+    @PatchMapping("/posts/{postId}/visibility") // 관리자용 경로 예시: /admin/posts/{postId}/visibility 등도 고려 가능
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public ResponseEntity<FreeboardPostResponseDTO> updatePostVisibility(
+            @Parameter(description = "상태를 변경할 게시글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer postId,
+            @Valid @RequestBody PostVisibilityRequestDTO requestDto) {
+
+        FreeboardPostResponseDTO responseDto = freeboardPostService.updatePostVisibility(postId, requestDto);
+        return ResponseEntity.ok(responseDto);
+    }
 }

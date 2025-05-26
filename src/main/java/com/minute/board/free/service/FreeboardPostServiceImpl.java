@@ -5,6 +5,7 @@ import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.request.PostReportRequestDTO;
+import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
@@ -84,7 +85,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         // 1. 작성자(User) 정보 조회
         // DTO에 userId가 포함되어 있다고 가정 (인증 연동 전 임시 처리)
         // 실제 인증 연동 시에는 SecurityContextHolder에서 사용자 정보를 가져옵니다.
-        User author = userRepository.findUserByUserId(requestDto.getUserId()) // UserRepository에 findByUserId 메서드가 있다고 가정
+        User author = userRepository.findUserByUserId(requestDto.getUserId()) // UserRepository에 findUserByUserId 메서드가 있다고 가정
                 .orElseThrow(() -> new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
 
         // 2. DTO를 Entity로 변환
@@ -154,6 +155,47 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     }
 
     @Override
+    @Transactional // 데이터 변경(좋아요 추가/삭제 및 게시글 좋아요 수 업데이트)
+    public PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto) {
+        // 1. 게시글 조회
+        FreeboardPost post = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 게시글을 찾을 수 없습니다: " + postId));
+
+        // 2. 사용자 조회
+        User user = userRepository.findUserByUserId(requestDto.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 3. 이미 좋아요를 눌렀는지 확인
+        Optional<FreeboardPostLike> existingLike = freeboardPostLikeRepository.findByUserAndFreeboardPost(user, post);
+
+        boolean likedByCurrentUser;
+
+        if (existingLike.isPresent()) {
+            // 이미 좋아요를 눌렀다면 -> 좋아요 취소
+            freeboardPostLikeRepository.delete(existingLike.get());
+            post.setPostLikeCount(Math.max(0, post.getPostLikeCount() - 1)); // 좋아요 수 감소 (0 미만 방지)
+            likedByCurrentUser = false;
+        } else {
+            // 좋아요를 누르지 않았다면 -> 좋아요 추가
+            FreeboardPostLike newLike = FreeboardPostLike.builder()
+                    .user(user)
+                    .freeboardPost(post)
+                    .build();
+            freeboardPostLikeRepository.save(newLike);
+            post.setPostLikeCount(post.getPostLikeCount() + 1); // 좋아요 수 증가
+            likedByCurrentUser = true;
+        }
+        // FreeboardPost의 변경된 postLikeCount는 @Transactional에 의해 자동 저장됨
+        // freeboardPostRepository.save(post); // 명시적으로 호출해도 되지만, dirty checking으로 처리됨
+
+        return PostLikeResponseDTO.builder()
+                .postId(post.getPostId())
+                .currentLikeCount(post.getPostLikeCount())
+                .likedByCurrentUser(likedByCurrentUser)
+                .build();
+    }
+
+    @Override
     @Transactional // 데이터 생성(신고 기록)
     public ReportSuccessResponseDTO reportPost(Integer postId, PostReportRequestDTO requestDto) {
         // 1. 게시글 조회
@@ -206,6 +248,21 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
     }
 
+    @Override
+    @Transactional // 데이터 변경(숨김 상태 업데이트)
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public FreeboardPostResponseDTO updatePostVisibility(Integer postId, PostVisibilityRequestDTO requestDto) {
+        FreeboardPost post = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 게시글을 찾을 수 없습니다: " + postId));
+
+        post.setPostIsHidden(requestDto.getIsHidden());
+        // freeboardPostRepository.save(post); // @Transactional에 의해 자동 업데이트
+
+        return convertToDetailDto(post);
+    }
+
+    // --- Private Helper Methods ---
+
     /**
      * FreeboardPost 엔티티를 FreeboardPostSimpleResponseDTO로 변환합니다.
      *
@@ -225,49 +282,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 // .commentCount(post.getComments() != null ? post.getComments().size() : 0) // 댓글 수 필요시
                 .build();
     }
-
-    @Override
-    @Transactional // 데이터 변경(좋아요 추가/삭제 및 게시글 좋아요 수 업데이트)
-    public PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto) {
-        // 1. 게시글 조회
-        FreeboardPost post = freeboardPostRepository.findById(postId)
-                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 게시글을 찾을 수 없습니다: " + postId));
-
-        // 2. 사용자 조회
-        User user = userRepository.findUserByUserId(requestDto.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
-
-        // 3. 이미 좋아요를 눌렀는지 확인
-        Optional<FreeboardPostLike> existingLike = freeboardPostLikeRepository.findByUserAndFreeboardPost(user, post);
-
-        boolean likedByCurrentUser;
-
-        if (existingLike.isPresent()) {
-            // 이미 좋아요를 눌렀다면 -> 좋아요 취소
-            freeboardPostLikeRepository.delete(existingLike.get());
-            post.setPostLikeCount(Math.max(0, post.getPostLikeCount() - 1)); // 좋아요 수 감소 (0 미만 방지)
-            likedByCurrentUser = false;
-        } else {
-            // 좋아요를 누르지 않았다면 -> 좋아요 추가
-            FreeboardPostLike newLike = FreeboardPostLike.builder()
-                    .user(user)
-                    .freeboardPost(post)
-                    .build();
-            freeboardPostLikeRepository.save(newLike);
-            post.setPostLikeCount(post.getPostLikeCount() + 1); // 좋아요 수 증가
-            likedByCurrentUser = true;
-        }
-        // FreeboardPost의 변경된 postLikeCount는 @Transactional에 의해 자동 저장됨
-        // freeboardPostRepository.save(post); // 명시적으로 호출해도 되지만, dirty checking으로 처리됨
-
-        return PostLikeResponseDTO.builder()
-                .postId(post.getPostId())
-                .currentLikeCount(post.getPostLikeCount())
-                .likedByCurrentUser(likedByCurrentUser)
-                .build();
-    }
-
-    // 상세 조회, 생성, 수정, 삭제 등 다른 메서드들은 여기에 구현됩니다.
 
     /** 상세 조회
      * FreeboardPost 엔티티를 FreeboardPostResponseDTO (상세 DTO)로 변환합니다.
@@ -290,5 +304,4 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
                 .build();
     }
-
 }

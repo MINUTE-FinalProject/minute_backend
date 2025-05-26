@@ -5,6 +5,7 @@ import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.request.PostReportRequestDTO;
+import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
@@ -93,5 +94,15 @@ public interface FreeboardPostService {
      * @return 페이징된 신고 게시글 정보 목록 (PageResponseDTO)
      */
     PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(Pageable pageable);
+
+    /**
+     * [관리자] 특정 게시글의 공개/숨김 상태를 변경합니다.
+     *
+     * @param postId 대상 게시글 ID
+     * @param requestDto 변경할 상태 정보 (isHidden)
+     * @return 업데이트된 게시글 상세 정보 (FreeboardPostResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없을 경우
+     */
+    FreeboardPostResponseDTO updatePostVisibility(Integer postId, PostVisibilityRequestDTO requestDto);
 }
 
