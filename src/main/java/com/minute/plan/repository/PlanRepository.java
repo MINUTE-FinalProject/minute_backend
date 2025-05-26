@@ -17,4 +17,6 @@ public interface PlanRepository extends JpaRepository<Plan, Integer> {
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 
+    List<Plan> findAllByUser_UserIdAndTravelDate(String userId, LocalDate travelDate);
+
 }

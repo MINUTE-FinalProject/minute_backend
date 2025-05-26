@@ -21,7 +21,7 @@ public class Plan {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "plan_id")
+    @Column(name = "plan_id", nullable = false)
     private Integer planId;
 
     @ManyToOne(fetch = FetchType.LAZY)
