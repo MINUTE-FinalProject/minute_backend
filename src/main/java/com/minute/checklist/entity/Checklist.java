@@ -3,9 +3,7 @@ package com.minute.checklist.entity;
 import com.minute.plan.entity.Plan;
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,6 +13,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Entity
+@AllArgsConstructor
+@Builder
 @Table(name = "checklist")
 public class Checklist {
 

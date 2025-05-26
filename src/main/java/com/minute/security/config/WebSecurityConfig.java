@@ -57,6 +57,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandle -> exceptionHandle

@@ -41,4 +41,8 @@ public class ChecklistService {
                 })
                 .collect(Collectors.toList());
     }
+
+    public List<ChecklistResponseDTO> getByDate(String userId, LocalDate date) {
+        return null;
+    }
 }

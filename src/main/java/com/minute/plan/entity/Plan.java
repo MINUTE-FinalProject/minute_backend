@@ -1,10 +1,9 @@
 package com.minute.plan.entity;
 
+import com.minute.plan.dto.request.PlanRequestDTO;
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -16,6 +15,8 @@ import java.time.LocalTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Entity
+@AllArgsConstructor
+@Builder
 @Table(name = "plan")
 public class Plan {
 
@@ -50,5 +51,12 @@ public class Plan {
     @UpdateTimestamp    // 엔티티를 update() 할 떄마다 현재 시각으로 갱신
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public void updateFrom(PlanRequestDTO dto) {
+        this.title = dto.getTitle();
+        this.description = dto.getDescription();
+        this.startTime = dto.getStartTime();
+        this.endTime = dto.getEndTime();
+    }
 
 }

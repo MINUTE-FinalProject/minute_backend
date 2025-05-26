@@ -1,11 +1,14 @@
 package com.minute.checklist.dto.response;
 
+import com.minute.checklist.entity.Checklist;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.*;
 
-@Getter @Setter
+@Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 @Schema(description = "Checklist 응답 DTO")
 public class ChecklistResponseDTO {
     @Schema(description = "체크리스트 ID", example = "5")
@@ -19,4 +22,14 @@ public class ChecklistResponseDTO {
 
     @Schema(description = "체크 여부", example = "false")
     private Boolean isChecked;
+
+    // 엔티티 DTO 변환 헬퍼 메서드
+    public static ChecklistResponseDTO fromEntity(Checklist c) {
+        return ChecklistResponseDTO.builder()
+                .checklistId(c.getChecklistId())
+                .planId(c.getPlan().getPlanId())
+                .itemContent(c.getItemContent())
+                .isChecked(c.getIsChecked())
+                .build();
+    }
 }
