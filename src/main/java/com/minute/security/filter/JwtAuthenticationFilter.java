@@ -22,6 +22,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetails;
 import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.stereotype.Component;
+import org.springframework.util.AntPathMatcher;
 
 import java.io.IOException;
 import java.io.PrintWriter;
@@ -32,7 +33,20 @@ import java.util.List;
 
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
+    private static final AntPathMatcher matcher = new AntPathMatcher();
     private final JwtProvider jwtProvider;
+
+    // Swagger 및 인증 엔드포인트를 모두 제외할 패턴
+    private static final List<String> whitelist = List.of(
+            "/api/v1/auth/signup",
+            "/api/v1/auth/**",
+            "/swagger-ui.html",
+            "/swagger-ui/**",
+            "/api-docs/**",
+            "/v3/api-docs/**",
+            "/swagger-resources/**",
+            "/webjars/**"
+    );
 
     public JwtAuthenticationFilter(AuthenticationManager authenticationManager, JwtProvider jwtProvider) {
         super(authenticationManager);
@@ -40,37 +54,34 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain chain)
             throws IOException, ServletException {
 
-        // 인증 제외 URI 목록
-        List<String> whitelist = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth");
-
-        if (whitelist.contains(request.getRequestURI())) {
-            chain.doFilter(request, response);
-            return;
+        String uri = request.getRequestURI();
+        // 패턴 매칭으로 예외 처리
+        for (String pattern : whitelist) {
+            if (matcher.match(pattern, uri)) {
+                chain.doFilter(request, response);
+                return;
+            }
         }
 
-        String header = request.getHeader("Authorization");
-
         try {
+            String header = request.getHeader("Authorization");
             if (header == null || !header.startsWith("Bearer ")) {
                 chain.doFilter(request, response);
                 return;
             }
 
             String token = header.substring(7);
-
             if (jwtProvider.isValidToken(token)) {
                 Claims claims = jwtProvider.getClaims(token);
 
-                // 사용자 정보 파싱
                 String userId = claims.get("userId", String.class);
-                System.out.println("JWT에서 추출한 userId = " + userId);
+                String role   = claims.get("Role",   String.class);
 
-                String role = claims.get("Role", String.class);
-
-                // User, DetailsUser 생성
                 User user = new User();
                 user.setUserId(userId);
                 user.setRole(Role.valueOf(role));
@@ -78,13 +89,12 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
                 DetailUser detailUser = new DetailUser();
                 detailUser.setUser(user);
 
-                // 인증 객체 생성 및 설정
-                AbstractAuthenticationToken authenticationToken =
+                AbstractAuthenticationToken auth =
                         UsernamePasswordAuthenticationToken.authenticated(
                                 detailUser, token, detailUser.getAuthorities()
                         );
-                authenticationToken.setDetails(new WebAuthenticationDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+                auth.setDetails(new WebAuthenticationDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
 
             chain.doFilter(request, response);
@@ -94,17 +104,14 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
         }
     }
 
-
     private void sendErrorResponse(HttpServletResponse response, Exception e) throws IOException {
         response.setContentType("application/json");
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 
         JSONObject json = createErrorJson(e);
-
-        PrintWriter writer = response.getWriter();
-        writer.print(json);
-        writer.flush();
-        writer.close();
+        try (PrintWriter writer = response.getWriter()) {
+            writer.print(json);
+        }
     }
 
     private JSONObject createErrorJson(Exception e) {
