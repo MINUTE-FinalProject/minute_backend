@@ -25,6 +25,7 @@ import org.hibernate.annotations.ColumnDefault; // 기본값 설정을 위해 �
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Getter
@@ -95,6 +96,13 @@ public class User {
     @Column(name = "user_report", nullable = false)
     @ColumnDefault("0") // DB 기본값과 동일하게 설정
     private Integer userReport = 0; // 자바 객체 기본값 설정
+
+    public List<String> getRoleList(){
+        if(this.role.getRole().length() > 0){
+            return Arrays.asList(this.role.getRole().split(","));
+        }
+        return new ArrayList<>();
+    }
 
     public User (SignUpRequestDTO dto){
         this.userId = dto.getUserId();

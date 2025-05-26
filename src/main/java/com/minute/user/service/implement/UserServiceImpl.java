@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
+
 //아이디로 유저찾기
 @Service
 @RequiredArgsConstructor
@@ -26,13 +28,13 @@ public class UserServiceImpl implements UserService {
     private EntityManager em;
     private final UserRepository userRepository;
 
+    //프론트용 사용자 조회
     @Override
-    public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(String userEmail) {
+    public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(String userId) {
 
         User user;
         try {
-            user = userRepository.findById(userEmail)
-                    .orElse(null);
+            user = userRepository.findUserByUserId(userId);
 
             if (user == null) return GetSignInUserResponseDto.notExistUser();
 
@@ -119,5 +121,12 @@ public class UserServiceImpl implements UserService {
         user.setRole(Role.ADMIN);
         userRepository.save(user);
     }
+
+    //spring security용 사용자 조회(optional 필요)
+    @Override
+    public Optional<User> getUserEntityByEmail(String email) {
+        return userRepository.findById(email);
+    }
+
 
 }

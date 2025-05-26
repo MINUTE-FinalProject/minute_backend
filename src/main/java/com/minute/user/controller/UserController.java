@@ -1,6 +1,7 @@
 package com.minute.user.controller;
 
 import com.minute.auth.dto.response.ResponseDto;
+import com.minute.auth.service.DetailUser;
 import com.minute.user.dto.request.UserPatchInfoRequestDto;
 import com.minute.user.dto.response.GetSignInUserResponseDto;
 import com.minute.user.dto.response.GetUserResponseDto;
@@ -20,36 +21,66 @@ public class UserController {
 
     private final UserService userService;
 
+    // 로그인한 사용자 정보 가져오기
+//    @GetMapping("")
+//    public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(@AuthenticationPrincipal DetailUser detailUser) {
+//        if (detailUser == null) {
+//            // 인증 정보 없으면 401 Unauthorized 처리
+//            return ResponseEntity.status(401).build();
+//        }
+//        // User 엔티티에서 아이디 꺼내기
+//        String userId = detailUser.getUser().getUserId();
+//
+//        return userService.getSignInUser(userId);
+//    }
+
     @GetMapping("")
-    public ResponseEntity<?super GetSignInUserResponseDto> getSignInUser(@AuthenticationPrincipal String userEmail){
-        ResponseEntity<? super GetSignInUserResponseDto> response = userService.getSignInUser(userEmail);
-        return response;
+    public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(@AuthenticationPrincipal DetailUser detailUser) {
+        if (detailUser == null || detailUser.getUser() == null) {
+            // 인증 정보 없으면 401 Unauthorized 처리
+            return ResponseEntity.status(401).build();
+        }
+
+        String userId = detailUser.getUser().getUserId();
+
+        if (userId == null) {
+            // userId가 null이면 에러 로그 찍고 401 또는 400 반환
+            System.out.println("로그인 사용자 userId가 null입니다!");
+            return ResponseEntity.status(400).body("사용자 ID가 존재하지 않습니다.");
+        }
+
+        return userService.getSignInUser(userId);
     }
 
+
+    // 특정 유저 조회
     @GetMapping("/{userId}")
     public ResponseEntity<? super GetUserResponseDto> getUser(
             @PathVariable("userId") String userId
-    ){
-        ResponseEntity<? super GetUserResponseDto> response = userService.getUser(userId);
-        return response;
+    ) {
+        return userService.getUser(userId);
     }
 
-
+    // 유저 정보 수정
     @PatchMapping("/modify")
     public ResponseEntity<? super UserPatchInfoResponseDto> userPatchInfo(
             @RequestBody @Valid UserPatchInfoRequestDto requestBody,
             BindingResult bindingResult,
-            @AuthenticationPrincipal String userId) {
+            @AuthenticationPrincipal DetailUser detailUser) {
 
         if (bindingResult.hasErrors()) {
-            // 가장 첫 번째 에러 메시지
             String errorMessage = bindingResult.getFieldErrors().get(0).getDefaultMessage();
             return ResponseEntity
                     .badRequest()
                     .body(new ResponseDto("VALIDATION_FAILED", errorMessage));
         }
+
+        if (detailUser == null) {
+            return ResponseEntity.status(401).build();
+        }
+        // 수정 권한 판단 시 사용되는 유저 ID
+        String userId = detailUser.getUser().getUserId();
+
         return userService.userPatchInfo(requestBody, userId);
     }
-
-
 }

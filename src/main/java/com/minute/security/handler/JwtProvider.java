@@ -1,57 +1,84 @@
 package com.minute.security.handler;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
+import com.minute.user.entity.User;
+import io.jsonwebtoken.*;
+import jakarta.annotation.PostConstruct;
+import jakarta.xml.bind.DatatypeConverter;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
 
 @Component
 public class JwtProvider {
 
-    private final String secretKey = "SecretK3ySecretK3ySecretK3y12345"; // 충분히 긴 시크릿
+    @Value("${jwt.key}")
+    private String secretKey;
 
-    private final SecretKey key;
+    @Value("${jwt.time}")
+    private long tokenValidity;
 
-    public JwtProvider() {
-        byte[] keyBytes = secretKey.getBytes(StandardCharsets.UTF_8);
-        this.key = new SecretKeySpec(keyBytes, SignatureAlgorithm.HS256.getJcaName());
+    private static Key key;
+
+    @PostConstruct
+    public void init() {
+        byte[] secretBytes = DatatypeConverter.parseBase64Binary(secretKey);
+        key = new SecretKeySpec(secretBytes, SignatureAlgorithm.HS256.getJcaName());
     }
 
-    public String create(String userEmail) {
 
-        Date expiredDate = Date.from(Instant.now().plus(1, ChronoUnit.HOURS));
+    public String generateToken(User user) {
+        long now = System.currentTimeMillis();
+        Date expireDate = new Date(now + tokenValidity);
 
-        String jwt = Jwts.builder()
+        return Jwts.builder()
+                .setHeader(createHeader())
+                .setClaims(createClaims(user))
+                .setSubject(user.getUserName())
+                .setIssuedAt(new Date(now))
+                .setExpiration(expireDate)
                 .signWith(key, SignatureAlgorithm.HS256)
-                .setSubject(userEmail)
-                .setIssuedAt(new Date())
-                .setExpiration(expiredDate)
                 .compact();
-
-        return jwt;
     }
 
-    public String validate(String jwt) {
-
-        Claims claims = null;
-
+    public boolean isValidToken(String token) {
         try {
-            claims = Jwts.parserBuilder()
-                    .setSigningKey(key)
-                    .build()
-                    .parseClaimsJws(jwt)
-                    .getBody();
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            return null;
+            getClaims(token); // 파싱 시도
+            return true;
+        } catch (JwtException | IllegalArgumentException e) {
+            e.printStackTrace();
+            return false;
         }
-        return claims.getSubject();
+    }
+
+    public Claims getClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    private static Map<String, Object> createHeader() {
+        Map<String, Object> header = new HashMap<>();
+        header.put("type", "JWT");
+        header.put("alg", "HS256");
+        header.put("created", System.currentTimeMillis());
+        return header;
+    }
+
+    private static Map<String, Object> createClaims(User user) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("userId",user.getUserId());
+        claims.put("Role", user.getRole());
+        return claims;
     }
 }
