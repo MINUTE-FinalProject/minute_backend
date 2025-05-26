@@ -3,23 +3,30 @@ package com.minute.video.repository;
 import com.minute.video.Entity.Category;
 import com.minute.video.Entity.Video;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 
 public interface VideoRepository extends JpaRepository<Video, String> {
 
     // 카테고리 필터링
-    List<Video> findByCategoriesName(String categoryName);
-
-    // 제목이나 설명으로 검색
-    List<Video> findByTitleContainingOrDescriptionContaining(String videoTitle, String videoDescription);
+    @Query("SELECT v FROM Video v JOIN v.videoCategories vc JOIN vc.category c WHERE c.categoryName = :categoryName")
+    List<Video> findByCategoryName(@Param("categoryName") String categoryName);
 
     // 태그 필터링
-    List<Video> findByTagsName(String tagName);
+    @Query("SELECT v FROM Video v JOIN v.videoTags vt JOIN vt.tag t WHERE t.tagName = :tagName")
+    List<Video> findByTagName(@Param("tagName") String tagName);
 
-    // 최신 영상 조회
-    List<Video> findTop50ByOrderByUploadDateDesc();
+    // 제목에 키워드가 포함된 영상 조회
+    List<Video> findByVideoTitleContainingIgnoreCase(String keyword);
+    // 영상 ID를 기준으로 최신순 정렬
+    List<Video> findTop50ByOrderByVideoIdDesc();
 
-    // 인기순
-    List<Video> findTop10ByOrderByLikesDesc();
+    // 조회수 순
+    List<Video> findTop50ByOrderByViewsDesc();
+
+    // 좋아요 순
+    List<Video> findTop50ByOrderByLikesDesc();
+
 }
