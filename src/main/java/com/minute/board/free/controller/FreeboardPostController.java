@@ -364,4 +364,25 @@ public class FreeboardPostController {
         PageResponseDTO<ReportedPostEntryDTO> response = freeboardPostService.getReportedPosts(pageable);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "[관리자] 신고된 댓글 목록 조회", description = "신고된 댓글 목록을 신고 횟수, 작성자 정보, 원본 게시글 ID 등과 함께 페이징하여 조회합니다. (관리자용)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "신고된 댓글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<ReportedCommentEntryDTO>
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "sort", description = "정렬 조건. JPQL에 정의된 기본 정렬 외 다른 정렬은 엔티티 필드 기준.", example = "commentCreatedAt,asc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/reports/comments") // 관리자용 경로 예시
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public ResponseEntity<PageResponseDTO<ReportedCommentEntryDTO>> getReportedComments(
+            @PageableDefault(size = 10) Pageable pageable) {
+
+        PageResponseDTO<ReportedCommentEntryDTO> response = freeboardCommentService.getReportedComments(pageable);
+        return ResponseEntity.ok(response);
+    }
 }

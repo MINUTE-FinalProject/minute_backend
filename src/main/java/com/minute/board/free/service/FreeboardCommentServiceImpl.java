@@ -7,6 +7,7 @@ import com.minute.board.free.dto.request.CommentReportRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
+import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
 import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardCommentLike;
 import com.minute.board.free.entity.FreeboardCommentReport;
@@ -211,6 +212,22 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         freeboardCommentReportRepository.save(newReport);
 
         return new ReportSuccessResponseDTO("댓글이 성공적으로 신고되었습니다.", commentId);
+    }
+
+    @Override
+    public PageResponseDTO<ReportedCommentEntryDTO> getReportedComments(Pageable pageable) {
+        Page<ReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummaries(pageable);
+
+        return PageResponseDTO.<ReportedCommentEntryDTO>builder()
+                .content(reportedCommentPage.getContent())
+                .currentPage(reportedCommentPage.getNumber() + 1)
+                .totalPages(reportedCommentPage.getTotalPages())
+                .totalElements(reportedCommentPage.getTotalElements())
+                .size(reportedCommentPage.getSize())
+                .first(reportedCommentPage.isFirst())
+                .last(reportedCommentPage.isLast())
+                .empty(reportedCommentPage.isEmpty())
+                .build();
     }
 
     /**

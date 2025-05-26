@@ -7,6 +7,7 @@ import com.minute.board.free.dto.request.CommentReportRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
+import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
 import org.springframework.data.domain.Pageable;
 
 public interface FreeboardCommentService {
@@ -74,4 +75,12 @@ public interface FreeboardCommentService {
      * @throws IllegalStateException 이미 신고한 댓글이거나 자신의 댓글을 신고하려는 경우
      */
     ReportSuccessResponseDTO reportComment(Integer commentId, CommentReportRequestDTO requestDto);
+
+    /**
+     * 관리자가 신고된 댓글 목록을 페이징하여 조회합니다.
+     *
+     * @param pageable 페이징 정보
+     * @return 페이징된 신고 댓글 정보 목록 (PageResponseDTO)
+     */
+    PageResponseDTO<ReportedCommentEntryDTO> getReportedComments(Pageable pageable);
 }
