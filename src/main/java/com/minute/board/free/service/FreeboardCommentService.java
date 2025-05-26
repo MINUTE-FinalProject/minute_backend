@@ -1,7 +1,9 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.request.CommentLikeRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
+import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import org.springframework.data.domain.Pageable;
 
@@ -48,4 +50,14 @@ public interface FreeboardCommentService {
      * @throws org.springframework.security.access.AccessDeniedException 댓글 삭제 권한이 없을 경우 (임시 로직)
      */
     void deleteComment(Integer commentId, String requestUserId);
+
+    /**
+     * 특정 댓글에 대한 사용자의 좋아요 상태를 토글(추가/삭제)합니다.
+     *
+     * @param commentId 댓글 ID
+     * @param requestDto 좋아요 요청 DTO (사용자 ID 포함)
+     * @return 댓글의 현재 좋아요 수와 사용자의 좋아요 상태 (CommentLikeResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글 또는 사용자가 없을 경우
+     */
+    CommentLikeResponseDTO toggleCommentLike(Integer commentId, CommentLikeRequestDTO requestDto);
 }

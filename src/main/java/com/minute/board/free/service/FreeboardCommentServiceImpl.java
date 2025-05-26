@@ -1,10 +1,14 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
 import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.free.dto.request.CommentLikeRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
+import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.entity.FreeboardComment;
+import com.minute.board.free.entity.FreeboardCommentLike;
 import com.minute.board.free.entity.FreeboardPost;
+import com.minute.board.free.repository.FreeboardCommentLikeRepository;
 import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import
@@ -18,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -29,6 +34,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     // private final FreeboardPostRepository freeboardPostRepository; // 게시글 존재 여부 확인 등에 필요할 수 있음
     private final FreeboardPostRepository freeboardPostRepository; // 게시글 조회를 위해 추가
     private final UserRepository userRepository; // 사용자 조회를 위해 추가
+    private final FreeboardCommentLikeRepository freeboardCommentLikeRepository; // 주입 추가
 
     @Override
     public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByPostId(Integer postId, Pageable pageable) {
@@ -126,6 +132,46 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         // FreeboardCommentLike, FreeboardCommentReport 등 연관 엔티티는
         // DB 스키마에서 ON DELETE CASCADE로 설정되어 있다면 댓글 삭제 시 자동으로 함께 삭제됩니다.
         freeboardCommentRepository.delete(commentToDelete);
+    }
+
+    @Override
+    @Transactional // 데이터 변경(좋아요 추가/삭제 및 댓글 좋아요 수 업데이트)
+    public CommentLikeResponseDTO toggleCommentLike(Integer commentId, CommentLikeRequestDTO requestDto) {
+        // 1. 댓글 조회
+        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 2. 사용자 조회
+        User user = userRepository.findUserByUserId(requestDto.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 3. 이미 좋아요를 눌렀는지 확인
+        Optional<FreeboardCommentLike> existingLike = freeboardCommentLikeRepository.findByUserAndFreeboardComment(user, comment);
+
+        boolean likedByCurrentUser;
+
+        if (existingLike.isPresent()) {
+            // 이미 좋아요를 눌렀다면 -> 좋아요 취소
+            freeboardCommentLikeRepository.delete(existingLike.get());
+            comment.setCommentLikeCount(Math.max(0, comment.getCommentLikeCount() - 1)); // 좋아요 수 감소
+            likedByCurrentUser = false;
+        } else {
+            // 좋아요를 누르지 않았다면 -> 좋아요 추가
+            FreeboardCommentLike newLike = FreeboardCommentLike.builder()
+                    .user(user)
+                    .freeboardComment(comment)
+                    .build();
+            freeboardCommentLikeRepository.save(newLike);
+            comment.setCommentLikeCount(comment.getCommentLikeCount() + 1); // 좋아요 수 증가
+            likedByCurrentUser = true;
+        }
+        // FreeboardComment의 변경된 commentLikeCount는 @Transactional에 의해 자동 저장됨
+
+        return CommentLikeResponseDTO.builder()
+                .commentId(comment.getCommentId())
+                .currentLikeCount(comment.getCommentLikeCount())
+                .likedByCurrentUser(likedByCurrentUser)
+                .build();
     }
 
     /**
