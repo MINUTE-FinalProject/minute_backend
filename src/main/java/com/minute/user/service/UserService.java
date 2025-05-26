@@ -1,0 +1,22 @@
+package com.minute.user.service;
+
+import com.minute.user.dto.request.UserPatchInfoRequestDto;
+import com.minute.user.dto.response.GetSignInUserResponseDto;
+import com.minute.user.dto.response.GetUserResponseDto;
+import com.minute.user.dto.response.UserPatchInfoResponseDto;
+import com.minute.user.entity.User;
+import org.springframework.http.ResponseEntity;
+
+import java.util.Optional;
+
+public interface UserService {
+
+    ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(String userId);
+
+    ResponseEntity<? super GetUserResponseDto> getUser(String userId);
+
+    ResponseEntity<? super UserPatchInfoResponseDto> userPatchInfo(UserPatchInfoRequestDto dto,String userId);
+
+    Optional<User> getUserEntityByEmail(String email);
+
+}

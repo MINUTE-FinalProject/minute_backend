@@ -1,7 +1,7 @@
-package com.minute.user.dto.response;
+package com.minute.auth.dto.response;
 
-import com.minute.user.common.ResponseCode;
-import com.minute.user.common.ResponseMessage;
+import com.minute.auth.common.ResponseCode;
+import com.minute.auth.common.ResponseMessage;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
@@ -19,6 +19,9 @@ public class ResponseDto {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responsebody);
     }
 
-
+    public static ResponseEntity<ResponseDto> validationFailed(){
+        ResponseDto responsebody = new ResponseDto(ResponseCode.VALIDATION_FAILED, ResponseMessage.VALIDATION_FAILED);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(responsebody);
+    }
 
 }

@@ -1,4 +1,4 @@
-package com.minute.user.common;
+package com.minute.auth.common;
 
 public interface ResponseCode {
     //HttpStatus 200

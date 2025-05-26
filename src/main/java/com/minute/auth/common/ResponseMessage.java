@@ -1,4 +1,4 @@
-package com.minute.user.common;
+package com.minute.auth.common;
 
 public interface ResponseMessage {
     //HttpStatus 200
@@ -20,4 +20,8 @@ public interface ResponseMessage {
 
     //Http Status 500
     String DATABASE_ERROR = "Database error";
+
+    // ResponseMessage.java
+    String USER_UPDATE_SUCCESS = "User information update success";
+
 }
