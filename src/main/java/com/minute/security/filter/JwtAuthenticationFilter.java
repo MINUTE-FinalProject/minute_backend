@@ -6,10 +6,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
@@ -17,70 +15,61 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.List;
 
 @Component
-@RequiredArgsConstructor //필수 매개변수 생성자 생성
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtProvider jwtProvider;
 
+    /** 이 경로들은 JWT 검증을 건너뜁니다. */
+    private static final List<String> EXCLUDE_PATHS = List.of(
+            "/v3/api-docs",
+            "/swagger-ui",
+            "/swagger-ui.html",
+            "/swagger-resources",
+            "/webjars",
+            "/api/v1/auth",
+            "/api/v1/youtube/"
+    );
+
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-            throws ServletException, IOException {
-
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+        // getServletPath() 은 "/api/v1/youtube/region" 을 정확히 반환합니다.
         String path = request.getServletPath();
+        return EXCLUDE_PATHS.stream()
+                .anyMatch(path::startsWith);
+    }
 
-        // 인증 필요 없는 경로 필터링 (유튜브 API 경로 추가)
-        if (path.startsWith("/api/v1/auth") || path.startsWith("/api/v1/youtube")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-//
-        try {
-            String token = parseBearerToken(request);
-
-            if (token == null) {
-                filterChain.doFilter(request, response);
-                return;
+    @Override
+    protected void doFilterInternal(HttpServletRequest req,
+                                    HttpServletResponse res,
+                                    FilterChain chain)
+            throws ServletException, IOException {
+        String token = parseBearerToken(req);
+        if (token != null) {
+            // 토큰 검증 후, subject(userId)를 꺼냅니다.
+            String userId = jwtProvider.validate(token);
+            if (userId != null) {
+                // principal을 userId로 설정
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken(
+                                userId,        // ← principal: 이제 userId가 됩니다
+                                null,          // credentials
+                                AuthorityUtils.NO_AUTHORITIES
+                        );
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(req));
+                SecurityContextHolder.getContext().setAuthentication(auth);
             }
-
-            String email = jwtProvider.validate(token);
-
-            if (email == null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            AbstractAuthenticationToken authenticationToken =
-                    new UsernamePasswordAuthenticationToken(email, null, AuthorityUtils.NO_AUTHORITIES);
-            authenticationToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            SecurityContext securityContext = SecurityContextHolder.createEmptyContext();
-            securityContext.setAuthentication(authenticationToken);
-
-            SecurityContextHolder.setContext(securityContext);
-
-        } catch (Exception exception) {
-            // 인증 실패 시 응답에 401 설정 후 필터 종료 권장
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.setContentType("application/json;charset=UTF-8");
-            response.getWriter().write("{\"code\":\"AP\",\"message\":\"Authorization Failed\"}");
-            return;  // 필터 체인 종료
         }
-
-        filterChain.doFilter(request, response);
+        chain.doFilter(req, res);
     }
 
     private String parseBearerToken(HttpServletRequest request) {
-        String authorization = request.getHeader("Authorization");
-
-        boolean hasAuthorization = StringUtils.hasText(authorization);
-        if (!hasAuthorization) return null;
-
-        boolean isBearer = authorization.startsWith("Bearer ");
-        if (!isBearer) return null;
-
-        String token = authorization.substring(7);
-        return token;
+        String header = request.getHeader("Authorization");
+        if (StringUtils.hasText(header) && header.startsWith("Bearer "))
+            return header.substring(7);
+        return null;
     }
 }
