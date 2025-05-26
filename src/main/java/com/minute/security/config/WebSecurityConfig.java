@@ -60,6 +60,8 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
                         .requestMatchers("/api/v1/watch-history/**").permitAll()
                         .requestMatchers("/api/v1/youtube/**").permitAll()
+                        .requestMatchers("/api/v1/videos/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandle -> exceptionHandle

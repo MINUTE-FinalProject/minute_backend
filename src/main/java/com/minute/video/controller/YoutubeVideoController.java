@@ -1,6 +1,8 @@
 package com.minute.video.controller;
 
+import com.minute.video.Entity.YoutubeVideo;
 import com.minute.video.service.YoutubeApiService;
+import com.minute.video.service.YoutubeVideoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -12,6 +14,7 @@ import java.util.Map;
 public class YoutubeVideoController {
 
     private final YoutubeApiService youtubeApiService;
+    private final YoutubeVideoService youtubeVideoService;
 
     // 1. 상단 슬라이더 (지역별)
     @GetMapping("/slider")
@@ -36,5 +39,27 @@ public class YoutubeVideoController {
             @RequestParam(defaultValue = "15") int maxResults
     ) {
         return youtubeApiService.searchShortsByRegion(region, maxResults);
+    }
+
+    @GetMapping("/db/shorts")
+    public List<YoutubeVideo> getDbShorts(
+            @RequestParam(required = false) String region,
+            @RequestParam(required = false) String city,
+            @RequestParam(defaultValue = "15") int maxResults
+    ) {
+        if (region != null && city != null) {
+            return youtubeVideoService.getVideosByRegionAndCity(region, city, maxResults);
+        } else if (region != null) {
+            return youtubeVideoService.getVideosByRegion(region, maxResults);
+        } else {
+            return youtubeVideoService.getAllVideos(maxResults);
+        }
+    }
+
+    @PostMapping("/shorts/save")
+    public String saveShortsToDb(@RequestParam String region, @RequestParam(defaultValue="15") int maxResults) {
+        List<Map<String, Object>> list = youtubeApiService.searchShortsByRegion(region, maxResults);
+        youtubeVideoService.saveYoutubeVideos(list, region);
+        return "ok";
     }
 }
