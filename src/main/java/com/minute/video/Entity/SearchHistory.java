@@ -36,5 +36,4 @@ public class SearchHistory {
     @Column(nullable = false)
     private LocalDateTime searchedAt;
 
-
 }
