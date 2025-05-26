@@ -1,8 +1,10 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
-import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
+import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
@@ -70,5 +72,17 @@ public interface FreeboardPostService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
      */
     PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto);
+
+    /**
+     * 특정 게시글을 신고합니다. 사용자는 하나의 게시글에 대해 한 번만 신고할 수 있습니다.
+     * 자신의 게시글은 신고할 수 없습니다.
+     *
+     * @param postId 신고할 게시글 ID
+     * @param requestDto 신고 요청 DTO (신고자 ID 포함)
+     * @return 신고 처리 결과 메시지 (ReportSuccessResponseDTO)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
+     * @throws IllegalStateException 이미 신고한 게시글이거나 자신의 게시글을 신고하려는 경우
+     */
+    ReportSuccessResponseDTO reportPost(Integer postId, PostReportRequestDTO requestDto);
 }
 

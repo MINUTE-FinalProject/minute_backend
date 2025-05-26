@@ -1,6 +1,6 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
-import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.free.dto.request.CommentLikeRequestDTO;
 import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;

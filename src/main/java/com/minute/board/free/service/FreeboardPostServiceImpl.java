@@ -1,14 +1,18 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
-import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
+import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardPostLike;
+import com.minute.board.free.entity.FreeboardPostReport;
 import com.minute.board.free.repository.FreeboardPostLikeRepository;
+import com.minute.board.free.repository.FreeboardPostReportRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
 import com.minute.user.repository.UserRepository;
@@ -33,6 +37,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     // UserRepository도 필요할 수 있습니다. (만약 User 정보가 LAZY 로딩이고, DTO 변환 시 추가 쿼리가 발생한다면 EAGER 로딩 또는 fetch join 고려)
     private final UserRepository userRepository; // UserRepository 주입
     private final FreeboardPostLikeRepository freeboardPostLikeRepository; // 주입 추가
+    private final FreeboardPostReportRepository freeboardPostReportRepository; // 주입 추가
 
     @Override
     public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {
@@ -145,6 +150,43 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         // DB 스키마에서 ON DELETE CASCADE로 설정되어 있다면 게시글 삭제 시 자동으로 함께 삭제됩니다.
         // 그렇지 않다면 여기서 직접 삭제 로직을 추가해야 합니다. (현재 제공해주신 스키마는 CASCADE 설정이 되어 있습니다)
         freeboardPostRepository.delete(postToDelete);
+    }
+
+    @Override
+    @Transactional // 데이터 생성(신고 기록)
+    public ReportSuccessResponseDTO reportPost(Integer postId, PostReportRequestDTO requestDto) {
+        // 1. 게시글 조회
+        FreeboardPost postToReport = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("신고할 게시글을 찾을 수 없습니다: " + postId));
+
+        // 2. 신고자 조회
+        User reporter = userRepository.findUserByUserId(requestDto.getUserId())
+                .orElseThrow(() -> new EntityNotFoundException("신고자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
+
+        // 3. 자신의 게시글인지 확인
+        if (postToReport.getUser().getUserId().equals(reporter.getUserId())) {
+            throw new IllegalStateException("자신의 게시글은 신고할 수 없습니다.");
+        }
+
+        // 4. 이미 신고했는지 확인 (DB의 UNIQUE 제약 조건(uk_fpr_user_post)으로도 방지되지만, 미리 확인)
+        // FreeboardPostReportRepository에 findByUserAndFreeboardPost 메서드 필요
+        boolean alreadyReported = freeboardPostReportRepository.existsByUserAndFreeboardPost(reporter, postToReport);
+        if (alreadyReported) {
+            throw new IllegalStateException("이미 신고한 게시글입니다.");
+        }
+
+        // 5. 신고 기록 생성 및 저장
+        FreeboardPostReport newReport = FreeboardPostReport.builder()
+                .user(reporter)
+                .freeboardPost(postToReport)
+                // post_report_date는 @CreationTimestamp로 자동 생성
+                .build();
+        freeboardPostReportRepository.save(newReport);
+
+        // 현재 스키마에는 FreeboardPost에 report_count 같은 필드가 없으므로,
+        // 신고 횟수 업데이트 로직은 필요하지 않습니다. 필요하다면 추가 구현.
+
+        return new ReportSuccessResponseDTO("게시글이 성공적으로 신고되었습니다.", postId);
     }
 
     /**

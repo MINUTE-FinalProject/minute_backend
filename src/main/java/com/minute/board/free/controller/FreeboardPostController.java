@@ -1,10 +1,8 @@
 package com.minute.board.free.controller; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
-import com.minute.board.common.dto.PageResponseDTO;
-import com.minute.board.free.dto.request.CommentLikeRequestDTO;
-import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
-import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
-import com.minute.board.free.dto.request.PostLikeRequestDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
+import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.*;
 import com.minute.board.free.service.FreeboardCommentService;
 import com.minute.board.free.service.FreeboardPostService;
@@ -289,5 +287,31 @@ public class FreeboardPostController {
 
         CommentLikeResponseDTO responseDto = freeboardCommentService.toggleCommentLike(commentId, requestDto);
         return ResponseEntity.ok(responseDto);
+    }
+
+    @Operation(summary = "게시글 신고", description = "특정 게시글을 신고합니다. 한 사용자는 게시글당 한 번만 신고할 수 있으며, 자신의 글은 신고할 수 없습니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "게시글 신고 성공", // 신고는 리소스를 생성하므로 201 Created 사용 가능
+                    content = @Content(schema = @Schema(implementation = ReportSuccessResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (예: 사용자 ID 누락)"),
+            @ApiResponse(responseCode = "404", description = "게시글 또는 사용자를 찾을 수 없음"),
+            @ApiResponse(responseCode = "409", description = "이미 신고한 게시글이거나 자신의 게시글을 신고 시도 (IllegalStateException을 GlobalExceptionHandler에서 409 Conflict로 매핑 고려)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            description = "신고하는 사용자의 ID를 담은 DTO",
+            required = true,
+            content = @Content(schema = @Schema(implementation = PostReportRequestDTO.class))
+    )
+    @PostMapping("/{postId}/report")
+    public ResponseEntity<ReportSuccessResponseDTO> reportPost(
+            @Parameter(description = "신고할 게시글의 ID", required = true, example = "1", in = ParameterIn.PATH)
+            @PathVariable Integer postId,
+            @Valid @RequestBody PostReportRequestDTO requestDto) {
+
+        ReportSuccessResponseDTO responseDto = freeboardPostService.reportPost(postId, requestDto);
+        // 신고는 새 리소스를 생성하는 것이므로 201 Created 반환
+        URI location = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri(); // 현재 요청 URI를 Location으로
+        return ResponseEntity.created(location).body(responseDto);
     }
 }
