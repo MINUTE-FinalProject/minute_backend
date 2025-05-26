@@ -8,6 +8,7 @@ import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
+import com.minute.board.free.dto.response.ReportedPostEntryDTO;
 import org.springframework.data.domain.Pageable;
 
 public interface FreeboardPostService {
@@ -84,5 +85,13 @@ public interface FreeboardPostService {
      * @throws IllegalStateException 이미 신고한 게시글이거나 자신의 게시글을 신고하려는 경우
      */
     ReportSuccessResponseDTO reportPost(Integer postId, PostReportRequestDTO requestDto);
+
+    /**
+     * 관리자가 신고된 게시글 목록을 페이징하여 조회합니다.
+     *
+     * @param pageable 페이징 정보
+     * @return 페이징된 신고 게시글 정보 목록 (PageResponseDTO)
+     */
+    PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(Pageable pageable);
 }
 

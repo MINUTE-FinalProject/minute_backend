@@ -8,6 +8,7 @@ import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
 import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
 import com.minute.board.free.dto.response.PostLikeResponseDTO;
+import com.minute.board.free.dto.response.ReportedPostEntryDTO;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardPostLike;
 import com.minute.board.free.entity.FreeboardPostReport;
@@ -187,6 +188,22 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         // 신고 횟수 업데이트 로직은 필요하지 않습니다. 필요하다면 추가 구현.
 
         return new ReportSuccessResponseDTO("게시글이 성공적으로 신고되었습니다.", postId);
+    }
+
+    @Override
+    public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(Pageable pageable) {
+        Page<ReportedPostEntryDTO> reportedPostPage = freeboardPostReportRepository.findReportedPostSummaries(pageable);
+
+        return PageResponseDTO.<ReportedPostEntryDTO>builder()
+                .content(reportedPostPage.getContent())
+                .currentPage(reportedPostPage.getNumber() + 1)
+                .totalPages(reportedPostPage.getTotalPages())
+                .totalElements(reportedPostPage.getTotalElements())
+                .size(reportedPostPage.getSize())
+                .first(reportedPostPage.isFirst())
+                .last(reportedPostPage.isLast())
+                .empty(reportedPostPage.isEmpty())
+                .build();
     }
 
     /**

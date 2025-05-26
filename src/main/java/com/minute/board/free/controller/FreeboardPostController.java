@@ -339,4 +339,29 @@ public class FreeboardPostController {
         URI location = ServletUriComponentsBuilder.fromCurrentRequest().build().toUri();
         return ResponseEntity.created(location).body(responseDto);
     }
+
+    @Operation(summary = "[관리자] 신고된 게시글 목록 조회", description = "신고된 게시글 목록을 신고 횟수, 작성자 정보 등과 함께 페이징하여 조회합니다. (관리자용)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "신고된 게시글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            // sort 파라미터 설명은 유지하되, reportCount는 현재 PageableDefault에서 제거
+            @Parameter(name = "sort", description = "정렬 조건 (예: postCreatedAt,desc). JPQL에 정의된 기본 정렬 외 다른 정렬은 엔티티 필드 기준.", example = "postCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/reports/posts")
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public ResponseEntity<PageResponseDTO<ReportedPostEntryDTO>> getReportedPosts(
+            // @PageableDefault에서 sort = "reportCount" 제거. size와 기본 정렬 방향(만약 필요하다면 다른 필드로)만 남기거나,
+            // JPQL의 ORDER BY에 완전히 의존한다면 sort 자체를 빼도 무방합니다.
+            // 여기서는 size만 남기고, 정렬은 JPQL의 ORDER BY를 따르도록 합니다.
+            @PageableDefault(size = 10) Pageable pageable) {
+
+        PageResponseDTO<ReportedPostEntryDTO> response = freeboardPostService.getReportedPosts(pageable);
+        return ResponseEntity.ok(response);
+    }
 }
