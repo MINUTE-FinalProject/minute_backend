@@ -104,4 +104,5 @@ public interface FreeboardCommentService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 사용자가 없을 경우
      */
     PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, Pageable pageable);
+
 }

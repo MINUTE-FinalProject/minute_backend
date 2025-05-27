@@ -6,6 +6,7 @@ import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.*;
 import com.minute.board.free.service.FreeboardCommentService;
 import com.minute.board.free.service.FreeboardPostService;
+import com.minute.board.free.service.admin.AdminReportViewService;
 import io.micrometer.common.lang.Nullable;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -35,6 +36,7 @@ public class FreeboardPostController {
 
     private final FreeboardPostService freeboardPostService;
     private final FreeboardCommentService freeboardCommentService; // FreeboardCommentService 주입
+    private final AdminReportViewService adminReportViewService; // <<< AdminReportViewService 주입
 
     @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. authorUserId 또는 searchKeyword 파라미터로 필터링/검색할 수 있습니다.")
     @ApiResponses(value = {
@@ -488,4 +490,27 @@ public class FreeboardPostController {
         PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByAuthor(userId, pageable);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "[관리자] 전체 신고된 활동 목록 조회 (통합)", description = "신고된 모든 게시글 및 댓글 활동을 최신순으로 페이징하여 조회합니다. (관리자용)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "신고된 활동 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "sort", description = "정렬 조건 (예: reportCreatedAt,desc). DTO의 reportCreatedAt 필드 기준.", example = "reportCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/admin/reports/all") // 관리자용 경로 예시
+    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
+    public ResponseEntity<PageResponseDTO<AdminReportedActivityItemDTO>> getAllReportedActivities(
+            @PageableDefault(size = 10, sort = "reportCreatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponseDTO<AdminReportedActivityItemDTO> response = adminReportViewService.getAllReportedActivities(pageable);
+        return ResponseEntity.ok(response);
+    }
+
+
 }

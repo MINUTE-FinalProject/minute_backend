@@ -41,4 +41,5 @@ public interface FreeboardCommentRepository extends JpaRepository<FreeboardComme
      */
     @EntityGraph(attributePaths = {"user", "freeboardPost", "freeboardPost.user"}) // 댓글작성자, 원본게시글, 원본게시글작성자 함께 로딩
     Page<FreeboardComment> findByUserOrderByCommentCreatedAtDesc(User user, Pageable pageable);
+
 }
