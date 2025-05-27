@@ -348,28 +348,31 @@ public class FreeboardPostController {
         return ResponseEntity.created(location).body(responseDto);
     }
 
-    @Operation(summary = "[관리자] 신고된 게시글 목록 조회", description = "신고된 게시글 목록을 신고 횟수, 작성자 정보 등과 함께 페이징하여 조회합니다. (관리자용)")
+    @Operation(summary = "[관리자] 신고된 게시글 목록 조회", description = "신고된 게시글 목록을 다양한 조건으로 검색/필터링하여 조회합니다. (관리자용)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "신고된 게시글 목록 조회 성공",
                     content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
             @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
+    // @Parameters 어노테이션은 @ModelAttribute로 DTO를 받으면 DTO 내 필드의 @Schema로 설명이 되므로,
+    // 여기서는 컨트롤러 레벨의 @Parameters는 생략하거나 Pageable에 대한 것만 남길 수 있습니다.
+    // 명확성을 위해 DTO 필드에 @Schema를 잘 작성하는 것이 중요합니다.
     @Parameters({
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
-            // sort 파라미터 설명은 유지하되, reportCount는 현재 PageableDefault에서 제거
-            @Parameter(name = "sort", description = "정렬 조건 (예: postCreatedAt,desc). JPQL에 정의된 기본 정렬 외 다른 정렬은 엔티티 필드 기준.", example = "postCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "sort", description = "정렬 조건 (예: postCreatedAt,desc). DTO 필드명을 기준으로 합니다. JPQL의 기본 정렬과 다를 수 있습니다.", example = "postCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            // AdminReportedPostFilterDTO의 각 필드도 쿼리 파라미터로 자동 매핑됩니다.
+            // 예: ?postId=1&authorNickname=test&isHidden=false&postStartDate=2023-01-01&searchKeyword=내용
     })
     @GetMapping("/reports/posts")
     // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
     public ResponseEntity<PageResponseDTO<ReportedPostEntryDTO>> getReportedPosts(
-            // @PageableDefault에서 sort = "reportCount" 제거. size와 기본 정렬 방향(만약 필요하다면 다른 필드로)만 남기거나,
-            // JPQL의 ORDER BY에 완전히 의존한다면 sort 자체를 빼도 무방합니다.
-            // 여기서는 size만 남기고, 정렬은 JPQL의 ORDER BY를 따르도록 합니다.
-            @PageableDefault(size = 10) Pageable pageable) {
+            @ModelAttribute AdminReportedPostFilterDTO filter, // <<< 수정된 부분: 필터 DTO를 받도록 변경
+            @PageableDefault(size = 10) Pageable pageable) {    // 기본 정렬은 JPQL 또는 Pageable에서 지정
 
-        PageResponseDTO<ReportedPostEntryDTO> response = freeboardPostService.getReportedPosts(pageable);
+        // 서비스 호출 시 filter 객체를 전달합니다.
+        PageResponseDTO<ReportedPostEntryDTO> response = freeboardPostService.getReportedPosts(filter, pageable);
         return ResponseEntity.ok(response);
     }
 

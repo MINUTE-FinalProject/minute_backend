@@ -2,10 +2,7 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
-import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
-import com.minute.board.free.dto.request.PostLikeRequestDTO;
-import com.minute.board.free.dto.request.PostReportRequestDTO;
-import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
+import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable; // @Nullable 어노테이션 사용
@@ -106,7 +103,7 @@ public interface FreeboardPostService {
      * @param pageable 페이징 정보
      * @return 페이징된 신고 게시글 정보 목록 (PageResponseDTO)
      */
-    PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(Pageable pageable);
+    PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(AdminReportedPostFilterDTO filter, Pageable pageable);
 
     /**
      * [관리자] 특정 게시글의 공개/숨김 상태를 변경합니다.

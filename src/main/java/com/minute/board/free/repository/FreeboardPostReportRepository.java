@@ -1,13 +1,17 @@
 package com.minute.board.free.repository;
 
+import com.minute.board.free.dto.request.AdminReportedPostFilterDTO;
 import com.minute.board.free.dto.response.ReportedPostEntryDTO;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardPostReport;
 import com.minute.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface FreeboardPostReportRepository extends JpaRepository<FreeboardPostReport, Integer> {
     // FreeboardPostReport 엔티티의 ID (postReportId) 타입은 Integer 입니다.
@@ -16,19 +20,34 @@ public interface FreeboardPostReportRepository extends JpaRepository<FreeboardPo
     // 사용자와 게시글로 이미 신고했는지 확인하는 메서드
     boolean existsByUserAndFreeboardPost(User user, FreeboardPost freeboardPost);
 
-    /**
-     * 신고된 게시글 목록과 각 게시글의 신고 횟수, 작성자 정보 등을 페이징하여 조회합니다.
-     * 신고 횟수가 많은 순으로 정렬합니다. (페이징 객체에서 다른 정렬을 원하면 변경 가능)
-     *
-     * @param pageable 페이징 정보
-     * @return 페이징된 신고 게시글 정보 DTO 목록
-     */
+//    @Override
+//    @EntityGraph(attributePaths = {"user", "freeboardPost", "freeboardPost.user"})
+//    Page<FreeboardPostReport> findAll(Specification<FreeboardPostReport> spec, Pageable pageable);
+
+
     @Query("SELECT new com.minute.board.free.dto.response.ReportedPostEntryDTO(" +
             "p.postId, p.postTitle, u.userId, u.userNickName, p.postCreatedAt, COUNT(r.postReportId), p.postIsHidden) " +
             "FROM FreeboardPostReport r " +
             "JOIN r.freeboardPost p " +
             "JOIN p.user u " +
+            "WHERE (:#{#filter.postId} IS NULL OR p.postId = :#{#filter.postId}) " +
+            "AND (:#{#filter.authorUserId} IS NULL OR u.userId LIKE %:#{#filter.authorUserId}%) " +
+            "AND (:#{#filter.authorNickname} IS NULL OR u.userNickName LIKE %:#{#filter.authorNickname}%) " +
+            "AND (:#{#filter.postTitle} IS NULL OR p.postTitle LIKE %:#{#filter.postTitle}%) " +
+            "AND (:#{#filter.searchKeyword} IS NULL OR (" +
+            "      p.postTitle LIKE %:#{#filter.searchKeyword}% OR " +
+            "      p.postContent LIKE %:#{#filter.searchKeyword}% " +
+            ")) " +
+            "AND (:#{#filter.isHidden} IS NULL OR p.postIsHidden = :#{#filter.isHidden}) " +
+            // 수정된 날짜 조건: 서비스에서 조정한 queryPostStartDate와 queryPostEndDate 사용
+            "AND (:#{#filter.queryPostStartDate} IS NULL OR p.postCreatedAt >= :#{#filter.queryPostStartDate}) " +
+            "AND (:#{#filter.queryPostEndDate} IS NULL OR p.postCreatedAt <= :#{#filter.queryPostEndDate}) " + // 종료일은 해당일의 끝 시간으로 조정되었으므로 <= 사용
+            // 만약 queryPostEndDate를 plusDays(1).atStartOfDay()로 했다면 p.postCreatedAt < :#{#filter.queryPostEndDate} 사용
             "GROUP BY p.postId, p.postTitle, u.userId, u.userNickName, p.postCreatedAt, p.postIsHidden " +
-            "ORDER BY COUNT(r.postReportId) DESC, p.postCreatedAt DESC") //  <--- 집계 함수를 직접 사용// 기본 정렬: 신고 많은 순, 다음은 최신글 순
-    Page<ReportedPostEntryDTO> findReportedPostSummaries(Pageable pageable);
+            "ORDER BY COUNT(r.postReportId) DESC, p.postCreatedAt DESC"
+    )
+    Page<ReportedPostEntryDTO> findReportedPostSummariesWithFilters(
+            @Param("filter") AdminReportedPostFilterDTO filter,
+            Pageable pageable
+    );
 }

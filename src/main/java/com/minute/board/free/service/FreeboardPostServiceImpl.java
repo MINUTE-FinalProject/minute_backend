@@ -2,10 +2,7 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
-import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
-import com.minute.board.free.dto.request.PostLikeRequestDTO;
-import com.minute.board.free.dto.request.PostReportRequestDTO;
-import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
+import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.*;
 import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardPost;
@@ -31,6 +28,7 @@ import org.springframework.util.StringUtils;
 
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -262,8 +260,28 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     }
 
     @Override
-    public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(Pageable pageable) {
-        Page<ReportedPostEntryDTO> reportedPostPage = freeboardPostReportRepository.findReportedPostSummaries(pageable);
+    public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(AdminReportedPostFilterDTO filter, Pageable pageable) {
+
+        AdminReportedPostFilterDTO queryFilter = new AdminReportedPostFilterDTO();
+        // 기존 필터 값 복사
+        queryFilter.setPostId(filter.getPostId());
+        queryFilter.setAuthorUserId(filter.getAuthorUserId());
+        queryFilter.setAuthorNickname(filter.getAuthorNickname());
+        queryFilter.setPostTitle(filter.getPostTitle());
+        queryFilter.setSearchKeyword(filter.getSearchKeyword());
+        queryFilter.setIsHidden(filter.getIsHidden());
+
+        // 날짜 필터 조정
+        if (filter.getPostStartDate() != null) {
+            queryFilter.setQueryPostStartDate(filter.getPostStartDate().atStartOfDay());
+        }
+        if (filter.getPostEndDate() != null) {
+            // 종료일의 가장 마지막 시간까지 포함 (23:59:59.999...) 또는 다음 날 00:00:00 미만
+            queryFilter.setQueryPostEndDate(filter.getPostEndDate().atTime(LocalTime.MAX));
+            // 또는 queryFilter.setQueryPostEndDate(filter.getPostEndDate().plusDays(1).atStartOfDay());
+        }
+
+        Page<ReportedPostEntryDTO> reportedPostPage = freeboardPostReportRepository.findReportedPostSummariesWithFilters(queryFilter, pageable);
 
         return PageResponseDTO.<ReportedPostEntryDTO>builder()
                 .content(reportedPostPage.getContent())
