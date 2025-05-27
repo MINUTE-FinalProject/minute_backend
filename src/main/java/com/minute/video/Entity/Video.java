@@ -1,10 +1,14 @@
 package com.minute.video.Entity;
 
+import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "video")
@@ -30,10 +34,16 @@ public class Video {
     private String thumbnailUrl;
 
     @ManyToOne
-    @JoinColumn(name = "category_id")
-    private Category category;
-
-    @ManyToOne
     @JoinColumn(name = "channel_id")
     private Channel channel;
+
+    @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
+    private List<VideoCategory> videoCategories;
+
+    @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VideoTag> videoTags;
+
+    // 추천 로직에 필요한 속성
+    private long views;
+    private long likes;
 }

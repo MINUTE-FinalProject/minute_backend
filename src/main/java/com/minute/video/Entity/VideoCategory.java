@@ -7,6 +7,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 @Entity
 @Table(name = "video_category")
@@ -40,5 +41,20 @@ public class VideoCategory {
     public static class VideoCategoryId implements Serializable {
         private String videoId;
         private int categoryId;
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) return true;
+            if (o == null || getClass() != o.getClass()) return false;
+            VideoCategoryId that = (VideoCategoryId) o;
+            return Objects.equals(videoId, that.videoId) &&
+                    Objects.equals(categoryId, that.categoryId);
+        }
+
+        @Override
+        public int hashCode() {
+            return Objects.hash(videoId, categoryId);
+        }
     }
+
 }

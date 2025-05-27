@@ -1,16 +1,14 @@
 package com.minute.video.Entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "popular_search")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

@@ -24,3 +24,6 @@ springdoc:
     tags-sorter: alpha
     display-request-duration: true
 
+youtube:
+  api:
+    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
