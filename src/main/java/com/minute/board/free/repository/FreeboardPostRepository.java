@@ -2,14 +2,17 @@ package com.minute.board.free.repository;
 
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.user.entity.User;
+import io.micrometer.common.lang.Nullable;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import java.util.List;
 
-public interface FreeboardPostRepository extends JpaRepository<FreeboardPost, Integer> {
+public interface FreeboardPostRepository extends JpaRepository<FreeboardPost, Integer>, JpaSpecificationExecutor<FreeboardPost> {
     // FreeboardPost 엔티티의 ID (postId) 타입은 Integer 입니다.
     // 기능 구현 시 필요한 쿼리 메서드를 여기에 추가합니다.
 
@@ -41,4 +44,8 @@ public interface FreeboardPostRepository extends JpaRepository<FreeboardPost, In
      */
     @EntityGraph(attributePaths = {"user"})
     Page<FreeboardPost> findByUser_UserId(String userId, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = {"user"})
+    Page<FreeboardPost> findAll(@Nullable Specification<FreeboardPost> spec, Pageable pageable);
 }

@@ -14,21 +14,14 @@ public interface FreeboardPostService {
 
     /**
      * 자유게시판 게시글 목록을 페이징하여 조회합니다.
-     * authorUserId가 제공되면 해당 사용자의 게시글만 필터링합니다.
+     * authorUserId 또는 searchKeyword가 제공되면 해당 조건으로 필터링합니다.
      *
-     * @param pageable 페이징 정보 (페이지 번호, 페이지 크기, 정렬 조건)
-     * @param authorUserId 조회할 작성자의 ID (선택 사항, null일 경우 전체 게시글 조회)
+     * @param pageable 페이징 정보
+     * @param authorUserId 조회할 작성자의 ID (선택 사항)
+     * @param searchKeyword 검색할 키워드 (선택 사항, 제목/내용/닉네임 통합 검색)
      * @return 페이징 처리된 게시글 목록 (PageResponseDTO)
      */
-    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId);
-
-    /**
-     * 모든 자유게시판 게시글 목록을 페이징하여 조회합니다.
-     *
-     * @param pageable 페이징 정보 (페이지 번호, 페이지 크기, 정렬 조건)
-     * @return 페이징 처리된 게시글 목록 (PageResponseDTO)
-     */
-    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable);
+    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId, @Nullable String searchKeyword);
 
     // 여기에 다른 게시글 관련 서비스 메서드들이 추가될 예정입니다.
     // 예: getPostById(Long postId), createPost(FreeboardPostRequestDTO requestDto, String userId), ...

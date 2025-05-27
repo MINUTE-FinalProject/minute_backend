@@ -17,15 +17,18 @@ import com.minute.board.free.repository.FreeboardPostReportRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
 import com.minute.user.repository.UserRepository;
+import io.micrometer.common.lang.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 조회에도 필요시 readOnly=true 옵션
 import org.springframework.util.StringUtils;
+
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -46,21 +49,20 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final FreeboardCommentRepository freeboardCommentRepository; // <<< FreeboardCommentRepository 주입 추가
 
     @Override
-    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, String authorUserId) {
-        Page<FreeboardPost> postPage;
+    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId, @Nullable String searchKeyword) {
+        Specification<FreeboardPost> spec = Specification.where(null); // 기본은 모든 게시글
 
-        if (StringUtils.hasText(authorUserId)) { // authorUserId 파라미터가 존재하고 비어있지 않은 경우
-            // 특정 사용자가 작성한 게시글만 조회
-            // 해당 userId의 사용자가 존재하는지 먼저 확인할 수도 있습니다.
-            // User author = userRepository.findUserByUserId(authorUserId)
-            //        .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + authorUserId));
-            // postPage = freeboardPostRepository.findByUser(author, pageable); // User 객체로 검색
-            // 또는 userId 문자열로 직접 검색
-            postPage = freeboardPostRepository.findByUser_UserId(authorUserId, pageable);
-        } else {
-            // 모든 게시글 조회
-            postPage = freeboardPostRepository.findAll(pageable);
+        if (StringUtils.hasText(authorUserId)) {
+            spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.hasAuthor(authorUserId));
         }
+
+        if (StringUtils.hasText(searchKeyword)) {
+            // combinedSearch는 제목, 내용, 닉네임 통합 검색
+            spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.combinedSearch(searchKeyword));
+        }
+
+        // FreeboardPostRepository의 findAll(Specification, Pageable)에 @EntityGraph(attributePaths = {"user"}) 오버라이드 필요
+        Page<FreeboardPost> postPage = freeboardPostRepository.findAll(spec, pageable);
 
         List<FreeboardPostSimpleResponseDTO> dtoList = postPage.getContent().stream()
                 .map(this::convertToSimpleDto)
@@ -78,30 +80,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
     }
 
-    @Override
-    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {
-        // DB에서 게시글 목록을 Page 형태로 조회합니다.
-        // N+1 문제 방지를 위해 User 정보까지 함께 조회하려면 @EntityGraph 또는 fetch join 사용 고려
-        // 예: freeboardPostRepository.findAllWithUser(pageable); (Repository에 커스텀 메서드 필요)
-        Page<FreeboardPost> postPage = freeboardPostRepository.findAll(pageable);
-
-        // Page<FreeboardPost>를 List<FreeboardPostSimpleResponseDTO>로 변환합니다.
-        List<FreeboardPostSimpleResponseDTO> dtoList = postPage.getContent().stream()
-                .map(this::convertToSimpleDto) // 엔티티를 DTO로 변환하는 메서드 사용
-                .collect(Collectors.toList());
-
-        // PageResponseDTO로 감싸서 반환합니다.
-        return PageResponseDTO.<FreeboardPostSimpleResponseDTO>builder()
-                .content(dtoList)
-                .currentPage(postPage.getNumber() + 1) // Page는 0부터 시작, UI는 1부터 시작 가정
-                .totalPages(postPage.getTotalPages())
-                .totalElements(postPage.getTotalElements())
-                .size(postPage.getSize())
-                .first(postPage.isFirst())
-                .last(postPage.isLast())
-                .empty(postPage.isEmpty())
-                .build();
-    }
 
     @Override
     @Transactional // 데이터 변경(조회수 증가)이 있으므로 readOnly=false로 동작

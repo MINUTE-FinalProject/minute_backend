@@ -1,0 +1,55 @@
+package com.minute.board.free.repository.specification; // specification 패키지 예시
+
+import com.minute.board.free.entity.FreeboardPost;
+import com.minute.user.entity.User; // User 엔티티 import
+import jakarta.persistence.criteria.*; // Criteria API imports
+import org.springframework.data.jpa.domain.Specification;
+import org.springframework.util.StringUtils;
+
+public class FreeboardPostSpecification {
+
+    /**
+     * 작성자 ID로 필터링하는 Specification을 반환합니다.
+     */
+    public static Specification<FreeboardPost> hasAuthor(String authorUserId) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.equal(root.get("user").get("userId"), authorUserId);
+    }
+
+    /**
+     * 제목에 특정 키워드를 포함하는 Specification을 반환합니다.
+     */
+    public static Specification<FreeboardPost> titleContains(String keyword) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.like(root.get("postTitle"), "%" + keyword + "%");
+    }
+
+    /**
+     * 내용에 특정 키워드를 포함하는 Specification을 반환합니다.
+     */
+    public static Specification<FreeboardPost> contentContains(String keyword) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.like(root.get("postContent"), "%" + keyword + "%");
+    }
+
+    /**
+     * 작성자 닉네임에 특정 키워드를 포함하는 Specification을 반환합니다.
+     * 이를 위해서는 User 엔티티와 조인이 필요합니다.
+     */
+    public static Specification<FreeboardPost> authorNicknameContains(String keyword) {
+        return (root, query, criteriaBuilder) -> {
+            // 명시적 조인 (User 엔티티의 userNickName 필드 검색)
+            // Join<FreeboardPost, User> userJoin = root.join("user", JoinType.INNER); // 이미 관계 매핑이 되어 있다면 root.get("user")로 접근 가능
+            return criteriaBuilder.like(root.get("user").get("userNickName"), "%" + keyword + "%");
+        };
+    }
+
+    /**
+     * 통합 검색 Specification을 생성합니다. (제목 OR 내용 OR 닉네임)
+     */
+    public static Specification<FreeboardPost> combinedSearch(String keyword) {
+        return Specification.where(titleContains(keyword))
+                .or(contentContains(keyword))
+                .or(authorNicknameContains(keyword));
+    }
+}

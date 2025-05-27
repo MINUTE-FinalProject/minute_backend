@@ -36,8 +36,7 @@ public class FreeboardPostController {
     private final FreeboardPostService freeboardPostService;
     private final FreeboardCommentService freeboardCommentService; // FreeboardCommentService 주입
 
-    // 이 메서드만 남겨야 합니다. (authorUserId 파라미터가 있는 버전)
-    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. authorUserId 파라미터로 특정 작성자의 글만 조회할 수 있습니다.")
+    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. authorUserId 또는 searchKeyword 파라미터로 필터링/검색할 수 있습니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "게시글 목록 조회 성공",
                     content = @Content(schema = @Schema(implementation = PageResponseDTO.class)))
@@ -46,14 +45,16 @@ public class FreeboardPostController {
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 게시글 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "sort", description = "정렬 조건 (예: postId,desc 또는 postCreatedAt,asc).", example = "postId,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
-            @Parameter(name = "authorUserId", description = "조회할 작성자의 User ID (선택 사항)", example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "authorUserId", description = "조회할 작성자의 User ID (선택 사항)", example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "searchKeyword", description = "검색할 키워드 (제목, 내용, 닉네임 통합 검색, 선택 사항)", example = "오늘", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
     })
-    @GetMapping // 경로가 "/api/v1/board/free" 입니다.
+    @GetMapping // "/api/v1/board/free" 에 대한 GET 요청 처리
     public ResponseEntity<PageResponseDTO<FreeboardPostSimpleResponseDTO>> getAllPosts(
             @PageableDefault(size = 10, sort = "postId", direction = Sort.Direction.DESC) Pageable pageable,
-            @RequestParam(required = false) @Nullable String authorUserId) {
+            @RequestParam(required = false) @Nullable String authorUserId,
+            @RequestParam(required = false) @Nullable String searchKeyword) {
 
-        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable, authorUserId);
+        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable, authorUserId, searchKeyword);
         return ResponseEntity.ok(response);
     }
 
