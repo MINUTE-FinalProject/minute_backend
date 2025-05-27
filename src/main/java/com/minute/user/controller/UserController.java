@@ -21,19 +21,6 @@ public class UserController {
 
     private final UserService userService;
 
-    // 로그인한 사용자 정보 가져오기
-//    @GetMapping("")
-//    public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(@AuthenticationPrincipal DetailUser detailUser) {
-//        if (detailUser == null) {
-//            // 인증 정보 없으면 401 Unauthorized 처리
-//            return ResponseEntity.status(401).build();
-//        }
-//        // User 엔티티에서 아이디 꺼내기
-//        String userId = detailUser.getUser().getUserId();
-//
-//        return userService.getSignInUser(userId);
-//    }
-
     @GetMapping("")
     public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(@AuthenticationPrincipal DetailUser detailUser) {
         if (detailUser == null || detailUser.getUser() == null) {
@@ -83,4 +70,19 @@ public class UserController {
 
         return userService.userPatchInfo(requestBody, userId);
     }
+
+    @DeleteMapping("/delete")
+    public ResponseEntity<? super ResponseDto> deleteUser(
+            @AuthenticationPrincipal DetailUser detailUser) {
+
+        if (detailUser == null || detailUser.getUser() == null) {
+            return ResponseEntity.status(401).body(new ResponseDto("UNAUTHORIZED", "인증되지 않은 사용자입니다."));
+        }
+
+        String userId = detailUser.getUser().getUserId();
+
+        return userService.deleteUser(userId);
+    }
+
+
 }

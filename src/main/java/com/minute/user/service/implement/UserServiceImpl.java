@@ -128,5 +128,23 @@ public class UserServiceImpl implements UserService {
         return userRepository.findById(email);
     }
 
+    @Override
+    public ResponseEntity<? super ResponseDto> deleteUser(String userId) {
+        try {
+            User user = userRepository.findUserByUserId(userId);
+            if (user == null) {
+                return ResponseEntity.status(404).body(new ResponseDto("NOT_FOUND", "사용자를 찾을 수 없습니다."));
+            }
+
+            userRepository.delete(user);
+
+            return ResponseEntity.ok(new ResponseDto("SU", "회원 탈퇴가 완료되었습니다."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new ResponseDto("SE", "서버 오류가 발생했습니다."));
+        }
+    }
+
+
 
 }

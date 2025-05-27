@@ -1,5 +1,6 @@
 package com.minute.user.service;
 
+import com.minute.auth.dto.response.ResponseDto;
 import com.minute.user.dto.request.UserPatchInfoRequestDto;
 import com.minute.user.dto.response.GetSignInUserResponseDto;
 import com.minute.user.dto.response.GetUserResponseDto;
@@ -18,5 +19,8 @@ public interface UserService {
     ResponseEntity<? super UserPatchInfoResponseDto> userPatchInfo(UserPatchInfoRequestDto dto,String userId);
 
     Optional<User> getUserEntityByEmail(String email);
+
+    ResponseEntity<? super ResponseDto> deleteUser(String userId);
+
 
 }

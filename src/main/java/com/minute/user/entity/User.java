@@ -1,6 +1,7 @@
 package com.minute.user.entity; // User 엔티티의 실제 패키지 경로
 
 // 필요한 다른 엔티티들의 import 문 (User 엔티티가 참조하는 다른 엔티티들)
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.minute.board.notice.entity.Notice;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardComment;
@@ -122,31 +123,37 @@ public class User {
 
     // 공지사항 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default // Lombok Builder 사용 시 초기화 보장
     private List<Notice> notices = new ArrayList<>();
 
     // 자유게시판 게시글 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPost> freeboardPosts = new ArrayList<>();
 
     // 문의 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<Qna> qnas = new ArrayList<>();
 
     // 자유게시판 댓글 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardComment> freeboardComments = new ArrayList<>();
 
     // (사용자가 누른) 게시글 좋아요 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPostLike> freeboardPostLikes = new ArrayList<>();
 
     // (사용자가 신고한) 게시글 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPostReport> freeboardPostReports = new ArrayList<>();
 
@@ -154,21 +161,25 @@ public class User {
     // 만약 답변 작성자가 항상 User 테이블의 Admin이라면 이 관계가 유효합니다.
     // 아니라면, QnaReply 엔티티에서 User 참조 방식을 다시 고려해야 합니다.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<QnaReply> qnaReplies = new ArrayList<>();
 
     // (사용자가 신고한) 문의 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<QnaReport> qnaReports = new ArrayList<>();
 
     // (사용자가 누른) 댓글 좋아요 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardCommentLike> freeboardCommentLikes = new ArrayList<>();
 
     // (사용자가 신고한) 댓글 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardCommentReport> freeboardCommentReports = new ArrayList<>();
 
