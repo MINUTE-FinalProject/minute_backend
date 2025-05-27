@@ -1,6 +1,7 @@
 package com.minute.user.entity; // User 엔티티의 실제 패키지 경로
 
 // 필요한 다른 엔티티들의 import 문 (User 엔티티가 참조하는 다른 엔티티들)
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.minute.board.notice.entity.Notice;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardComment;
@@ -12,9 +13,10 @@ import com.minute.board.qna.entity.Qna;
 import com.minute.board.qna.entity.QnaReply;
 import com.minute.board.qna.entity.QnaReport;
 // User 관련 Enum import (별도 파일로 분리된 경우)
-import com.minute.user.enumpackage.Gender;
+import com.minute.auth.dto.request.auth.SignUpRequestDTO;
 import com.minute.user.enumpackage.Role;
-import com.minute.user.enumpackage.Status;
+import com.minute.user.enumpackage.UserStatus;
+import com.minute.user.enumpackage.UserGender;
 
 import jakarta.persistence.*;
 import lombok.*; // Getter, Setter, Builder, NoArgsConstructor, AllArgsConstructor
@@ -24,6 +26,7 @@ import org.hibernate.annotations.ColumnDefault; // 기본값 설정을 위해 �
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 @Getter
@@ -35,23 +38,31 @@ import java.util.List;
 @Table(name = "user")
 public class User {
 
+    @Setter
     @Id
     @Column(name = "user_id", length = 100)
     private String userId;
 
+    @Setter
     @Column(name = "user_pw", nullable = false, length = 100)
     private String userPw;
 
+    @Setter
     @Column(name = "user_name", nullable = false, length = 100)
     private String userName;
 
+    @Setter
     @Column(name = "user_nickname", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
-    private String userNickname;
+    private String userNickName;
+
+    @Setter
+    @Column(name = "user_profile_image")
+    private String profileImage;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "role", nullable = false)
     @ColumnDefault("'USER'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 USER)
-    private Role role = Role.User; // 자바 객체 기본값 설정
+    private Role role = Role.USER; // 자바 객체 기본값 설정
 
     @CreationTimestamp // 엔티티 생성 시 자동으로 현재 시간 저장
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -61,28 +72,48 @@ public class User {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Setter
     @Column(name = "user_phone", nullable = false, length = 100)
     private String userPhone;
 
+    @Setter
     @Column(name = "user_email", nullable = false, length = 100) // 스키마 주석: UNIQUE 제약조건 고려
     private String userEmail;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "user_status", nullable = false)
     @ColumnDefault("'N'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 N)
-    private Status userStatus = Status.N; // 자바 객체 기본값 설정
+    private UserStatus userStatus = UserStatus.N; // 자바 객체 기본값 설정
 
+    @Setter
     @Enumerated(EnumType.STRING)
     @Column(name = "user_gender", nullable = false)
     @ColumnDefault("'MALE'") // DB ENUM 기본값과 유사하게 JPA 레벨에서도 명시 (실제 DB 기본값은 MALE)
-    private Gender userGender = Gender.Male; // 자바 객체 기본값 설정
+    private UserGender userGender = UserGender.MALE; // 자바 객체 기본값 설정
 
-    @Column(name = "user_no", nullable = false) // PK가 아니므로 @GeneratedValue 제거
+    @Column(name = "user_no", nullable = false)// PK가 아니므로 @GeneratedValue 제거
     private Integer userNo;
 
     @Column(name = "user_report", nullable = false)
     @ColumnDefault("0") // DB 기본값과 동일하게 설정
     private Integer userReport = 0; // 자바 객체 기본값 설정
+
+    public List<String> getRoleList(){
+        if(this.role.getRole().length() > 0){
+            return Arrays.asList(this.role.getRole().split(","));
+        }
+        return new ArrayList<>();
+    }
+
+    public User (SignUpRequestDTO dto){
+        this.userId = dto.getUserId();
+        this.userName = dto.getUserName();
+        this.userEmail = dto.getUserEmail();
+        this.userPhone = dto.getUserPhone();
+        this.userNickName = dto.getUserNickName();
+        this.userPw = dto.getUserPw();
+        this.userGender = dto.getUserGender();
+    }
 
     // --- 팀원이 편리하게 사용할 연관관계 매핑 ---
     // mappedBy는 각 대상 엔티티(예: Notice)에 있는 User 타입 필드명과 일치해야 합니다.
@@ -92,31 +123,37 @@ public class User {
 
     // 공지사항 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default // Lombok Builder 사용 시 초기화 보장
     private List<Notice> notices = new ArrayList<>();
 
     // 자유게시판 게시글 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPost> freeboardPosts = new ArrayList<>();
 
     // 문의 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<Qna> qnas = new ArrayList<>();
 
     // 자유게시판 댓글 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardComment> freeboardComments = new ArrayList<>();
 
     // (사용자가 누른) 게시글 좋아요 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPostLike> freeboardPostLikes = new ArrayList<>();
 
     // (사용자가 신고한) 게시글 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardPostReport> freeboardPostReports = new ArrayList<>();
 
@@ -124,21 +161,25 @@ public class User {
     // 만약 답변 작성자가 항상 User 테이블의 Admin이라면 이 관계가 유효합니다.
     // 아니라면, QnaReply 엔티티에서 User 참조 방식을 다시 고려해야 합니다.
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<QnaReply> qnaReplies = new ArrayList<>();
 
     // (사용자가 신고한) 문의 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<QnaReport> qnaReports = new ArrayList<>();
 
     // (사용자가 누른) 댓글 좋아요 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardCommentLike> freeboardCommentLikes = new ArrayList<>();
 
     // (사용자가 신고한) 댓글 신고 목록
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnore
     @Builder.Default
     private List<FreeboardCommentReport> freeboardCommentReports = new ArrayList<>();
 

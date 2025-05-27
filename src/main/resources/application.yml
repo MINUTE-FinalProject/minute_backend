@@ -7,11 +7,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: true
     properties:
       hibernate:
         format_sql: true
+jwt:
+  key: m1bJYRdGfN9x/7XzEL7XTjJmRMnAvLH3KrB2yZhvL1E=
+  time: 3600000
 
 springdoc:
   api-docs:
@@ -21,3 +24,7 @@ springdoc:
     operations-sorter: alpha
     tags-sorter: alpha
     display-request-duration: true
+
+youtube:
+  api:
+    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
