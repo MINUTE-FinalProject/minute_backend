@@ -30,6 +30,7 @@ import org.springframework.transaction.annotation.Transactional; // 조회에도
 import org.springframework.util.StringUtils;
 
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -49,19 +50,32 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final FreeboardCommentRepository freeboardCommentRepository; // <<< FreeboardCommentRepository 주입 추가
 
     @Override
-    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId, @Nullable String searchKeyword) {
-        Specification<FreeboardPost> spec = Specification.where(null); // 기본은 모든 게시글
+    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(
+            Pageable pageable,
+            @Nullable String authorUserId,
+            @Nullable String searchKeyword,
+            @Nullable LocalDate startDate,
+            @Nullable LocalDate endDate) {
+
+        // 기본적으로 숨김 처리되지 않은 게시글만 조회하도록 Specification 시작
+        Specification<FreeboardPost> spec = Specification.where(com.minute.board.free.repository.specification.FreeboardPostSpecification.isNotHidden());
 
         if (StringUtils.hasText(authorUserId)) {
             spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.hasAuthor(authorUserId));
         }
 
         if (StringUtils.hasText(searchKeyword)) {
-            // combinedSearch는 제목, 내용, 닉네임 통합 검색
             spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.combinedSearch(searchKeyword));
         }
 
-        // FreeboardPostRepository의 findAll(Specification, Pageable)에 @EntityGraph(attributePaths = {"user"}) 오버라이드 필요
+        if (startDate != null) {
+            spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.createdAtAfter(startDate));
+        }
+
+        if (endDate != null) {
+            spec = spec.and(com.minute.board.free.repository.specification.FreeboardPostSpecification.createdAtBefore(endDate));
+        }
+
         Page<FreeboardPost> postPage = freeboardPostRepository.findAll(spec, pageable);
 
         List<FreeboardPostSimpleResponseDTO> dtoList = postPage.getContent().stream()

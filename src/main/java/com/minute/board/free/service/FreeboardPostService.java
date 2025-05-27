@@ -10,18 +10,30 @@ import com.minute.board.free.dto.response.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable; // @Nullable 어노테이션 사용
 
+import java.time.LocalDate;
+
 public interface FreeboardPostService {
 
     /**
      * 자유게시판 게시글 목록을 페이징하여 조회합니다.
-     * authorUserId 또는 searchKeyword가 제공되면 해당 조건으로 필터링합니다.
+     * 다양한 필터 조건(작성자, 검색 키워드, 날짜 범위)을 적용할 수 있습니다.
+     * 기본적으로 숨김 처리되지 않은 게시글만 조회합니다.
      *
      * @param pageable 페이징 정보
      * @param authorUserId 조회할 작성자의 ID (선택 사항)
      * @param searchKeyword 검색할 키워드 (선택 사항, 제목/내용/닉네임 통합 검색)
+     * @param startDate 검색 시작일 (선택 사항)
+     * @param endDate 검색 종료일 (선택 사항)
      * @return 페이징 처리된 게시글 목록 (PageResponseDTO)
      */
-    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId, @Nullable String searchKeyword);
+    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(
+            Pageable pageable,
+            @Nullable String authorUserId,
+            @Nullable String searchKeyword,
+            @Nullable LocalDate startDate,
+            @Nullable LocalDate endDate
+    );
+
 
     // 여기에 다른 게시글 관련 서비스 메서드들이 추가될 예정입니다.
     // 예: getPostById(Long postId), createPost(FreeboardPostRequestDTO requestDto, String userId), ...

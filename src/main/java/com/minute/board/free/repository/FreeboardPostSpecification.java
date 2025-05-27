@@ -6,7 +6,18 @@ import jakarta.persistence.criteria.*; // Criteria API imports
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
+
 public class FreeboardPostSpecification {
+
+    /**
+     * 숨김 처리되지 않은 게시글만 필터링합니다. (postIsHidden = false)
+     */
+    public static Specification<FreeboardPost> isNotHidden() {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.isFalse(root.get("postIsHidden"));
+    }
 
     /**
      * 작성자 ID로 필터링하는 Specification을 반환합니다.
@@ -51,5 +62,21 @@ public class FreeboardPostSpecification {
         return Specification.where(titleContains(keyword))
                 .or(contentContains(keyword))
                 .or(authorNicknameContains(keyword));
+    }
+
+    /**
+     * 특정 날짜 이후에 작성된 게시글 (해당 날짜 포함)
+     */
+    public static Specification<FreeboardPost> createdAtAfter(LocalDate startDate) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.greaterThanOrEqualTo(root.get("postCreatedAt"), startDate.atStartOfDay());
+    }
+
+    /**
+     * 특정 날짜 이전에 작성된 게시글 (해당 날짜 포함)
+     */
+    public static Specification<FreeboardPost> createdAtBefore(LocalDate endDate) {
+        return (root, query, criteriaBuilder) ->
+                criteriaBuilder.lessThanOrEqualTo(root.get("postCreatedAt"), endDate.atTime(LocalTime.MAX));
     }
 }

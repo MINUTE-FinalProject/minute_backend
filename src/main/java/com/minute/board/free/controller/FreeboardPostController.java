@@ -22,11 +22,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
+import java.time.LocalDate;
 
 @Tag(name = "01. 자유게시판 API", description = "자유게시판 게시글 관련 API입니다.") // API 그룹 태그
 @RestController
@@ -38,25 +40,26 @@ public class FreeboardPostController {
     private final FreeboardCommentService freeboardCommentService; // FreeboardCommentService 주입
     private final AdminReportViewService adminReportViewService; // <<< AdminReportViewService 주입
 
-    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. authorUserId 또는 searchKeyword 파라미터로 필터링/검색할 수 있습니다.")
-    @ApiResponses(value = {
-            @ApiResponse(responseCode = "200", description = "게시글 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class)))
-    })
+    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. 다양한 필터(작성자, 검색어, 날짜 범위)를 적용할 수 있습니다.")
+    @ApiResponses(value = { /* ... */ })
     @Parameters({
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 게시글 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "sort", description = "정렬 조건 (예: postId,desc 또는 postCreatedAt,asc).", example = "postId,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
             @Parameter(name = "authorUserId", description = "조회할 작성자의 User ID (선택 사항)", example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
-            @Parameter(name = "searchKeyword", description = "검색할 키워드 (제목, 내용, 닉네임 통합 검색, 선택 사항)", example = "오늘", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "searchKeyword", description = "검색할 키워드 (제목, 내용, 닉네임 통합 검색, 선택 사항)", example = "오늘", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "startDate", description = "검색 시작일 (YYYY-MM-DD 형식, 선택 사항)", example = "2025-01-01", in = ParameterIn.QUERY, schema = @Schema(type = "string", format = "date")),
+            @Parameter(name = "endDate", description = "검색 종료일 (YYYY-MM-DD 형식, 선택 사항)", example = "2025-01-31", in = ParameterIn.QUERY, schema = @Schema(type = "string", format = "date"))
     })
-    @GetMapping // "/api/v1/board/free" 에 대한 GET 요청 처리
+    @GetMapping
     public ResponseEntity<PageResponseDTO<FreeboardPostSimpleResponseDTO>> getAllPosts(
             @PageableDefault(size = 10, sort = "postId", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) @Nullable String authorUserId,
-            @RequestParam(required = false) @Nullable String searchKeyword) {
+            @RequestParam(required = false) @Nullable String searchKeyword,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Nullable LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) @Nullable LocalDate endDate) {
 
-        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable, authorUserId, searchKeyword);
+        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable, authorUserId, searchKeyword, startDate, endDate);
         return ResponseEntity.ok(response);
     }
 
