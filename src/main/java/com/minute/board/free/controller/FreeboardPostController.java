@@ -376,24 +376,41 @@ public class FreeboardPostController {
         return ResponseEntity.ok(response);
     }
 
-    @Operation(summary = "[관리자] 신고된 댓글 목록 조회", description = "신고된 댓글 목록을 신고 횟수, 작성자 정보, 원본 게시글 ID 등과 함께 페이징하여 조회합니다. (관리자용)")
+    @Operation(summary = "[관리자] 신고된 댓글 목록 조회", description = "신고된 댓글 목록을 다양한 조건으로 검색/필터링하여 조회합니다. (관리자용)")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "신고된 댓글 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<ReportedCommentEntryDTO>
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<AdminReportedCommentEntryDTO>
             @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님 - 인증 연동 후)"),
+            @ApiResponse(responseCode = "404", description = "요청 DTO에 문제가 있거나 관련 데이터를 찾을 수 없음"),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
     @Parameters({
+            // Pageable 파라미터
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
-            @Parameter(name = "sort", description = "정렬 조건. JPQL에 정의된 기본 정렬 외 다른 정렬은 엔티티 필드 기준.", example = "commentCreatedAt,asc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "sort", description = "정렬 조건 (예: commentCreatedAt,desc 또는 reportCount,desc). " +
+                    "JPQL의 기본 정렬은 신고 많은 순, 다음은 댓글 최신순입니다. " +
+                    "DTO 필드명(commentId, contentPreview, authorUserId, authorNickname, commentCreatedAt, originalPostId, reportCount, isHidden) 기준으로 정렬 가능합니다.",
+                    example = "reportCount,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            // AdminReportedCommentFilterDTO의 필드들은 DTO 내 @Schema로 설명됩니다.
+            // 여기서는 대표적인 몇 가지만 예시로 남기거나, DTO를 참조하도록 안내합니다.
+            @Parameter(name = "searchKeyword", description = "통합 검색어 (댓글 내용, 작성자ID/닉네임)", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "originalPostId", description = "원본 게시글 ID", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "authorUserId", description = "댓글 작성자 ID", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "isHidden", description = "댓글 숨김 상태 (true/false)", in = ParameterIn.QUERY, schema = @Schema(type = "boolean")),
+            @Parameter(name = "reportStartDate", description = "신고일 시작 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date")),
+            @Parameter(name = "reportEndDate", description = "신고일 종료 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date"))
     })
-    @GetMapping("/reports/comments") // 관리자용 경로 예시
-    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
-    public ResponseEntity<PageResponseDTO<ReportedCommentEntryDTO>> getReportedComments(
+    @GetMapping("/reports/comments")
+    public ResponseEntity<PageResponseDTO<AdminReportedCommentEntryDTO>> getReportedComments(
+            @ModelAttribute AdminReportedCommentFilterDTO filter,
+            // 기본 정렬은 JPQL에 명시된 것을 따르도록 하고, Pageable에서는 클라이언트 요청 시 덮어쓰도록 합니다.
+            // DTO 필드에 없는 'commentReportDate'로 정렬 시 오류가 발생할 수 있으므로,
+            // DTO 필드에 있는 'reportCreatedAt'(AdminReportedCommentEntryDTO의 필드) 또는 JPQL의 COUNT 집계로 정렬합니다.
+            // JPQL에 ORDER BY COUNT(r.id) DESC, c.commentCreatedAt DESC 가 있으므로 이 기본 정렬을 사용합니다.
             @PageableDefault(size = 10) Pageable pageable) {
 
-        PageResponseDTO<ReportedCommentEntryDTO> response = freeboardCommentService.getReportedComments(pageable);
+        PageResponseDTO<AdminReportedCommentEntryDTO> response = freeboardCommentService.getReportedComments(filter, pageable);
         return ResponseEntity.ok(response);
     }
 

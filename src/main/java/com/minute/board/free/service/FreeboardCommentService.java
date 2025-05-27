@@ -2,10 +2,8 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
-import com.minute.board.free.dto.request.CommentLikeRequestDTO;
-import com.minute.board.free.dto.request.CommentReportRequestDTO;
-import com.minute.board.free.dto.request.CommentVisibilityRequestDTO;
-import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
+import com.minute.board.free.dto.request.*;
+import com.minute.board.free.dto.response.AdminReportedCommentEntryDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
@@ -83,7 +81,7 @@ public interface FreeboardCommentService {
      * @param pageable 페이징 정보
      * @return 페이징된 신고 댓글 정보 목록 (PageResponseDTO)
      */
-    PageResponseDTO<ReportedCommentEntryDTO> getReportedComments(Pageable pageable);
+    PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable);
 
     /**
      * [관리자] 특정 댓글의 공개/숨김 상태를 변경합니다.

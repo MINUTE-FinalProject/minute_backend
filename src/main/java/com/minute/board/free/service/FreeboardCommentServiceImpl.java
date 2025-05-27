@@ -2,10 +2,8 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
-import com.minute.board.free.dto.request.CommentLikeRequestDTO;
-import com.minute.board.free.dto.request.CommentReportRequestDTO;
-import com.minute.board.free.dto.request.CommentVisibilityRequestDTO;
-import com.minute.board.free.dto.request.FreeboardCommentRequestDTO;
+import com.minute.board.free.dto.request.*;
+import com.minute.board.free.dto.response.AdminReportedCommentEntryDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
@@ -23,10 +21,13 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -216,10 +217,39 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     }
 
     @Override
-    public PageResponseDTO<ReportedCommentEntryDTO> getReportedComments(Pageable pageable) {
-        Page<ReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummaries(pageable);
+    public PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable) {
+        AdminReportedCommentFilterDTO queryFilter = new AdminReportedCommentFilterDTO();
+        // 기존 필터 값 복사
+        queryFilter.setSearchKeyword(filter.getSearchKeyword());
+        queryFilter.setOriginalPostId(filter.getOriginalPostId());
+        queryFilter.setAuthorUserId(filter.getAuthorUserId());
+        queryFilter.setAuthorNickname(filter.getAuthorNickname());
+        queryFilter.setIsHidden(filter.getIsHidden());
+        // reporterUserId와 reporterNickname은 이전 논의에서 DTO에서 제외하기로 했으므로 여기서는 복사하지 않습니다.
 
-        return PageResponseDTO.<ReportedCommentEntryDTO>builder()
+        // 날짜 필터 조정
+        if (filter.getReportStartDate() != null) {
+            queryFilter.setQueryReportStartDate(filter.getReportStartDate().atStartOfDay());
+        }
+        if (filter.getReportEndDate() != null) {
+            // 종료일은 해당 일자의 23:59:59.999... 또는 다음날 00:00:00 미만으로 처리
+            queryFilter.setQueryReportEndDate(filter.getReportEndDate().atTime(LocalTime.MAX));
+            // 또는 queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
+            // JPQL에서 '<' 연산자를 사용할 것이므로, atTime(LocalTime.MAX)보다는 plusDays(1).atStartOfDay()가 더 명확할 수 있습니다.
+            // 여기서는 plusDays(1).atStartOfDay()를 사용한다고 가정하고 JPQL을 수정하겠습니다.
+            // queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
+        }
+        // 만약 JPQL에서 <= 연산자를 사용한다면, atTime(LocalTime.MAX)가 적절합니다.
+        // 현재 JPQL은 < :#{#filter.queryReportEndDate} 형태로 가정하고, 서비스에서 +1일 해서 넘깁니다.
+        // 만약 reportEndDate가 null이 아니라면
+        if (filter.getReportEndDate() != null) {
+            queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
+        }
+
+
+        Page<AdminReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummariesWithFilters(queryFilter, pageable);
+
+        return PageResponseDTO.<AdminReportedCommentEntryDTO>builder()
                 .content(reportedCommentPage.getContent())
                 .currentPage(reportedCommentPage.getNumber() + 1)
                 .totalPages(reportedCommentPage.getTotalPages())
@@ -287,6 +317,35 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .userId(user != null ? user.getUserId() : null)
                 .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
                 .postId(postId)
+                .build();
+    }
+
+    private ReportedCommentEntryDTO convertToReportedCommentEntryDto(FreeboardCommentReport report) {
+        FreeboardComment comment = report.getFreeboardComment();
+        User commentAuthor = comment.getUser();
+        User reporter = report.getUser();
+        FreeboardPost originalPost = comment.getFreeboardPost();
+
+        String contentPreview = comment.getCommentContent();
+        if (contentPreview != null && contentPreview.length() > 50) {
+            contentPreview = contentPreview.substring(0, 50) + "...";
+        }
+
+        return ReportedCommentEntryDTO.builder() // 이제 이 부분이 정상 동작해야 합니다.
+                .itemType("COMMENT_REPORT") // DTO에 itemType 필드가 있다면
+                .reportId(report.getCommentReportId())
+                .reportedItemId(comment.getCommentId())
+                .itemTitleOrContentPreview(contentPreview)
+                .reportedItemAuthorUserId(commentAuthor.getUserId())
+                .reportedItemAuthorNickname(commentAuthor.getUserNickName())
+                .reporterUserId(reporter.getUserId())
+                .reporterNickname(reporter.getUserNickName())
+                .reportCreatedAt(report.getCommentReportDate())
+                .originalItemCreatedAt(comment.getCommentCreatedAt())
+                .isItemHidden(comment.isCommentIsHidden())
+                .originalPostIdForComment(originalPost.getPostId())
+                // .likeCount() // 이 DTO에는 좋아요 수가 없으므로 주석 또는 제거
+                // .viewCount() // 이 DTO에는 조회 수가 없으므로 주석 또는 제거
                 .build();
     }
 }
