@@ -2,6 +2,8 @@ package com.minute.security.config;
 
 import com.minute.security.filter.JwtAuthenticationFilter;
 import com.minute.security.filter.JwtLoginFilter;
+import com.minute.security.handler.CustomAuthFailureHandler;
+import com.minute.security.handler.CustomAuthSuccessHandler;
 import com.minute.security.handler.JwtProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -34,6 +36,8 @@ import java.util.List;
 public class WebSecurityConfig {
 
     private final JwtProvider jwtProvider;
+    private final CustomAuthSuccessHandler customAuthSuccessHandler;
+    private final CustomAuthFailureHandler customAuthFailureHandler;
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
@@ -47,8 +51,13 @@ public class WebSecurityConfig {
 
     @Bean
     public JwtLoginFilter jwtLoginFilter(AuthenticationManager authenticationManager) {
-        return new JwtLoginFilter(authenticationManager, jwtProvider);
+        JwtLoginFilter jwtLoginFilter = new JwtLoginFilter(authenticationManager, jwtProvider);
+        jwtLoginFilter.setAuthenticationSuccessHandler(customAuthSuccessHandler);
+        jwtLoginFilter.setAuthenticationFailureHandler(customAuthFailureHandler);
+        System.out.println("JwtLoginFilter 등록됨");
+        return jwtLoginFilter;
     }
+
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -81,7 +90,9 @@ public class WebSecurityConfig {
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
-                .addFilterBefore(jwtAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class);
+                .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthenticationFilter(authenticationManager), JwtLoginFilter.class);
+
 
         return httpSecurity.build();
     }
@@ -108,4 +119,6 @@ public class WebSecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+
 }

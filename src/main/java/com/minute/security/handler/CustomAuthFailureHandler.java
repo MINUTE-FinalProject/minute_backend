@@ -8,21 +8,15 @@ import org.springframework.security.authentication.*;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.HashMap;
 
-
+@Component
 public class CustomAuthFailureHandler implements AuthenticationFailureHandler {
 
-    /**
-     * 사용자의 잘못된 로그인 시도를 커스텀 하기 위한 핸들러 메소드
-     *
-     * @param request   사용자 요청 개체
-     * @param response  서버 응답값
-     * @param exception 발생한 오류를 담는 개체
-     */
     @Override
     public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
         JSONObject jsonObject;
