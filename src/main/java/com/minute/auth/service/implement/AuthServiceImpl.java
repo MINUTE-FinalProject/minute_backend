@@ -1,16 +1,14 @@
-package com.minute.user.service.implement;
+package com.minute.auth.service.implement;
 
 import com.minute.security.handler.JwtProvider;
-import com.minute.user.dto.request.auth.SignInRequestDto;
-import com.minute.user.dto.request.auth.SignUpRequestDTO;
-import com.minute.user.dto.request.auth.SignupValidateRequestDto;
-import com.minute.user.dto.response.ResponseDto;
-import com.minute.user.dto.response.auth.SignInResponseDto;
-import com.minute.user.dto.response.auth.SignupResponseDto;
-import com.minute.user.dto.response.auth.SignupValidateResponseDto;
+import com.minute.auth.dto.request.auth.SignUpRequestDTO;
+import com.minute.auth.dto.request.auth.SignupValidateRequestDto;
+import com.minute.auth.dto.response.ResponseDto;
+import com.minute.auth.dto.response.auth.SignupResponseDto;
+import com.minute.auth.dto.response.auth.SignupValidateResponseDto;
 import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
-import com.minute.user.service.AuthService;
+import com.minute.auth.service.AuthService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -103,28 +101,4 @@ public class AuthServiceImpl implements AuthService {
         return SignupResponseDto.success();
     }
 
-    @Override
-    public ResponseEntity<? super SignInResponseDto> signIn(SignInRequestDto dto) {
-
-        String token = null;
-
-        try {
-
-            String id = dto.getUserId();
-            User user = userRepository.findUserByUserId(id);
-            if(user == null) {System.out.println("로그인 실패 - 유저 없음");return SignInResponseDto.signInFailed();}
-
-            String password = dto.getUserPw();
-            String encodedPassword = user.getUserPw();
-            boolean isMatched = passwordEncoder.matches(password, encodedPassword);
-            if(!isMatched) {System.out.println("로그인 실패- 비밀번호 불일치");return SignInResponseDto.wrongPw();}
-
-            token = jwtProvider.create(id);
-
-        } catch (Exception exception) {
-            exception.printStackTrace();
-            return ResponseDto.databaseError();
-        }
-        return SignInResponseDto.success(token);
-    }
 }
