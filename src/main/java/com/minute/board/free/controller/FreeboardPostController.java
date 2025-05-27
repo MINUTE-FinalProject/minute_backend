@@ -6,6 +6,7 @@ import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.*;
 import com.minute.board.free.service.FreeboardCommentService;
 import com.minute.board.free.service.FreeboardPostService;
+import io.micrometer.common.lang.Nullable;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
@@ -35,23 +36,24 @@ public class FreeboardPostController {
     private final FreeboardPostService freeboardPostService;
     private final FreeboardCommentService freeboardCommentService; // FreeboardCommentService 주입
 
-    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다.")
+    // 이 메서드만 남겨야 합니다. (authorUserId 파라미터가 있는 버전)
+    @Operation(summary = "자유게시판 게시글 목록 조회", description = "페이징 처리된 자유게시판 게시글 목록을 조회합니다. authorUserId 파라미터로 특정 작성자의 글만 조회할 수 있습니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "게시글 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))) // 실제로는 PageResponseDTO<FreeboardPostSimpleResponseDTO> 지만, Swagger 표현 방식 확인 필요
-            // 필요한 경우 다른 응답 코드들 (예: 400, 500) 추가
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class)))
     })
     @Parameters({
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 게시글 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
-            @Parameter(name = "sort", description = "정렬 조건 (예: postId,desc 또는 postCreatedAt,asc)", example = "postId,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "sort", description = "정렬 조건 (예: postId,desc 또는 postCreatedAt,asc).", example = "postId,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "authorUserId", description = "조회할 작성자의 User ID (선택 사항)", example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
     })
-    @GetMapping
+    @GetMapping // 경로가 "/api/v1/board/free" 입니다.
     public ResponseEntity<PageResponseDTO<FreeboardPostSimpleResponseDTO>> getAllPosts(
-            // @PageableDefault: 기본 페이징 값 설정 (예: 한 페이지에 10개, postId 기준 내림차순 정렬)
-            @PageableDefault(size = 10, sort = "postId", direction = Sort.Direction.DESC) Pageable pageable) {
+            @PageableDefault(size = 10, sort = "postId", direction = Sort.Direction.DESC) Pageable pageable,
+            @RequestParam(required = false) @Nullable String authorUserId) {
 
-        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable);
+        PageResponseDTO<FreeboardPostSimpleResponseDTO> response = freeboardPostService.getAllPosts(pageable, authorUserId);
         return ResponseEntity.ok(response);
     }
 
@@ -460,6 +462,29 @@ public class FreeboardPostController {
         // DB 조회 시에는 각 엔티티의 생성일시 필드로 정렬해서 가져오는 것이 좋습니다.
 
         PageResponseDTO<FreeboardUserActivityItemDTO> response = freeboardPostService.getUserFreeboardActivity(userId, pageable);
+        return ResponseEntity.ok(response);
+    }
+
+    @Operation(summary = "내가 쓴 댓글 목록 조회", description = "특정 사용자가 작성한 댓글 목록을 페이징하여 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "댓글 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<FreeboardCommentResponseDTO>
+            @ApiResponse(responseCode = "404", description = "사용자 정보를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            @Parameter(name = "userId", description = "댓글을 조회할 작성자의 User ID", required = true, example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 댓글 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "sort", description = "정렬 조건 (예: commentCreatedAt,desc). 기본값: commentCreatedAt,desc", example = "commentCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/comments/by-user") // API 경로 예시
+    // @PreAuthorize("isAuthenticated()") // TODO: 실제 인증 연동 후, 자신의 댓글만 보게 하거나, 관리자는 타인 ID 조회 가능하게 할 수 있음
+    public ResponseEntity<PageResponseDTO<FreeboardCommentResponseDTO>> getCommentsByAuthor(
+            @RequestParam String userId, // "내 활동"이므로 실제로는 인증된 사용자 ID 사용
+            @PageableDefault(size = 10, sort = "commentCreatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
+
+        PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByAuthor(userId, pageable);
         return ResponseEntity.ok(response);
     }
 }

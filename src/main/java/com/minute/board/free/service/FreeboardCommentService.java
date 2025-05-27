@@ -94,4 +94,14 @@ public interface FreeboardCommentService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 댓글이 없을 경우
      */
     FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto);
+
+    /**
+     * 특정 사용자가 작성한 댓글 목록을 페이징하여 조회합니다.
+     *
+     * @param userId 조회할 사용자의 ID
+     * @param pageable 페이징 정보
+     * @return 페이징된 해당 사용자의 댓글 목록
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 사용자가 없을 경우
+     */
+    PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, Pageable pageable);
 }

@@ -244,6 +244,29 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         return convertToDto(comment);
     }
 
+    @Override
+    public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, Pageable pageable) {
+        User author = userRepository.findUserByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + userId));
+
+        Page<FreeboardComment> commentPage = freeboardCommentRepository.findByUserOrderByCommentCreatedAtDesc(author, pageable);
+
+        List<FreeboardCommentResponseDTO> dtoList = commentPage.getContent().stream()
+                .map(this::convertToDto) // 기존 DTO 변환 메서드 재활용
+                .collect(Collectors.toList());
+
+        return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
+                .content(dtoList)
+                .currentPage(commentPage.getNumber() + 1)
+                .totalPages(commentPage.getTotalPages())
+                .totalElements(commentPage.getTotalElements())
+                .size(commentPage.getSize())
+                .first(commentPage.isFirst())
+                .last(commentPage.isLast())
+                .empty(commentPage.isEmpty())
+                .build();
+    }
+
     /**
      * FreeboardComment 엔티티를 FreeboardCommentResponseDTO로 변환합니다.
      *

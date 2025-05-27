@@ -25,6 +25,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 조회에도 필요시 readOnly=true 옵션
+import org.springframework.util.StringUtils;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -43,6 +44,39 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final FreeboardPostLikeRepository freeboardPostLikeRepository; // 주입 추가
     private final FreeboardPostReportRepository freeboardPostReportRepository; // 주입 추가
     private final FreeboardCommentRepository freeboardCommentRepository; // <<< FreeboardCommentRepository 주입 추가
+
+    @Override
+    public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, String authorUserId) {
+        Page<FreeboardPost> postPage;
+
+        if (StringUtils.hasText(authorUserId)) { // authorUserId 파라미터가 존재하고 비어있지 않은 경우
+            // 특정 사용자가 작성한 게시글만 조회
+            // 해당 userId의 사용자가 존재하는지 먼저 확인할 수도 있습니다.
+            // User author = userRepository.findUserByUserId(authorUserId)
+            //        .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + authorUserId));
+            // postPage = freeboardPostRepository.findByUser(author, pageable); // User 객체로 검색
+            // 또는 userId 문자열로 직접 검색
+            postPage = freeboardPostRepository.findByUser_UserId(authorUserId, pageable);
+        } else {
+            // 모든 게시글 조회
+            postPage = freeboardPostRepository.findAll(pageable);
+        }
+
+        List<FreeboardPostSimpleResponseDTO> dtoList = postPage.getContent().stream()
+                .map(this::convertToSimpleDto)
+                .collect(Collectors.toList());
+
+        return PageResponseDTO.<FreeboardPostSimpleResponseDTO>builder()
+                .content(dtoList)
+                .currentPage(postPage.getNumber() + 1)
+                .totalPages(postPage.getTotalPages())
+                .totalElements(postPage.getTotalElements())
+                .size(postPage.getSize())
+                .first(postPage.isFirst())
+                .last(postPage.isLast())
+                .empty(postPage.isEmpty())
+                .build();
+    }
 
     @Override
     public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {

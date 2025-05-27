@@ -8,8 +8,19 @@ import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
 import com.minute.board.free.dto.response.*;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.Nullable; // @Nullable 어노테이션 사용
 
 public interface FreeboardPostService {
+
+    /**
+     * 자유게시판 게시글 목록을 페이징하여 조회합니다.
+     * authorUserId가 제공되면 해당 사용자의 게시글만 필터링합니다.
+     *
+     * @param pageable 페이징 정보 (페이지 번호, 페이지 크기, 정렬 조건)
+     * @param authorUserId 조회할 작성자의 ID (선택 사항, null일 경우 전체 게시글 조회)
+     * @return 페이징 처리된 게시글 목록 (PageResponseDTO)
+     */
+    PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable, @Nullable String authorUserId);
 
     /**
      * 모든 자유게시판 게시글 목록을 페이징하여 조회합니다.

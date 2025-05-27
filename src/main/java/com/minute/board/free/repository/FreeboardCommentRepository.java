@@ -29,4 +29,16 @@ public interface FreeboardCommentRepository extends JpaRepository<FreeboardComme
 // 또는 findByUserOrderByCommentCreatedAtDesc 메서드에서 JOIN FETCH를 사용
 // @Query("SELECT fc FROM FreeboardComment fc JOIN FETCH fc.freeboardPost p JOIN FETCH p.user WHERE fc.user = :user ORDER BY fc.commentCreatedAt DESC")
 // List<FreeboardComment> findByUserWithPostAndPostAuthorOrderByCommentCreatedAtDesc(@Param("user") User user);
+
+    /**
+     * 특정 사용자가 작성한 댓글 목록을 페이징하여 조회합니다.
+     * 댓글 작성자(user) 정보와 댓글이 달린 원본 게시글(freeboardPost) 정보도 함께 조회합니다.
+     * 기본 정렬은 댓글 작성일 내림차순입니다.
+     *
+     * @param user 조회할 사용자 엔티티
+     * @param pageable 페이징 정보
+     * @return 페이징된 해당 사용자의 댓글 목록
+     */
+    @EntityGraph(attributePaths = {"user", "freeboardPost", "freeboardPost.user"}) // 댓글작성자, 원본게시글, 원본게시글작성자 함께 로딩
+    Page<FreeboardComment> findByUserOrderByCommentCreatedAtDesc(User user, Pageable pageable);
 }
