@@ -1,7 +1,10 @@
 package com.minute.board.free.repository;
 
 import com.minute.board.free.entity.FreeboardPost;
+import com.minute.user.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+
+import java.util.List;
 
 public interface FreeboardPostRepository extends JpaRepository<FreeboardPost, Integer> {
     // FreeboardPost 엔티티의 ID (postId) 타입은 Integer 입니다.
@@ -14,4 +17,6 @@ public interface FreeboardPostRepository extends JpaRepository<FreeboardPost, In
 // 또는 JPQL 사용
 // @Query("SELECT fp FROM FreeboardPost fp JOIN FETCH fp.user")
 // Page<FreeboardPost> findAllWithUser(Pageable pageable);
+
+    List<FreeboardPost> findByUserOrderByPostCreatedAtDesc(User user);
 }

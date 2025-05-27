@@ -6,13 +6,12 @@ import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
-import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
-import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
-import com.minute.board.free.dto.response.PostLikeResponseDTO;
-import com.minute.board.free.dto.response.ReportedPostEntryDTO;
+import com.minute.board.free.dto.response.*;
+import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardPostLike;
 import com.minute.board.free.entity.FreeboardPostReport;
+import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostLikeRepository;
 import com.minute.board.free.repository.FreeboardPostReportRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
@@ -21,11 +20,14 @@ import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional; // 조회에도 필요시 readOnly=true 옵션
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -40,6 +42,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final UserRepository userRepository; // UserRepository 주입
     private final FreeboardPostLikeRepository freeboardPostLikeRepository; // 주입 추가
     private final FreeboardPostReportRepository freeboardPostReportRepository; // 주입 추가
+    private final FreeboardCommentRepository freeboardCommentRepository; // <<< FreeboardCommentRepository 주입 추가
 
     @Override
     public PageResponseDTO<FreeboardPostSimpleResponseDTO> getAllPosts(Pageable pageable) {
@@ -259,6 +262,78 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         // freeboardPostRepository.save(post); // @Transactional에 의해 자동 업데이트
 
         return convertToDetailDto(post);
+    }
+
+    @Override
+    public PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String userId, Pageable pageable) {
+        User user = userRepository.findUserByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + userId));
+
+        // 1. 사용자가 작성한 게시글 조회 (페이지네이션 없이 일단 최근 N개 또는 전체 가져오기 - 최적화 필요)
+        //    실제로는 pageable의 sort 정보를 활용하여 각 소스에서 정렬된 데이터를 가져와야 함.
+        //    여기서는 예시로 최근 게시글/댓글을 가져와 합치는 방식을 간략히 표현.
+        //    정확한 페이징을 위해서는 DB 레벨에서 UNION 하거나, 더 복잡한 로직 필요.
+        List<FreeboardPost> userPosts = freeboardPostRepository.findByUserOrderByPostCreatedAtDesc(user); // Repository에 메서드 추가 필요
+        List<FreeboardComment> userComments = freeboardCommentRepository.findByUserOrderByCommentCreatedAtDesc(user); // Repository에 메서드 추가 필요
+
+        List<FreeboardUserActivityItemDTO> activities = new ArrayList<>();
+
+        // 게시글을 DTO로 변환하여 activities 리스트에 추가
+        userPosts.forEach(post -> activities.add(
+                FreeboardUserActivityItemDTO.builder()
+                        .itemType("POST")
+                        .itemId(post.getPostId())
+                        .postTitle(post.getPostTitle())
+                        // .contentSnippet(post.getPostContent().substring(0, Math.min(post.getPostContent().length(), 50)) + "...") // 예시
+                        .authorUserId(user.getUserId())
+                        .authorNickname(user.getUserNickName())
+                        .createdAt(post.getPostCreatedAt())
+                        .likeCount(post.getPostLikeCount())
+                        .viewCount(post.getPostViewCount())
+                        .build()
+        ));
+
+        // 댓글을 DTO로 변환하여 activities 리스트에 추가
+        userComments.forEach(comment -> {
+            String contentPreview = comment.getCommentContent();
+            if (contentPreview != null && contentPreview.length() > 50) {
+                contentPreview = contentPreview.substring(0, 50) + "...";
+            }
+            activities.add(
+                    FreeboardUserActivityItemDTO.builder()
+                            .itemType("COMMENT")
+                            .itemId(comment.getCommentId())
+                            .commentContentPreview(contentPreview)
+                            .originalPostId(comment.getFreeboardPost().getPostId())
+                            .originalPostTitle(comment.getFreeboardPost().getPostTitle()) // N+1 주의! 댓글 조회 시 게시글 정보 EAGER 로딩 또는 fetch join 필요
+                            .authorUserId(user.getUserId())
+                            .authorNickname(user.getUserNickName())
+                            .createdAt(comment.getCommentCreatedAt())
+                            .likeCount(comment.getCommentLikeCount())
+                            .build()
+            );
+        });
+
+        // createdAt 기준으로 최신순 정렬
+        activities.sort(Comparator.comparing(FreeboardUserActivityItemDTO::getCreatedAt).reversed());
+
+        // 수동 페이징 처리
+        int start = (int) pageable.getOffset();
+        int end = Math.min((start + pageable.getPageSize()), activities.size());
+        List<FreeboardUserActivityItemDTO> pageContent = (start <= end) ? activities.subList(start, end) : List.of();
+
+        Page<FreeboardUserActivityItemDTO> activityPage = new PageImpl<>(pageContent, pageable, activities.size());
+
+        return PageResponseDTO.<FreeboardUserActivityItemDTO>builder()
+                .content(activityPage.getContent())
+                .currentPage(activityPage.getNumber() + 1)
+                .totalPages(activityPage.getTotalPages())
+                .totalElements(activityPage.getTotalElements())
+                .size(activityPage.getSize())
+                .first(activityPage.isFirst())
+                .last(activityPage.isLast())
+                .empty(activityPage.isEmpty())
+                .build();
     }
 
     // --- Private Helper Methods ---

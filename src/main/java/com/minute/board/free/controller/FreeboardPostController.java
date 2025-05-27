@@ -435,4 +435,31 @@ public class FreeboardPostController {
         FreeboardCommentResponseDTO responseDto = freeboardCommentService.updateCommentVisibility(commentId, requestDto);
         return ResponseEntity.ok(responseDto);
     }
+
+    @Operation(summary = "내 자유게시판 활동 목록 조회 (통합)", description = "현재 사용자가 작성한 게시글 및 댓글 전체를 최신순으로 페이징하여 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "내 활동 목록 조회 성공",
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<FreeboardUserActivityItemDTO>
+            @ApiResponse(responseCode = "404", description = "사용자 정보를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류")
+    })
+    @Parameters({
+            // userId는 실제로는 토큰에서 추출하거나 @AuthenticationPrincipal User user로 받아야 함.
+            // 현재는 임시로 @RequestParam으로 받습니다.
+            @Parameter(name = "userId", description = "활동을 조회할 사용자의 ID (인증 연동 전 임시)", required = true, example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "sort", description = "정렬 조건 (예: createdAt,desc). DTO의 createdAt 필드 기준.", example = "createdAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+    })
+    @GetMapping("/activity/my") // "/users/me/activity" 또는 "/member/activity" 등도 가능
+    // @PreAuthorize("isAuthenticated()") // TODO: 실제 인증 연동 후 추가
+    public ResponseEntity<PageResponseDTO<FreeboardUserActivityItemDTO>> getMyFreeboardActivity(
+            @RequestParam String userId, // 실제로는 인증된 사용자 정보를 사용해야 함
+            @PageableDefault(size = 10, sort = "createdAt", direction = Sort.Direction.DESC) Pageable pageable) {
+        // pageable의 sort가 "createdAt"으로 오면, 서비스 로직 내 메모리 정렬에서 이를 활용합니다.
+        // DB 조회 시에는 각 엔티티의 생성일시 필드로 정렬해서 가져오는 것이 좋습니다.
+
+        PageResponseDTO<FreeboardUserActivityItemDTO> response = freeboardPostService.getUserFreeboardActivity(userId, pageable);
+        return ResponseEntity.ok(response);
+    }
 }

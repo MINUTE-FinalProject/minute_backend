@@ -6,10 +6,7 @@ import com.minute.board.free.dto.request.FreeboardPostRequestDTO;
 import com.minute.board.free.dto.request.PostLikeRequestDTO;
 import com.minute.board.free.dto.request.PostReportRequestDTO;
 import com.minute.board.free.dto.request.PostVisibilityRequestDTO;
-import com.minute.board.free.dto.response.FreeboardPostResponseDTO;
-import com.minute.board.free.dto.response.FreeboardPostSimpleResponseDTO;
-import com.minute.board.free.dto.response.PostLikeResponseDTO;
-import com.minute.board.free.dto.response.ReportedPostEntryDTO;
+import com.minute.board.free.dto.response.*;
 import org.springframework.data.domain.Pageable;
 
 public interface FreeboardPostService {
@@ -104,5 +101,14 @@ public interface FreeboardPostService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없을 경우
      */
     FreeboardPostResponseDTO updatePostVisibility(Integer postId, PostVisibilityRequestDTO requestDto);
+
+    /**
+     * 특정 사용자의 자유게시판 활동 내역(작성한 게시글 및 댓글)을 통합하여 최신순으로 페이징 조회합니다.
+     *
+     * @param userId 조회할 사용자의 ID
+     * @param pageable 페이징 정보 (정렬 기준은 주로 createdAt)
+     * @return 페이징된 사용자 활동 목록
+     */
+    PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String userId, Pageable pageable);
 }
 
