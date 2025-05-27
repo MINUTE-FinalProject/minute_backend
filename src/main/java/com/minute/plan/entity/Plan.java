@@ -53,6 +53,7 @@ public class Plan {
     private LocalDateTime updatedAt;
 
     public void updateFrom(PlanRequestDTO dto) {
+        this.travelDate = dto.getTravelDate();
         this.title = dto.getTitle();
         this.description = dto.getDescription();
         this.startTime = dto.getStartTime();

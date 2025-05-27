@@ -13,7 +13,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 @Schema(description = "캘린더 상세 조회 응답 DTO")
-public class CalendarDetailResponseDTO {
+public class CalendarResponseDTO {
+    @Schema(description = "해당 날짜 일정 목록")
     private List<PlanResponseDTO> plans;
+
+    @Schema(description = "해당 날짜 체크리스트 목록")
     private List<ChecklistResponseDTO> checklists;
 }

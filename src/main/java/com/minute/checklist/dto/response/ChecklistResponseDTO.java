@@ -25,9 +25,13 @@ public class ChecklistResponseDTO {
 
     // 엔티티 DTO 변환 헬퍼 메서드
     public static ChecklistResponseDTO fromEntity(Checklist c) {
+        Integer planId = null;
+        if (c.getPlan() != null) {
+            planId = c.getPlan().getPlanId();
+        }
         return ChecklistResponseDTO.builder()
                 .checklistId(c.getChecklistId())
-                .planId(c.getPlan().getPlanId())
+                .planId(planId)
                 .itemContent(c.getItemContent())
                 .isChecked(c.getIsChecked())
                 .build();

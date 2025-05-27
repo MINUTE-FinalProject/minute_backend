@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,10 +25,11 @@ public class PlanController {
 
     @Operation(description = "특정 날짜 일정 조회")
     @GetMapping
-    public List<PlanResponseDTO> getByDate(@RequestParam String date,
-                                           Principal principal) {
+    public List<PlanResponseDTO> getByDate(Principal principal,
+                                           @RequestParam("date") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+                                           LocalDate date) {
         String userId = principal.getName();
-        return planService.getPlansByUserAndDate(userId, LocalDate.parse(date));
+        return planService.getPlansByUserAndDate(userId, date);
     }
 
     @Operation(summary = "일정 작성")
