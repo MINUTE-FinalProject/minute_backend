@@ -21,6 +21,7 @@ public class DetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
+
         if (username == null || username.isEmpty()) {
             throw new AuthenticationServiceException("이메일이 비어 있습니다.");
         }
@@ -34,5 +35,6 @@ public class DetailsService implements UserDetailsService {
                     return new DetailUser(Optional.of(user));
                 })
                 .orElseThrow(() -> new UsernameNotFoundException("해당 유저를 찾을 수 없습니다: " + username));
+
     }
 }

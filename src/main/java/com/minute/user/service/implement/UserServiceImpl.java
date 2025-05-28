@@ -7,6 +7,7 @@ import com.minute.user.dto.response.GetUserResponseDto;
 import com.minute.user.dto.response.UserPatchInfoResponseDto;
 import com.minute.user.entity.User;
 import com.minute.user.enumpackage.Role;
+import com.minute.user.enumpackage.UserStatus;
 import com.minute.user.repository.UserRepository;
 import com.minute.user.service.UserService;
 import jakarta.persistence.EntityManager;
@@ -15,8 +16,15 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Optional;
+
+import static com.minute.user.enumpackage.UserStatus.N;
 
 //아이디로 유저찾기
 @Service
@@ -27,6 +35,8 @@ public class UserServiceImpl implements UserService {
     @PersistenceContext
     private EntityManager em;
     private final UserRepository userRepository;
+    String uploadDir = "C:/upload/profile/";
+
 
     //프론트용 사용자 조회
     @Override
@@ -128,6 +138,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.findById(email);
     }
 
+    //회원탈퇴
     @Override
     public ResponseEntity<? super ResponseDto> deleteUser(String userId) {
         try {
@@ -145,6 +156,54 @@ public class UserServiceImpl implements UserService {
         }
     }
 
+    //프로필 업로드
+    @Override
+    public ResponseEntity<? super ResponseDto> uploadProfileImage(String userId, MultipartFile file) {
+        try {
+            User user = userRepository.findUserByUserId(userId);
+            if (user == null) {
+                return ResponseEntity.status(404).body(new ResponseDto("NOT_FOUND", "사용자를 찾을 수 없습니다."));
+            }
 
+            if (file == null || file.isEmpty()) {
+                return ResponseEntity.badRequest().body(new ResponseDto("INVALID_FILE", "이미지 파일이 비어 있습니다."));
+            }
 
+            // 파일 저장
+            String originalFilename = file.getOriginalFilename();
+            String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+            String newFileName = userId + "_profile" + fileExtension;
+            Path savePath = Paths.get(uploadDir, newFileName);
+            Files.createDirectories(savePath.getParent());
+            Files.write(savePath, file.getBytes());
+
+            // DB에 경로 저장
+            user.setProfileImage("/upload/" + newFileName);
+            userRepository.save(user);
+
+            return ResponseEntity.ok(new ResponseDto("SU", "프로필 이미지가 성공적으로 업로드되었습니다.", newFileName));
+
+        } catch (IOException e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(new ResponseDto("FILE_ERROR", "파일 업로드 중 오류가 발생했습니다."));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseDto.databaseError();
+        }
+    }
+
+    //회원 정지
+    @Transactional
+    public void changeStatus(String userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
+
+        if (user.getUserStatus() == N) {
+            user.setUserStatus(UserStatus.Y);
+            userRepository.save(user);
+        } else {
+            user.setUserStatus(N);
+            userRepository.save(user);
+        }
+    }
 }

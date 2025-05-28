@@ -4,6 +4,10 @@ spring:
     username: minutedb
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+  web:
+    resources:
+      static-locations: src/main/resources/static/upload
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -27,3 +31,4 @@ springdoc:
 youtube:
   api:
     key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
+
