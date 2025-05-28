@@ -14,6 +14,10 @@ public interface FreeboardPostLikeRepository extends JpaRepository<FreeboardPost
     // 사용자와 게시글로 좋아요 정보를 찾는 메서드
     Optional<FreeboardPostLike> findByUserAndFreeboardPost(User user, FreeboardPost freeboardPost);
 
+    // <<< 추가된 메소드 >>>
+    // 사용자와 게시글로 좋아요 존재 여부를 확인하는 메서드 (boolean 반환)
+    boolean existsByUserAndFreeboardPost(User user, FreeboardPost freeboardPost);
+
     // 특정 게시글의 모든 좋아요 삭제 (게시글 삭제 시 사용될 수 있으나, CASCADE로 처리 중이면 불필요)
     // void deleteByFreeboardPost(FreeboardPost freeboardPost);
 

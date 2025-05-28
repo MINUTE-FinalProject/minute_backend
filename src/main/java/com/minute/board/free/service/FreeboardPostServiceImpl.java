@@ -1,6 +1,6 @@
 package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 패키지 경로를 수정해주세요.
 
-import com.minute.auth.service.DetailUser; // <<< DetailUser 임포트 (관리자 역할 확인 등에 필요시)
+import com.minute.auth.service.DetailUser; // <<< DetailUser 임포트
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.*;
@@ -13,8 +13,8 @@ import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostLikeRepository;
 import com.minute.board.free.repository.FreeboardPostReportRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
-import com.minute.user.entity.User; // User 엔티티 import (경로 확인 필요)
-import com.minute.user.enumpackage.Role; // <<< Role enum 임포트 (관리자 역할 확인 등에 필요시)
+import com.minute.user.entity.User;
+import com.minute.user.enumpackage.Role;
 import com.minute.user.repository.UserRepository;
 import io.micrometer.common.lang.Nullable;
 import jakarta.persistence.EntityNotFoundException;
@@ -25,16 +25,15 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
-// import org.springframework.security.core.GrantedAuthority; // <<< 관리자 역할 확인 등에 필요시
+import org.springframework.security.core.Authentication; // <<< Authentication 임포트
+import org.springframework.security.core.context.SecurityContextHolder; // <<< SecurityContextHolder 임포트
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
-
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
-// import java.util.Collection; // <<< 관리자 역할 확인 등에 필요시
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -58,7 +57,27 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
             @Nullable String searchKeyword,
             @Nullable LocalDate startDate,
             @Nullable LocalDate endDate) {
-        // 이 메소드는 공개 API용이므로 currentUserId를 받지 않습니다.
+
+        // <<< 현재 인증된 사용자 정보 가져오기 시작 >>>
+        User currentLoggedInUserEntity = null; // User 엔티티를 저장할 변수
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+
+        if (authentication != null && authentication.isAuthenticated() &&
+                !(authentication.getPrincipal() instanceof String &&
+                        authentication.getPrincipal().equals("anonymousUser"))) {
+
+            Object principal = authentication.getPrincipal();
+
+            if (principal instanceof DetailUser) {
+                DetailUser detailUser = (DetailUser) principal;
+                if (detailUser.getUser() != null && detailUser.getUser().getUserId() != null) {
+                    // 사용자 ID를 사용하여 User 엔티티 조회 (한 번만 조회하여 재사용)
+                    currentLoggedInUserEntity = userRepository.findUserByUserId(detailUser.getUser().getUserId()).orElse(null);
+                }
+            }
+        }
+        // <<< 현재 인증된 사용자 정보 가져오기 끝 >>>
+
         Specification<FreeboardPost> spec = Specification.where(com.minute.board.free.repository.specification.FreeboardPostSpecification.isNotHidden());
 
         if (StringUtils.hasText(authorUserId)) {
@@ -75,8 +94,11 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         }
 
         Page<FreeboardPost> postPage = freeboardPostRepository.findAll(spec, pageable);
+
+        // DTO 변환 시 currentLoggedInUserEntity 전달
+        final User finalCurrentLoggedInUserEntity = currentLoggedInUserEntity; // 람다에서 사용하기 위함
         List<FreeboardPostSimpleResponseDTO> dtoList = postPage.getContent().stream()
-                .map(this::convertToSimpleDto)
+                .map(post -> convertToSimpleDto(post, finalCurrentLoggedInUserEntity)) // <<< currentLoggedInUserEntity 전달
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardPostSimpleResponseDTO>builder()
@@ -95,25 +117,22 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     @Override
     @Transactional
     public FreeboardPostResponseDTO getPostById(Integer postId) {
-        // 이 메소드는 공개 API용이므로 currentUserId를 받지 않습니다.
         FreeboardPost post = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 ID의 게시글을 찾을 수 없습니다: " + postId));
         post.setPostViewCount(post.getPostViewCount() + 1);
-        return convertToDetailDto(post);
+        return convertToDetailDto(post); // 상세 DTO는 개인화 정보가 필요하다면 유사하게 수정 필요
     }
 
     @Override
     @Transactional
-    public FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto, String currentUserId) { // <<< currentUserId 파라미터 추가
-        // 1. 작성자(User) 정보 조회 (이제 DTO가 아닌 currentUserId 사용)
+    public FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto, String currentUserId) {
         User author = userRepository.findUserByUserId(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + currentUserId));
 
-        // 2. DTO를 Entity로 변환
         FreeboardPost newPost = FreeboardPost.builder()
                 .postTitle(requestDto.getPostTitle())
                 .postContent(requestDto.getPostContent())
-                .user(author) // 인증된 사용자로 작성자 설정
+                .user(author)
                 .build();
 
         FreeboardPost savedPost = freeboardPostRepository.save(newPost);
@@ -122,15 +141,14 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     @Transactional
-    public FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) { // <<< currentUserId 파라미터 추가
+    public FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) {
         FreeboardPost postToUpdate = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("수정할 게시글을 찾을 수 없습니다: " + postId));
 
-        // User currentUser = userRepository.findUserByUserId(currentUserId).orElseThrow(...); // 필요시 현재 사용자 엔티티 조회
-        // boolean isAdmin = principal != null && principal.getUser().getRole() == Role.ADMIN; // 예시: 관리자 여부 확인
+        // 현재 로그인한 사용자의 Role 정보를 가져오려면 principal 객체가 필요합니다.
+        // 예: DetailUser principal = (DetailUser) SecurityContextHolder.getContext().getAuthentication().getPrincipal();
+        // boolean isAdmin = principal != null && principal.getUser() != null && principal.getUser().getRole() == Role.ADMIN;
 
-        // 2. 수정 권한 확인: 요청한 사용자(currentUserId)와 실제 게시글 작성자의 userId가 일치하는지 확인
-        //    또는 관리자(Admin)도 수정 가능하도록 로직 추가 가능
         if (!postToUpdate.getUser().getUserId().equals(currentUserId) /* && !isAdmin */ ) {
             throw new AccessDeniedException("게시글 수정 권한이 없습니다.");
         }
@@ -142,14 +160,12 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     @Transactional
-    public void deletePost(Integer postId, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) { // <<< requestUserId를 currentUserId로 변경
+    public void deletePost(Integer postId, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) {
         FreeboardPost postToDelete = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("삭제할 게시글을 찾을 수 없습니다: " + postId));
 
-        // User currentUser = userRepository.findUserByUserId(currentUserId).orElseThrow(...);
-        // boolean isAdmin = principal != null && principal.getUser().getRole() == Role.ADMIN;
+        // boolean isAdmin = ... (updatePost와 유사하게 역할 확인 가능)
 
-        // 2. 삭제 권한 확인
         if (!postToDelete.getUser().getUserId().equals(currentUserId) /* && !isAdmin */) {
             throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         }
@@ -159,11 +175,10 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     @Transactional
-    public PostLikeResponseDTO togglePostLike(Integer postId, String currentUserId) { // <<< PostLikeRequestDTO requestDto 제거, currentUserId 파라미터 추가
+    public PostLikeResponseDTO togglePostLike(Integer postId, String currentUserId) {
         FreeboardPost post = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 게시글을 찾을 수 없습니다: " + postId));
 
-        // 사용자 조회 (이제 DTO가 아닌 currentUserId 사용)
         User user = userRepository.findUserByUserId(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + currentUserId));
 
@@ -193,11 +208,10 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     @Transactional
-    public ReportSuccessResponseDTO reportPost(Integer postId, String currentUserId) { // <<< PostReportRequestDTO requestDto 제거, currentUserId 파라미터 추가
+    public ReportSuccessResponseDTO reportPost(Integer postId, String currentUserId) {
         FreeboardPost postToReport = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("신고할 게시글을 찾을 수 없습니다: " + postId));
 
-        // 신고자 조회 (이제 DTO가 아닌 currentUserId 사용)
         User reporter = userRepository.findUserByUserId(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("신고자 정보를 찾을 수 없습니다: " + currentUserId));
 
@@ -219,8 +233,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(AdminReportedPostFilterDTO filter, Pageable pageable) {
-        // 이 메소드는 관리자 기능이므로 currentUserId를 직접 받지 않습니다.
-        // 접근 제어는 WebSecurityConfig 또는 컨트롤러의 @PreAuthorize 로 이루어집니다.
         AdminReportedPostFilterDTO queryFilter = new AdminReportedPostFilterDTO();
         queryFilter.setPostId(filter.getPostId());
         queryFilter.setAuthorUserId(filter.getAuthorUserId());
@@ -253,7 +265,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     @Override
     @Transactional
     public FreeboardPostResponseDTO updatePostVisibility(Integer postId, PostVisibilityRequestDTO requestDto) {
-        // 이 메소드는 관리자 기능이므로 currentUserId를 직접 받지 않습니다.
         FreeboardPost post = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 게시글을 찾을 수 없습니다: " + postId));
         post.setPostIsHidden(requestDto.getIsHidden());
@@ -261,8 +272,8 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     }
 
     @Override
-    public PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String currentUserId, Pageable pageable) { // <<< userId를 currentUserId로 변경
-        User user = userRepository.findUserByUserId(currentUserId) // currentUserId 사용
+    public PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String currentUserId, Pageable pageable) {
+        User user = userRepository.findUserByUserId(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + currentUserId));
 
         List<FreeboardPost> userPosts = freeboardPostRepository.findByUserOrderByPostCreatedAtDesc(user);
@@ -352,21 +363,35 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         }
     }
 
-    private FreeboardPostSimpleResponseDTO convertToSimpleDto(FreeboardPost post) {
-        User user = post.getUser();
+    // <<< convertToSimpleDto 메소드 시그니처 및 내용 수정 >>>
+    private FreeboardPostSimpleResponseDTO convertToSimpleDto(FreeboardPost post, User currentLoggedInUser) {
+        User author = post.getUser();
+
+        boolean isLiked = false;
+        boolean isReported = false;
+
+        if (currentLoggedInUser != null) { // 로그인한 사용자가 있을 경우에만 확인
+            isLiked = freeboardPostLikeRepository.existsByUserAndFreeboardPost(currentLoggedInUser, post);
+            isReported = freeboardPostReportRepository.existsByUserAndFreeboardPost(currentLoggedInUser, post);
+        }
+
         return FreeboardPostSimpleResponseDTO.builder()
                 .postId(post.getPostId())
                 .postTitle(post.getPostTitle())
                 .postViewCount(post.getPostViewCount())
                 .postLikeCount(post.getPostLikeCount())
                 .postCreatedAt(post.getPostCreatedAt())
-                .userId(user != null ? user.getUserId() : null)
-                .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
+                .userId(author != null ? author.getUserId() : null)
+                .userNickName(author != null ? author.getUserNickName() : "알 수 없는 사용자")
+                .isLikedByCurrentUser(isLiked) // <<< 추가된 필드 값 설정
+                .isReportedByCurrentUser(isReported) // <<< 추가된 필드 값 설정
                 .build();
     }
 
     private FreeboardPostResponseDTO convertToDetailDto(FreeboardPost post) {
         User user = post.getUser();
+        // 상세 DTO에서도 개인화 정보가 필요하다면, 이 메소드도 currentLoggedInUser를 받도록 수정해야 합니다.
+        // 현재는 목록용 DTO에만 개인화 정보를 추가하는 것으로 가정합니다.
         return FreeboardPostResponseDTO.builder()
                 .postId(post.getPostId())
                 .postTitle(post.getPostTitle())
