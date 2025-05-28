@@ -35,8 +35,8 @@ public class YoutubeVideoController {
     // 3. 쇼츠만
     @GetMapping("/shorts")
     public List<Map<String, Object>> getShortsByRegion(
-            @RequestParam String region,
-            @RequestParam(defaultValue = "15") int maxResults
+            @RequestParam(defaultValue = "KR") String region,
+            @RequestParam(defaultValue = "50") int maxResults
     ) {
         return youtubeApiService.searchShortsByRegion(region, maxResults);
     }

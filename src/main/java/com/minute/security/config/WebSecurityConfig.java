@@ -84,6 +84,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/v1/auth/sign-up").permitAll()
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                         .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
