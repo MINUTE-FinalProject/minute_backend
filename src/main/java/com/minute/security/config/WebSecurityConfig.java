@@ -74,13 +74,20 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").permitAll() // <<< 내 활동 목록 조회 (임시)
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").permitAll() // <<< 내가 쓴 댓글 목록 조회 (임시)
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").permitAll() // <<< 전체 신고 활동 목록 (관리자용 임시)
+
+                        .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
+                        .requestMatchers("/api/v1/watch-history/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/**").permitAll()
+                        .requestMatchers("/api/v1/videos/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+
                         .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
                         .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
                         .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
                         .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN") //공지사항 삭제
                         .requestMatchers(HttpMethod.PATCH, "/api/notices/{noticeId}/importance").hasRole("ADMIN") //공지사항 중요도 변경
                         .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
-
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exceptionHandle -> exceptionHandle
@@ -117,5 +124,6 @@ public class WebSecurityConfig {
         return source;
 
     }
+
 
 }

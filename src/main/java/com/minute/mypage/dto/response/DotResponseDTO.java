@@ -5,7 +5,7 @@ import lombok.Getter;
 
 @AllArgsConstructor
 @Getter
-public class ResponseDotDTO {
+public class DotResponseDTO {
 
     private String date;
     private String type;

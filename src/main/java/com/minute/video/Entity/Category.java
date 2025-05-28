@@ -6,6 +6,9 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Entity
 @Table(name = "category")
 @Getter
@@ -23,4 +26,7 @@ public class Category {
 
     @Column(length = 100)
     private String youtubeKeyword;
+
+    @OneToMany(mappedBy = "category",cascade = CascadeType.ALL,orphanRemoval = true)
+    private List<VideoCategory> videoCategories = new ArrayList<>();
 }
