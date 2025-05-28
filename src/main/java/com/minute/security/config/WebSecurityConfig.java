@@ -87,6 +87,7 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
+                        .requestMatchers("/api/v1/weather/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
