@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,20 +29,22 @@ public class WatchHistoryService {
     private final VideoMapper videoMapper;
 
     // 시청기록저장
-    public void saveWatchHistory(WatchHistoryRequestDTO watchHistoryRequestDTO) {
+    public void saveWatchHistory(String userId,WatchHistoryRequestDTO watchHistoryRequestDTO) {
 
         // User 객체 조회
-        User user = userRepository.findById(watchHistoryRequestDTO.getUserId())
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + watchHistoryRequestDTO.getUserId()));
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " +userId));
 
         // Video 객체 조회
         Video video = videoRepository.findById(watchHistoryRequestDTO.getVideoId())
                 .orElseThrow(() -> new RuntimeException("Video not found with ID: " + watchHistoryRequestDTO.getVideoId()));
 
+        LocalDateTime now = LocalDateTime.now();
+
         WatchHistory watchHistory = WatchHistory.builder()
                 .user(user)
                 .video(video)
-                .watchedAt(watchHistoryRequestDTO.getWatchedAt())
+                .watchedAt(now)
                 .build();
         watchHistoryRepository.save(watchHistory);
     }

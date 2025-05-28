@@ -38,10 +38,14 @@ public class VideoController {
     })
     @GetMapping
     public List<VideoResponseDTO> getVideos(
+            @Parameter(description = "영상 키워드") @RequestParam(required = false) String keyword,
             @Parameter(description="카테고리 필터") @RequestParam(required = false) String category,
             @Parameter(description="태그 필터")        @RequestParam(required = false) String tag,
             @Parameter(description="로그인된 사용자 ID ")   @RequestParam(required = false) String userId
     ) {
+        if(keyword != null && !keyword.isBlank()){
+            return videoService.searchByKeyword(keyword);
+        }
         if (category != null && !category.isBlank()) {
             // category 파라미터가 있으면 해당 카테고리 영상 목록 조회
             return videoService.getVideoByCategory(category);
