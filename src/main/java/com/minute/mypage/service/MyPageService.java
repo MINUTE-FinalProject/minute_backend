@@ -1,8 +1,6 @@
 package com.minute.mypage.service;
 
-import com.minute.checklist.dto.response.ChecklistResponseDTO;
 import com.minute.checklist.service.ChecklistService;
-import com.minute.mypage.dto.response.DateDetailResponseDTO;
 import com.minute.mypage.dto.response.DotResponseDTO;
 import com.minute.plan.dto.response.PlanResponseDTO;
 import com.minute.plan.service.PlanService;
@@ -39,12 +37,8 @@ public class MyPageService {
 
     }
 
-    // details API
-    public DateDetailResponseDTO getDateDetails(String userId, LocalDate date) {
-        List<PlanResponseDTO> plans = planService.getPlansByUserAndDate(userId, date);
-        List<ChecklistResponseDTO> checklists = checklistService.getChecklistsByUserAndDate(userId, date);
-        return new DateDetailResponseDTO(plans, checklists);
+    // plans API
+    public List<PlanResponseDTO> getPlansOnly(String userId, LocalDate date) {
+        return planService.getPlansByUserAndDate(userId, date);
     }
-
-
 }

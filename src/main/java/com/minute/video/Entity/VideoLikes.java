@@ -8,6 +8,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.sql.Date;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "video_likes")
@@ -22,8 +23,8 @@ public class VideoLikes {
     @Column(name = "id")
     private int LikesId;
 
-    @Column(name = "created_at")
-    private Date createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
     @ManyToOne
     @JoinColumn(name = "video_id")
@@ -32,4 +33,10 @@ public class VideoLikes {
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
+
+    // save() 호출 시점에 createdAt이 자동으로 현재 시간으로 반영
+    @PrePersist
+    public void prePersist() {
+        this.createdAt = LocalDateTime.now();
+    }
 }

@@ -15,7 +15,7 @@ public class SearchSuggestionsDTO {
     // 검색창 포커스 시 최근검색 + 인기검색 응답
 
     @Schema(description = "사용자의 최근 검색어 목록")
-    private List<String> recentKeywords;
+    private List<SearchHistoryResponseDTO> recentKeywords;
 
     @Schema(description = "전체 인기 검색어 목록")
     private List<String> popularKeywords;
