@@ -1,6 +1,10 @@
 package com.minute.security.config;
 
 import com.minute.security.filter.JwtAuthenticationFilter;
+import com.minute.security.filter.JwtLoginFilter;
+import com.minute.security.handler.CustomAuthFailureHandler;
+import com.minute.security.handler.CustomAuthSuccessHandler;
+import com.minute.security.handler.JwtProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -8,13 +12,12 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer; // CsrfConfigurer 대신 사용 권장
-import org.springframework.security.config.annotation.web.configurers.HttpBasicConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.AuthenticationException;
-// 👇 PasswordEncoder 관련 import 추가
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
@@ -31,63 +34,119 @@ import java.util.List;
 @EnableWebSecurity
 @RequiredArgsConstructor
 public class WebSecurityConfig {
-    private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    // 👇 [매우 중요!!!] PasswordEncoder Bean 등록
+    private final JwtProvider jwtProvider;
+    private final CustomAuthSuccessHandler customAuthSuccessHandler;
+    private final CustomAuthFailureHandler customAuthFailureHandler;
+
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authenticationConfiguration) throws Exception {
+        return authenticationConfiguration.getAuthenticationManager();
+    }
+
+    @Bean
+    public JwtAuthenticationFilter jwtAuthenticationFilter(AuthenticationManager authenticationManager) {
+        return new JwtAuthenticationFilter(authenticationManager, jwtProvider);
+    }
+
+    @Bean
+    public JwtLoginFilter jwtLoginFilter(AuthenticationManager authenticationManager) {
+        JwtLoginFilter jwtLoginFilter = new JwtLoginFilter(authenticationManager, jwtProvider);
+        jwtLoginFilter.setAuthenticationSuccessHandler(customAuthSuccessHandler);
+        jwtLoginFilter.setAuthenticationFailureHandler(customAuthFailureHandler);
+        System.out.println("JwtLoginFilter 등록됨");
+        return jwtLoginFilter;
+    }
+
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
 
     @Bean
-    protected SecurityFilterChain configure(HttpSecurity httpSecurity) throws Exception {
+    protected SecurityFilterChain configure(HttpSecurity httpSecurity, AuthenticationManager authenticationManager) throws Exception {
         httpSecurity
-                .cors(cors -> cors
-                        .configurationSource(corsConfigurationSource())
-                )
-                // .csrf(CsrfConfigurer::disable) // 최신 Spring Security 방식에서는 AbstractHttpConfigurer 사용 권장
-                .csrf(AbstractHttpConfigurer::disable) // CSRF 보호 비활성화 (Stateless API 서버의 경우)
-                .httpBasic(HttpBasicConfigurer::disable) // HTTP Basic 인증 비활성화
-                .sessionManagement(sessionManagement -> sessionManagement
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS) // 세션 사용 안 함 (JWT 기반)
-                )
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+                .csrf(csrf -> csrf.disable())
+                .httpBasic(httpBasic -> httpBasic.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(request -> request
-                        .requestMatchers( // Swagger UI 등 문서 관련 경로는 모두 허용
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/swagger-ui.html",
-                                "/api-docs/**",
-                                "/webjars/**"
-                        ).permitAll()
-                        // 인증(회원가입/로그인) 관련 API 경로는 모두 허용
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        // 검색, 파일 등 공개 API 허용
-                        .requestMatchers(
-                                "/",
-                                "/api/v1/search/**",
-                                "/file/**"
-                        ).permitAll()
-                        // GET 요청에 대한 게시판 및 특정 사용자 정보 조회는 허용 (필요에 따라 더 세분화 가능)
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
+                                .requestMatchers(
+                                        "/swagger-ui/**",
+                                        "/v3/api-docs/**",
+                                        "/swagger-resources/**",
+                                        "/swagger-ui.html",
+                                        "/api-docs/**",
+                                        "/webjars/**"
+                                ).permitAll()
+                                .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
+                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
+                                .requestMatchers("/upload/**").permitAll()
+                                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                                .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
+                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
+                                .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
 
-                        // 👇 [수정 권장] 폴더 및 마이페이지 관련 경로는 인증된 사용자만 접근하도록 변경
-                        .requestMatchers("/api/folder/**").authenticated() // 또는 .hasRole("USER") 등
-                        .requestMatchers("/mypage/**").authenticated()     // 또는 .hasRole("USER") 등
+                                // 게시판
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free").permitAll() // <<< 이 줄을 추가 (임시)자유게시판 수정 필요
+                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/**").permitAll() // 게시글 수정
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/**").permitAll() // 게시글 삭제
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/comments").permitAll() // 댓글 작성
+                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 수정
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 삭제
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/like").permitAll() // <<< 게시글 좋아요
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/like").permitAll() // <<< 댓글 좋아요
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/report").permitAll() // <<< 게시글 신고
+                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/report").permitAll() // <<< 댓글 신고
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").permitAll() // <<< 신고된 게시글 목록 조회 (관리자용 임시)
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").permitAll() // <<< 신고된 댓글 목록 조회 (관리자용 임시)
+                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/**/visibility").permitAll() // <<< 게시글 숨김/공개 처리 (관리자용 임시)
+                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/**/visibility").permitAll() // <<< 댓글 숨김/공개 처리 (관리자용 임시)
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").permitAll() // <<< 내 활동 목록 조회 (임시)
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").permitAll() // <<< 내가 쓴 댓글 목록 조회 (임시)
+                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").permitAll() // <<< 전체 신고 활동 목록 (관리자용 임시)
 
-                        .anyRequest().authenticated() // 그 외 모든 요청은 인증 필요
+                                .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
+                                .requestMatchers("/api/v1/watch-history/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/**").permitAll()
+                                .requestMatchers("/api/v1/videos/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+
+                                .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
+                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
+                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+
+                                // 플랜 캘린더
+                                .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/caldendars/**","/api/v1/user/*").permitAll()
+                                .requestMatchers(HttpMethod.GET,"/api/v1/weather/**").permitAll()
+
+                                // 비디오
+//
+                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
+                                .requestMatchers("/api/v1/watch-history/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/**").permitAll()
+                                .requestMatchers("/api/v1/videos/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+                                //
+                                .anyRequest().authenticated()
                 )
-                .exceptionHandling(exceptionHandle -> exceptionHandle
-                        .authenticationEntryPoint(new FailedAuthenticationEntryPoint()) // 인증 실패 시 처리
-                )
-                // 모든 요청 전에 jwtAuthenticationFilter를 UsernamePasswordAuthenticationFilter 앞에 추가
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+                .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
+                .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(jwtAuthenticationFilter(authenticationManager), JwtLoginFilter.class);
+
 
         return httpSecurity.build();
     }
 
-    // FailedAuthenticationEntryPoint 클래스는 인증 실패 시 일관된 응답을 보내기 위해 유지
-    static class FailedAuthenticationEntryPoint implements AuthenticationEntryPoint {
+    class FailedAuthenticationEntryPoint implements AuthenticationEntryPoint {
         @Override
         public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
                 throws IOException, ServletException {
@@ -97,18 +156,18 @@ public class WebSecurityConfig {
         }
     }
 
-    // CORS 설정은 이전과 동일하게 유지
     @Bean
     protected CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:5173")); // 프론트엔드 개발 서버 주소
-        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*")); // 모든 헤더 허용
-        configuration.setAllowCredentials(true); // 자격 증명 허용
-        configuration.setMaxAge(3600L); // pre-flight 요청의 캐시 시간 (초)
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:[*]"));
+        configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        configuration.setAllowedHeaders(List.of("*"));
+        configuration.setAllowCredentials(true);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration); // 모든 경로에 대해 이 CORS 설정 적용
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
+
+
 }
