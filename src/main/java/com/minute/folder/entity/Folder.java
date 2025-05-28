@@ -18,7 +18,7 @@ public class Folder {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer folderId;
 
-    @Column(name = "forder_name", nullable = false)
+    @Column(name = "folder_name", nullable = false)
     private String folderName;
 
     @Column(name = "created_at", nullable = false)
