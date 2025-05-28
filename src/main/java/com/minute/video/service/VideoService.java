@@ -114,6 +114,13 @@ public class VideoService {
                 .collect(Collectors.toList());
     }
 
+    // 키워드 검색 가능
+    public List<VideoResponseDTO> searchByKeyword(String keyword){
+        return videoRepository.findByVideoTitleContainingIgnoreCase(keyword)
+                .stream()
+                .map(videoResponseMapper::toDtoWithStats)
+                .collect(Collectors.toList());
+    }
 
     // 영상 상세 조회
     public VideoResponseDTO getVideoDetail(String videoId){
