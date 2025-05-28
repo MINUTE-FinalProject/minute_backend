@@ -1,16 +1,20 @@
-// com.minute.folder.repository.FolderRepository.java
 package com.minute.folder.repository;
 
 import com.minute.folder.entity.Folder;
 import org.springframework.data.jpa.repository.JpaRepository;
-import java.util.List;
-import java.util.Optional; // Optional import 추가
+import org.springframework.stereotype.Repository; // 👈 @Repository 어노테이션 추가 (선택적이지만 권장)
 
+import java.util.List;
+import java.util.Optional; // 👈 Optional import 추가
+
+@Repository // 👈 Spring이 이 인터페이스를 스캔하고 Bean으로 등록하도록 어노테이션 추가
 public interface FolderRepository extends JpaRepository<Folder, Integer> {
-    // 기존 메소드 (수정 필요 없을 수 있음, FolderService에서 userId 조건을 추가하여 호출하도록 변경 가능)
+
+    // 기존 메소드 (이것도 userId 조건이 추가된 버전이 필요할 수 있습니다.)
     List<Folder> findByFolderNameStartingWith(String prefix);
 
-    // [새로 추가 또는 수정될 메소드 예시]
+    // 👇 [새로 추가되어야 할 메소드들] 👇
+
     // 특정 사용자의 모든 폴더를 생성 시간 역순으로 조회
     List<Folder> findByUserIdOrderByCreatedAtDesc(String userId);
 

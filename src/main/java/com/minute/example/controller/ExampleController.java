@@ -45,6 +45,8 @@ public class ExampleController {
             @RequestParam(required = false, defaultValue = "DefaultType") String type, // 쿼리 파라미터 'type'을 받습니다.
             @RequestHeader(name = "X-Custom-Header", required = false) String customHeader) { // HTTP 헤더 'X-Custom-Header' 값을 받습니다.
 
+
+
         // --- 실제 비즈니스 로직은 여기에 작성합니다 ---
         // 이 예시에서는 로직을 최소화하고, 어노테이션 사용에 집중합니다.
         // 팀원들에게는 "이 부분에 실제 데이터 조회/처리 로직이 들어갑니다." 라고 안내해주세요.

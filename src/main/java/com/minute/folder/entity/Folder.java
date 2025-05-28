@@ -1,7 +1,7 @@
 package com.minute.folder.entity;
 
 import com.minute.bookmark.entity.Bookmark;
- import com.minute.user.entity.User; // User 엔티티를 사용할 경우 주석 해제 및 경로 확인
+// import com.minute.user.entity.User; // User 엔티티를 사용할 경우 주석 해제 및 경로 확인
 import jakarta.persistence.*;
 import lombok.*;
 

@@ -2,170 +2,123 @@ package com.minute.folder.service;
 
 import com.minute.folder.entity.Folder;
 import com.minute.folder.repository.FolderRepository;
-import org.slf4j.Logger; // 👈 SLF4J Logger import 추가
-import org.slf4j.LoggerFactory; // 👈 SLF4J Logger import 추가
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails; // 👈 UserDetails import 추가
+import org.springframework.security.core.Authentication; // 👈 Spring Security import 추가
+import org.springframework.security.core.context.SecurityContextHolder; // 👈 Spring Security import 추가
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Collections;
+import java.util.Collections; // 👈 Collections import 추가 (getVideosByFolderId 임시 반환용)
 import java.util.List;
-import java.util.Optional; // 👈 Optional import 추가 (findByIdAndUserId 반환 타입 일치)
 
 @Service
 @RequiredArgsConstructor
 public class FolderService {
 
     private final FolderRepository folderRepository;
-    private static final Logger log = LoggerFactory.getLogger(FolderService.class); // 👈 로거 선언
 
-    // 현재 로그인한 사용자 ID를 가져오는 헬퍼 메소드 (개선)
+    // 현재 로그인한 사용자 ID를 가져오는 헬퍼 메소드
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null) {
-            log.warn("[FolderService] getCurrentUserId: Authentication 객체가 null입니다. SecurityContext에 인증 정보가 없습니다.");
-            throw new IllegalStateException("인증 정보를 찾을 수 없습니다. 로그인이 필요합니다. (Auth is null)");
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            // 실제 운영 환경에서는 이 부분에 대해 더 강력한 예외 처리나 로직이 필요할 수 있습니다.
+            // 예를 들어, 로그인이 필요한 기능에 접근 시 명확한 예외를 발생시켜야 합니다.
+            throw new IllegalStateException("인증된 사용자 정보를 찾을 수 없습니다. 로그인이 필요합니다.");
         }
-
-        if (!authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            log.warn("[FolderService] getCurrentUserId: 사용자가 인증되지 않았거나 anonymousUser입니다. Principal: {}", authentication.getPrincipal());
-            throw new IllegalStateException("인증되지 않은 사용자입니다. 로그인이 필요합니다. (Not Authenticated or Anonymous)");
-        }
-
-        Object principal = authentication.getPrincipal();
-        String userId = null;
-
-        if (principal instanceof UserDetails) {
-            // Spring Security의 UserDetails 인터페이스를 구현한 경우 (일반적)
-            userId = ((UserDetails) principal).getUsername();
-            log.info("[FolderService] getCurrentUserId: UserDetails에서 사용자 ID '{}'를 가져왔습니다.", userId);
-        } else if (principal instanceof String) {
-            // Principal이 단순 문자열인 경우 (예: 직접 설정한 경우)
-            userId = (String) principal;
-            log.info("[FolderService] getCurrentUserId: Principal 문자열에서 사용자 ID '{}'를 가져왔습니다.", userId);
-        } else {
-            // 예상치 못한 Principal 타입
-            log.error("[FolderService] getCurrentUserId: 예상치 못한 Principal 타입입니다. Principal: {}, Type: {}", principal, principal.getClass().getName());
-            throw new IllegalStateException("사용자 ID를 추출할 수 없는 인증 객체 타입입니다.");
-        }
-
-        if (userId == null || userId.trim().isEmpty()) {
-            log.error("[FolderService] getCurrentUserId: 추출된 사용자 ID가 null이거나 비어있습니다.");
-            throw new IllegalStateException("유효한 사용자 ID를 가져올 수 없습니다.");
-        }
-
-        return userId;
+        // Spring Security의 Principal 객체가 UserDetails를 구현한 커스텀 객체라면,
+        // ((YourCustomUserDetails) authentication.getPrincipal()).getUserId() 와 같이 실제 ID를 가져와야 합니다.
+        // 기본적으로 authentication.getName()은 username (여기서는 userId)을 반환합니다.
+        return authentication.getName();
     }
 
     @Transactional
     public Folder createFolder(String folderName) {
-        String currentUserId = getCurrentUserId(); // 인증 확인 포함
-        log.info("[FolderService] createFolder 호출 - 사용자 ID: {}, 폴더명: {}", currentUserId, folderName);
+        String currentUserId = getCurrentUserId(); // 현재 사용자 ID 가져오기
 
         if (folderName == null || folderName.trim().isEmpty()) {
-            folderName = generateDefaultName(currentUserId);
-            log.info("[FolderService] createFolder: 폴더명이 비어있어 기본 폴더명 '{}'으로 설정합니다.", folderName);
+            folderName = generateDefaultName(currentUserId); // 사용자별 기본 폴더명 생성
         }
-        // TODO: 동일 사용자의 폴더 중 이름 중복 체크 로직 추가하면 좋음
+        // TODO: 동일 사용자의 폴더 중 이름 중복 체크 로직 추가하면 좋습니다.
 
         Folder folder = Folder.builder()
                 .folderName(folderName)
-                .userId(currentUserId)
+                .userId(currentUserId) // 👈 생성 시 userId 저장
                 .createdAt(LocalDateTime.now())
                 .build();
 
-        Folder savedFolder = folderRepository.save(folder);
-        log.info("[FolderService] createFolder: 폴더 생성 완료. ID: {}", savedFolder.getFolderId());
-        return savedFolder;
+        return folderRepository.save(folder);
     }
 
     private String generateDefaultName(String userId) {
         String base = "기본폴더";
-        log.debug("[FolderService] generateDefaultName 시작 - 사용자 ID: {}, 기본명: {}", userId, base);
+        // 👇 FolderRepository에 추가한 findByUserIdAndFolderNameStartingWith 사용
         List<Folder> existing = folderRepository.findByUserIdAndFolderNameStartingWith(userId, base);
         int idx = 0;
-        String candidate;
         while (true) {
-            candidate = idx == 0 ? base : base + idx;
-            final String finalCandidate = candidate; // 람다식 내부에서 사용하기 위해 effectively final 변수 사용
-            boolean exists = existing.stream().anyMatch(f -> f.getFolderName().equals(finalCandidate));
-            if (!exists) {
-                log.debug("[FolderService] generateDefaultName: 생성된 기본 폴더명: {}", candidate);
-                return candidate;
-            }
+            String candidate = idx == 0 ? base : base + idx;
+            boolean exists = existing.stream().anyMatch(f -> f.getFolderName().equals(candidate));
+            if (!exists) return candidate;
             idx++;
         }
     }
 
+    // 기존 getAll() 대신 현재 사용자의 폴더만 가져오는 메소드로 변경
     public List<Folder> getAllFoldersForCurrentUser() {
-        String currentUserId = getCurrentUserId(); // 인증 확인 포함
-        log.info("[FolderService] getAllFoldersForCurrentUser 호출 - 사용자 ID: {}", currentUserId);
-        List<Folder> folders = folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
-        log.info("[FolderService] getAllFoldersForCurrentUser: 사용자 ID '{}'의 폴더 {}개 조회됨.", currentUserId, folders.size());
-        return folders;
+        String currentUserId = getCurrentUserId();
+        // 👇 FolderRepository에 추가한 findByUserIdOrderByCreatedAtDesc 사용
+        return folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
     }
 
     @Transactional
     public Folder updateName(Integer folderId, String newName) {
-        String currentUserId = getCurrentUserId(); // 인증 확인 포함
-        log.info("[FolderService] updateName 호출 - 사용자 ID: {}, 폴더 ID: {}, 새 이름: {}", currentUserId, folderId, newName);
+        String currentUserId = getCurrentUserId();
 
         if (newName == null || newName.trim().isEmpty()) {
-            log.warn("[FolderService] updateName: 폴더 이름이 비어있습니다.");
             throw new IllegalArgumentException("폴더 이름은 비워둘 수 없습니다.");
         }
-        if (newName.length() > 10) {
-            log.warn("[FolderService] updateName: 폴더 이름 길이 초과 (10자). 입력된 이름: {}", newName);
+        if (newName.length() > 10) { // DTO에서 @Size로 이미 검증했을 수 있지만, 서비스 레벨에서도 방어
             throw new IllegalArgumentException("폴더 이름은 최대 10자까지 가능합니다.");
         }
 
-        Optional<Folder> folderOptional = folderRepository.findByFolderIdAndUserId(folderId, currentUserId);
-        if (folderOptional.isEmpty()) {
-            log.warn("[FolderService] updateName: 수정할 폴더를 찾을 수 없거나 권한 없음. 폴더 ID: {}, 사용자 ID: {}", folderId, currentUserId);
-            throw new RuntimeException("수정할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId);
-        }
+        // 👇 FolderRepository에 추가한 findByFolderIdAndUserId를 사용하여 해당 폴더가 현재 사용자의 것인지 확인
+        Folder folder = folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
+                .orElseThrow(() -> new RuntimeException("수정할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId));
 
-        Folder folder = folderOptional.get();
         folder.setFolderName(newName);
-        Folder updatedFolder = folderRepository.save(folder);
-        log.info("[FolderService] updateName: 폴더 이름 변경 완료. 폴더 ID: {}", updatedFolder.getFolderId());
-        return updatedFolder;
+        // folder.setUpdatedAt(LocalDateTime.now()); // 수정 시간 업데이트가 필요하다면 추가
+        return folderRepository.save(folder);
     }
 
     @Transactional
     public void delete(Integer folderId) {
-        String currentUserId = getCurrentUserId(); // 인증 확인 포함
-        log.info("[FolderService] delete 호출 - 사용자 ID: {}, 폴더 ID: {}", currentUserId, folderId);
+        String currentUserId = getCurrentUserId();
 
-        Optional<Folder> folderOptional = folderRepository.findByFolderIdAndUserId(folderId, currentUserId);
-        if (folderOptional.isEmpty()) {
-            log.warn("[FolderService] delete: 삭제할 폴더를 찾을 수 없거나 권한 없음. 폴더 ID: {}, 사용자 ID: {}", folderId, currentUserId);
-            throw new RuntimeException("삭제할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId);
-        }
+        // 👇 FolderRepository에 추가한 findByFolderIdAndUserId를 사용하여 해당 폴더가 현재 사용자의 것인지 확인
+        Folder folder = folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
+                .orElseThrow(() -> new RuntimeException("삭제할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId));
 
-        folderRepository.deleteById(folderOptional.get().getFolderId());
-        log.info("[FolderService] delete: 폴더 삭제 완료. 폴더 ID: {}", folderId);
+        // folder 객체에서 ID를 가져와서 삭제 (위에서 이미 folder 객체를 가져왔으므로)
+        folderRepository.deleteById(folder.getFolderId());
     }
 
-    @Transactional(readOnly = true)
-    public List<?> getVideosByFolderId(Integer folderId) { // TODO: 반환 타입을 List<VideoDTO> 등으로 변경
-        String currentUserId = getCurrentUserId(); // 인증 확인 포함
-        log.info("[FolderService] getVideosByFolderId (임시 응답) 호출 - 사용자 ID: {}, 폴더 ID: {}", currentUserId, folderId);
+    // 👇 [새로 추가될 메소드 - 폴더 안의 비디오 목록 조회]
+    // 이 메소드는 Video 관련 로직이 필요하므로, Video 엔티티, DTO, Repository가 먼저 정의되어야 합니다.
+    // 현재는 임시로 빈 목록을 반환하여 /api/folder/{id}/videos API가 401 대신 200 OK를 반환하도록 합니다.
+    @Transactional(readOnly = true) // 데이터 변경이 없으므로 읽기 전용 트랜잭션
+    public List<?> getVideosByFolderId(Integer folderId) { // TODO: 실제로는 List<VideoDTO> 등을 반환해야 합니다.
+        String currentUserId = getCurrentUserId();
 
-        // 요청한 폴더가 현재 사용자의 소유인지 확인 (존재하지 않거나 권한 없으면 예외 발생)
+        // 1. 요청한 폴더가 현재 사용자의 소유인지 확인
         folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
-                .orElseThrow(() -> {
-                    log.warn("[FolderService] getVideosByFolderId: 요청한 폴더를 찾을 수 없거나 접근 권한 없음. 폴더 ID: {}, 사용자 ID: {}", folderId, currentUserId);
-                    return new RuntimeException("요청한 폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다. ID: " + folderId);
-                });
+                .orElseThrow(() -> new RuntimeException("요청한 폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다. ID: " + folderId));
 
-        // TODO: (향후 작업) VideoRepository 등을 사용하여 실제 비디오 목록 조회 로직 구현
-        log.info("[FolderService] getVideosByFolderId: 사용자 ID '{}', 폴더 ID '{}'에 대한 비디오 목록 (임시로 빈 리스트) 반환.", currentUserId, folderId);
-        return Collections.emptyList();
+        // 2. TODO: (향후 작업) VideoRepository 등을 사용하여 folderId에 해당하는 실제 비디오 목록을 조회하고,
+        //    VideoDTO 리스트로 변환하여 반환해야 합니다.
+        //    예: return videoRepository.findByFolder_FolderIdAndFolder_UserId(folderId, currentUserId)
+        //               .stream().map(video -> new VideoDTO(...)).collect(Collectors.toList());
+
+        System.out.println("[FolderService] getVideosByFolderId (임시 응답) 호출, folderId=" + folderId + ", userId=" + currentUserId);
+        return Collections.emptyList(); // 현재는 비디오 관련 기능이 없으므로 빈 리스트 반환
     }
 }
