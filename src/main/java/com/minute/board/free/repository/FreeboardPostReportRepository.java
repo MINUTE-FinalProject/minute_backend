@@ -10,10 +10,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface FreeboardPostReportRepository extends JpaRepository<FreeboardPostReport, Integer> {
+public interface FreeboardPostReportRepository extends JpaRepository<FreeboardPostReport, Integer>, JpaSpecificationExecutor<FreeboardPostReport> {
     // FreeboardPostReport 엔티티의 ID (postReportId) 타입은 Integer 입니다.
     // 기능 구현 시 필요한 쿼리 메서드를 여기에 추가합니다.
 

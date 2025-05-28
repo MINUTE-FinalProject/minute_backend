@@ -1,23 +1,35 @@
-package com.minute.board.free.service.admin; // 예시 패키지
+package com.minute.board.free.service.admin;
 
 import com.minute.board.common.dto.response.PageResponseDTO;
+import com.minute.board.free.dto.request.AdminReportFilterDTO;
 import com.minute.board.free.dto.response.AdminReportedActivityItemDTO;
+import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardCommentReport;
+import com.minute.board.free.entity.FreeboardPost;
 import com.minute.board.free.entity.FreeboardPostReport;
 import com.minute.board.free.repository.FreeboardCommentReportRepository;
-import com.minute.board.free.repository.FreeboardPostRepository; // 게시글 정보 접근 시 필요
 import com.minute.board.free.repository.FreeboardPostReportRepository;
+import com.minute.user.entity.User;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.data.domain.Sort; // Sort 사용
+import org.springframework.util.StringUtils;
 
+import com.minute.board.free.repository.specification.FreeboardPostReportSpecification;
+import com.minute.board.free.repository.specification.FreeboardCommentReportSpecification;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Service
@@ -27,75 +39,108 @@ public class AdminReportViewServiceImpl implements AdminReportViewService {
 
     private final FreeboardPostReportRepository freeboardPostReportRepository;
     private final FreeboardCommentReportRepository freeboardCommentReportRepository;
-    // private final FreeboardPostRepository freeboardPostRepository; // 필요시 주입
 
     @Override
-    public PageResponseDTO<AdminReportedActivityItemDTO> getAllReportedActivities(Pageable pageable) {
-        // Pageable에서 정렬 정보를 확인하여 각 Repository 호출 시 적용하거나,
-        // 메모리에서 정렬할 때 사용합니다. 기본은 신고일시 최신순으로 가정.
-        // 여기서는 각 신고 목록을 가져와서 DTO로 변환 후 합치고 정렬하는 방식을 사용합니다.
-        // **주의: 이 방식은 데이터가 매우 많을 경우 성능 문제가 발생할 수 있습니다.**
-        // 프로덕션에서는 DB 레벨의 UNION ALL 또는 더 최적화된 접근 방식이 필요할 수 있습니다.
+    public PageResponseDTO<AdminReportedActivityItemDTO> getAllReportedActivities(
+            AdminReportFilterDTO filter,
+            Pageable pageable) {
 
-        // 1. 게시글 신고 목록 전체 조회 (페이징 없이, 또는 충분히 큰 사이즈로 - 이후 최적화 필요)
-        //    정렬은 신고일시 기준으로 가져옵니다.
-        List<FreeboardPostReport> postReports = freeboardPostReportRepository.findAll(Sort.by(Sort.Direction.DESC, "postReportDate"));
+        AdminReportFilterDTO queryFilter = prepareQueryFilter(filter);
 
-        // 2. 댓글 신고 목록 전체 조회 (페이징 없이, 또는 충분히 큰 사이즈로 - 이후 최적화 필요)
-        List<FreeboardCommentReport> commentReports = freeboardCommentReportRepository.findAll(Sort.by(Sort.Direction.DESC, "commentReportDate"));
+        // 1. 게시글 신고 목록 필터링 및 조회
+        Specification<FreeboardPostReport> postReportSpec = createPostReportSpecification(queryFilter);
+        // Pageable의 'reportCreatedAt' 정렬을 엔티티의 'postReportDate'로 변경
+        Sort postSort = replaceSortProperty(pageable.getSort(), "reportCreatedAt", "postReportDate");
+        List<FreeboardPostReport> postReports = freeboardPostReportRepository.findAll(postReportSpec, postSort);
 
+        // 2. 댓글 신고 목록 필터링 및 조회
+        Specification<FreeboardCommentReport> commentReportSpec = createCommentReportSpecification(queryFilter);
+        // Pageable의 'reportCreatedAt' 정렬을 엔티티의 'commentReportDate'로 변경
+        Sort commentSort = replaceSortProperty(pageable.getSort(), "reportCreatedAt", "commentReportDate");
+        List<FreeboardCommentReport> commentReports = freeboardCommentReportRepository.findAll(commentReportSpec, commentSort);
+
+        // ... (이하 DTO 변환, 병합, 최종 정렬, 수동 페이징 로직은 이전 답변과 동일)
+        // 3. DTO 변환 및 병합
         List<AdminReportedActivityItemDTO> activities = new ArrayList<>();
 
-        // 게시글 신고 내역을 DTO로 변환
         postReports.forEach(report -> {
-            String preview = report.getFreeboardPost().getPostTitle(); // 게시글 제목
+            FreeboardPost post = report.getFreeboardPost();
+            if (post == null) return;
+            User postAuthor = post.getUser();
+            User reporter = report.getUser();
+            if (postAuthor == null || reporter == null) return;
+
+            String preview = post.getPostTitle();
             if (preview != null && preview.length() > 50) {
                 preview = preview.substring(0, 50) + "...";
             }
             activities.add(AdminReportedActivityItemDTO.builder()
                     .itemType("POST_REPORT")
                     .reportId(report.getPostReportId())
-                    .reportedItemId(report.getFreeboardPost().getPostId())
+                    .reportedItemId(post.getPostId())
                     .itemTitleOrContentPreview(preview)
-                    .reportedItemAuthorUserId(report.getFreeboardPost().getUser().getUserId())
-                    .reportedItemAuthorNickname(report.getFreeboardPost().getUser().getUserNickName())
-                    .reporterUserId(report.getUser().getUserId())
-                    .reporterNickname(report.getUser().getUserNickName())
-                    .reportCreatedAt(report.getPostReportDate())
-                    .originalItemCreatedAt(report.getFreeboardPost().getPostCreatedAt())
-                    .isItemHidden(report.getFreeboardPost().isPostIsHidden())
+                    .reportedItemAuthorUserId(postAuthor.getUserId())
+                    .reportedItemAuthorNickname(postAuthor.getUserNickName())
+                    .reporterUserId(reporter.getUserId())
+                    .reporterNickname(reporter.getUserNickName())
+                    .reportCreatedAt(report.getPostReportDate()) // DTO 필드명과 일치
+                    .originalItemCreatedAt(post.getPostCreatedAt())
+                    .isItemHidden(post.isPostIsHidden())
                     .build());
         });
 
-        // 댓글 신고 내역을 DTO로 변환
         commentReports.forEach(report -> {
-            String preview = report.getFreeboardComment().getCommentContent();
+            FreeboardComment comment = report.getFreeboardComment();
+            if (comment == null) return;
+            User commentAuthor = comment.getUser();
+            User reporter = report.getUser();
+            FreeboardPost originalPost = comment.getFreeboardPost();
+            if (commentAuthor == null || reporter == null || originalPost == null) return;
+
+            String preview = comment.getCommentContent();
             if (preview != null && preview.length() > 50) {
                 preview = preview.substring(0, 50) + "...";
             }
             activities.add(AdminReportedActivityItemDTO.builder()
                     .itemType("COMMENT_REPORT")
                     .reportId(report.getCommentReportId())
-                    .reportedItemId(report.getFreeboardComment().getCommentId())
+                    .reportedItemId(comment.getCommentId())
                     .itemTitleOrContentPreview(preview)
-                    .reportedItemAuthorUserId(report.getFreeboardComment().getUser().getUserId())
-                    .reportedItemAuthorNickname(report.getFreeboardComment().getUser().getUserNickName())
-                    .reporterUserId(report.getUser().getUserId())
-                    .reporterNickname(report.getUser().getUserNickName())
-                    .reportCreatedAt(report.getCommentReportDate())
-                    .originalItemCreatedAt(report.getFreeboardComment().getCommentCreatedAt())
-                    .isItemHidden(report.getFreeboardComment().isCommentIsHidden())
-                    .originalPostIdForComment(report.getFreeboardComment().getFreeboardPost().getPostId())
+                    .reportedItemAuthorUserId(commentAuthor.getUserId())
+                    .reportedItemAuthorNickname(commentAuthor.getUserNickName())
+                    .reporterUserId(reporter.getUserId())
+                    .reporterNickname(reporter.getUserNickName())
+                    .reportCreatedAt(report.getCommentReportDate()) // DTO 필드명과 일치
+                    .originalItemCreatedAt(comment.getCommentCreatedAt())
+                    .isItemHidden(comment.isCommentIsHidden())
+                    .originalPostIdForComment(originalPost.getPostId())
                     .build());
         });
 
-        // 신고일시(reportCreatedAt) 기준으로 최신순 정렬
-        activities.sort(Comparator.comparing(AdminReportedActivityItemDTO::getReportCreatedAt).reversed());
+        // 4. 통합 목록 정렬 (메모리에서 DTO의 reportCreatedAt 필드 기준)
+        if (pageable.getSort().isSorted()) {
+            for (Sort.Order order : pageable.getSort()) {
+                // getComparableField는 DTO의 필드명("reportCreatedAt" 등)을 사용해야 함
+                Comparator<AdminReportedActivityItemDTO> comparator = Comparator.comparing(
+                        activity -> getComparableField(activity, order.getProperty()),
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                );
+                if (order.getDirection().isDescending()) {
+                    comparator = comparator.reversed();
+                }
+                activities.sort(comparator);
+            }
+        } else {
+            activities.sort(Comparator.comparing(AdminReportedActivityItemDTO::getReportCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        }
 
-        // 수동 페이징 처리
+        // 5. 수동 페이징 처리
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), activities.size());
-        List<AdminReportedActivityItemDTO> pageContent = (start <= end && activities.size() > start) ? activities.subList(start, end) : List.of();
+        List<AdminReportedActivityItemDTO> pageContent = List.of();
+        if (start < end ) { // activities.size() > start 조건도 내포
+            pageContent = activities.subList(start, end);
+        }
 
         Page<AdminReportedActivityItemDTO> activityPage = new PageImpl<>(pageContent, pageable, activities.size());
 
@@ -109,5 +154,135 @@ public class AdminReportViewServiceImpl implements AdminReportViewService {
                 .last(activityPage.isLast())
                 .empty(activityPage.isEmpty())
                 .build();
+    }
+
+    // Sort 객체의 프로퍼티 이름을 변경하는 헬퍼 메서드
+    private Sort replaceSortProperty(Sort originalSort, String fromProperty, String toProperty) {
+        if (!originalSort.isSorted()) {
+            return originalSort; // 정렬 조건이 없으면 그대로 반환
+        }
+        List<Sort.Order> newOrders = originalSort.stream()
+                .map(order -> {
+                    if (fromProperty.equals(order.getProperty())) {
+                        return new Sort.Order(order.getDirection(), toProperty, order.getNullHandling());
+                    }
+                    return order;
+                })
+                .collect(Collectors.toList());
+        return Sort.by(newOrders);
+    }
+
+    // ... (prepareQueryFilter, getComparableField, create...Specification 메서드들은 이전과 동일)
+    private AdminReportFilterDTO prepareQueryFilter(AdminReportFilterDTO originalFilter) {
+        AdminReportFilterDTO queryFilter = new AdminReportFilterDTO();
+        queryFilter.setKeyword(originalFilter.getKeyword());
+        queryFilter.setReportedItemId(originalFilter.getReportedItemId());
+        queryFilter.setAuthorKeyword(originalFilter.getAuthorKeyword());
+        queryFilter.setIsItemHidden(originalFilter.getIsItemHidden());
+        queryFilter.setReportStartDate(originalFilter.getReportStartDate());
+        queryFilter.setReportEndDate(originalFilter.getReportEndDate());
+        queryFilter.setOriginalItemStartDate(originalFilter.getOriginalItemStartDate());
+        queryFilter.setOriginalItemEndDate(originalFilter.getOriginalItemEndDate());
+
+        if (originalFilter.getReportStartDate() != null) {
+            queryFilter.setQueryReportStartDate(originalFilter.getReportStartDate().atStartOfDay());
+        }
+        if (originalFilter.getReportEndDate() != null) {
+            queryFilter.setQueryReportEndDate(originalFilter.getReportEndDate().plusDays(1).atStartOfDay());
+        }
+        if (originalFilter.getOriginalItemStartDate() != null) {
+            queryFilter.setQueryOriginalItemStartDate(originalFilter.getOriginalItemStartDate().atStartOfDay());
+        }
+        if (originalFilter.getOriginalItemEndDate() != null) {
+            queryFilter.setQueryOriginalItemEndDate(originalFilter.getOriginalItemEndDate().plusDays(1).atStartOfDay());
+        }
+        return queryFilter;
+    }
+
+    private Comparable getComparableField(AdminReportedActivityItemDTO activity, String propertyName) {
+        if (activity == null || propertyName == null) return null;
+        try {
+            switch (propertyName) {
+                case "reportCreatedAt":
+                    return activity.getReportCreatedAt();
+                case "originalItemCreatedAt":
+                    return activity.getOriginalItemCreatedAt();
+                case "reportedItemId":
+                    return activity.getReportedItemId();
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private Specification<FreeboardPostReport> createPostReportSpecification(AdminReportFilterDTO filter) {
+        Specification<FreeboardPostReport> spec = Specification.where(null);
+
+        if (filter.getReportedItemId() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.postIdEquals(filter.getReportedItemId()));
+        }
+        if (StringUtils.hasText(filter.getAuthorKeyword())) {
+            spec = spec.and(
+                    FreeboardPostReportSpecification.reportedPostAuthorUserIdEquals(filter.getAuthorKeyword())
+                            .or(FreeboardPostReportSpecification.reportedPostAuthorNicknameContains(filter.getAuthorKeyword()))
+            );
+        }
+        if (StringUtils.hasText(filter.getKeyword())) {
+            spec = spec.and(
+                    FreeboardPostReportSpecification.postTitleContains(filter.getKeyword())
+                            .or(FreeboardPostReportSpecification.postContentContains(filter.getKeyword()))
+            );
+        }
+        if (filter.getIsItemHidden() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.isPostHidden(filter.getIsItemHidden()));
+        }
+        if (filter.getQueryReportStartDate() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.reportDateAfter(filter.getQueryReportStartDate().toLocalDate()));
+        }
+        if (filter.getQueryReportEndDate() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.reportDateBefore(filter.getQueryReportEndDate().toLocalDate().minusDays(1)));
+        }
+        if (filter.getQueryOriginalItemStartDate() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.originalPostCreatedAtAfter(filter.getQueryOriginalItemStartDate().toLocalDate()));
+        }
+        if (filter.getQueryOriginalItemEndDate() != null) {
+            spec = spec.and(FreeboardPostReportSpecification.originalPostCreatedAtBefore(filter.getQueryOriginalItemEndDate().toLocalDate().minusDays(1)));
+        }
+        return spec;
+    }
+
+    private Specification<FreeboardCommentReport> createCommentReportSpecification(AdminReportFilterDTO filter) {
+        Specification<FreeboardCommentReport> spec = Specification.where(null);
+
+        if (filter.getReportedItemId() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.commentIdEquals(filter.getReportedItemId()));
+        }
+        if (StringUtils.hasText(filter.getAuthorKeyword())) {
+            spec = spec.and(
+                    FreeboardCommentReportSpecification.commentAuthorUserIdEquals(filter.getAuthorKeyword())
+                            .or(FreeboardCommentReportSpecification.commentAuthorNicknameContains(filter.getAuthorKeyword()))
+            );
+        }
+        if (StringUtils.hasText(filter.getKeyword())) {
+            spec = spec.and(FreeboardCommentReportSpecification.commentContentContains(filter.getKeyword()));
+        }
+        if (filter.getIsItemHidden() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.isCommentHidden(filter.getIsItemHidden()));
+        }
+        if (filter.getQueryReportStartDate() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.reportDateAfter(filter.getQueryReportStartDate().toLocalDate()));
+        }
+        if (filter.getQueryReportEndDate() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.reportDateBefore(filter.getQueryReportEndDate().toLocalDate().minusDays(1)));
+        }
+        if (filter.getQueryOriginalItemStartDate() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.originalCommentCreatedAtAfter(filter.getQueryOriginalItemStartDate().toLocalDate()));
+        }
+        if (filter.getQueryOriginalItemEndDate() != null) {
+            spec = spec.and(FreeboardCommentReportSpecification.originalCommentCreatedAtBefore(filter.getQueryOriginalItemEndDate().toLocalDate().minusDays(1)));
+        }
+        return spec;
     }
 }

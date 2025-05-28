@@ -524,14 +524,26 @@ public class FreeboardPostController {
     @Parameters({
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 항목 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
-            @Parameter(name = "sort", description = "정렬 조건 (예: reportCreatedAt,desc). DTO의 reportCreatedAt 필드 기준.", example = "reportCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "sort", description = "정렬 조건 (예: reportCreatedAt,desc). DTO의 reportCreatedAt 필드 기준.", example = "reportCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            // AdminReportFilterDTO의 필드들은 @ModelAttribute로 자동 매핑되므로,
+            // 개별 @Parameter는 DTO 내 @Schema로 대체하거나 주요 항목만 명시할 수 있습니다.
+            @Parameter(name = "keyword", description = "검색 키워드 (제목/내용, 작성자ID/닉네임 등)", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "reportedItemId", description = "신고된 항목 ID (게시글/댓글 ID)", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
+            @Parameter(name = "authorKeyword", description = "신고된 항목 작성자 키워드 (ID/닉네임)", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "isItemHidden", description = "숨김 상태 (true/false)", in = ParameterIn.QUERY, schema = @Schema(type = "boolean")),
+            @Parameter(name = "reportStartDate", description = "신고일 시작 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date")),
+            @Parameter(name = "reportEndDate", description = "신고일 종료 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date")),
+            @Parameter(name = "originalItemStartDate", description = "원본 항목 작성일 시작 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date")),
+            @Parameter(name = "originalItemEndDate", description = "원본 항목 작성일 종료 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date"))
     })
     @GetMapping("/admin/reports/all") // 관리자용 경로 예시
     // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
     public ResponseEntity<PageResponseDTO<AdminReportedActivityItemDTO>> getAllReportedActivities(
+            @ModelAttribute AdminReportFilterDTO filter, // <<< @ModelAttribute로 필터 DTO를 받습니다.
             @PageableDefault(size = 10, sort = "reportCreatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        PageResponseDTO<AdminReportedActivityItemDTO> response = adminReportViewService.getAllReportedActivities(pageable);
+        // 서비스 호출 시 filter 객체와 pageable 객체를 모두 전달합니다.
+        PageResponseDTO<AdminReportedActivityItemDTO> response = adminReportViewService.getAllReportedActivities(filter, pageable); // <<< 수정된 부분
         return ResponseEntity.ok(response);
     }
 

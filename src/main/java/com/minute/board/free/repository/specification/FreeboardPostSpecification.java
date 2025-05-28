@@ -1,10 +1,7 @@
 package com.minute.board.free.repository.specification; // specification 패키지 예시
 
 import com.minute.board.free.entity.FreeboardPost;
-import com.minute.user.entity.User; // User 엔티티 import
-import jakarta.persistence.criteria.*; // Criteria API imports
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.time.LocalTime;
