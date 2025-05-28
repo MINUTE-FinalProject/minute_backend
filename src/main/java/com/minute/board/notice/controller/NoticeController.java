@@ -1,6 +1,6 @@
 package com.minute.board.notice.controller;
 
-import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeImportanceUpdateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
