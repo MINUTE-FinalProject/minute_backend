@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDateTime;
+
 @Getter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -21,4 +23,6 @@ public class VideoLikesResponseDTO {
     private String videoUrl;
     @Schema(description = "썸네일 이미지 URL", example = "https://img.youtube.com/vi/XyZ123Abc/maxresdefault.jp")
     private String thumbnailUrl;
+    @Schema(description = "좋아요한 시각")
+    private LocalDateTime createdAt;
 }

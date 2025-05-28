@@ -20,6 +20,7 @@ public interface VideoRepository extends JpaRepository<Video, String> {
 
     // 제목에 키워드가 포함된 영상 조회
     List<Video> findByVideoTitleContainingIgnoreCase(String keyword);
+
     // 영상 ID를 기준으로 최신순 정렬
     List<Video> findTop50ByOrderByVideoIdDesc();
 
@@ -28,5 +29,9 @@ public interface VideoRepository extends JpaRepository<Video, String> {
 
     // 좋아요 순
     List<Video> findTop50ByOrderByLikesDesc();
+
+    List<Video> findByRegion(String region);
+
+    List<Video> findByRegionAndCity(String region, String city);
 
 }
