@@ -8,6 +8,7 @@ import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
 import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.Nullable;
 
 public interface FreeboardCommentService {
 
@@ -82,7 +83,8 @@ public interface FreeboardCommentService {
      * @return 페이징된 신고 댓글 정보 목록 (PageResponseDTO)
      */
     PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable);
-
+// AdminReportFilterDTO를 사용하도록 수정 (이전에는 AdminReportedCommentFilterDTO 였을 수 있음, DTO 이름 통일 필요)
+//    PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportFilterDTO filter, Pageable pageable);
     /**
      * [관리자] 특정 댓글의 공개/숨김 상태를 변경합니다.
      *
@@ -94,13 +96,15 @@ public interface FreeboardCommentService {
     FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto);
 
     /**
-     * 특정 사용자가 작성한 댓글 목록을 페이징하여 조회합니다.
+     * 특정 사용자가 작성한 댓글 목록을 검색/필터링하여 페이징 조회합니다.
+     * (관리자의 "내 댓글" 탭에서 사용)
      *
      * @param userId 조회할 사용자의 ID
+     * @param filter 검색/필터 조건 DTO (새로 추가된 AdminMyCommentFilterDTO 사용)
      * @param pageable 페이징 정보
      * @return 페이징된 해당 사용자의 댓글 목록
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 사용자가 없을 경우
      */
-    PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, Pageable pageable);
+    PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, @Nullable AdminMyCommentFilterDTO filter, Pageable pageable); // <<< filter 파라미터 추가 및 @Nullable
 
 }

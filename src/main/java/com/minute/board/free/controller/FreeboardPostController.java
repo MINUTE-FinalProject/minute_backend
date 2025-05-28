@@ -494,7 +494,7 @@ public class FreeboardPostController {
     @Operation(summary = "내가 쓴 댓글 목록 조회", description = "특정 사용자가 작성한 댓글 목록을 페이징하여 조회합니다.")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "댓글 목록 조회 성공",
-                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))), // 실제로는 PageResponseDTO<FreeboardCommentResponseDTO>
+                    content = @Content(schema = @Schema(implementation = PageResponseDTO.class))),
             @ApiResponse(responseCode = "404", description = "사용자 정보를 찾을 수 없음"),
             @ApiResponse(responseCode = "500", description = "서버 내부 오류")
     })
@@ -502,17 +502,23 @@ public class FreeboardPostController {
             @Parameter(name = "userId", description = "댓글을 조회할 작성자의 User ID", required = true, example = "wansu00", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
             @Parameter(name = "page", description = "요청할 페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
             @Parameter(name = "size", description = "한 페이지에 보여줄 댓글 수", example = "10", in = ParameterIn.QUERY, schema = @Schema(type = "integer")),
-            @Parameter(name = "sort", description = "정렬 조건 (예: commentCreatedAt,desc). 기본값: commentCreatedAt,desc", example = "commentCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string"))
+            @Parameter(name = "sort", description = "정렬 조건 (예: commentCreatedAt,desc). 기본값: commentCreatedAt,desc", example = "commentCreatedAt,desc", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            // AdminMyCommentFilterDTO의 필드들
+            @Parameter(name = "searchKeyword", description = "댓글 내용 검색 키워드", in = ParameterIn.QUERY, schema = @Schema(type = "string")),
+            @Parameter(name = "startDate", description = "댓글 작성일 검색 시작일 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date")),
+            @Parameter(name = "endDate", description = "댓글 작성일 검색 종료일 (YYYY-MM-DD)", in = ParameterIn.QUERY, schema = @Schema(type = "string", format="date"))
     })
-    @GetMapping("/comments/by-user") // API 경로 예시
-    // @PreAuthorize("isAuthenticated()") // TODO: 실제 인증 연동 후, 자신의 댓글만 보게 하거나, 관리자는 타인 ID 조회 가능하게 할 수 있음
+    @GetMapping("/comments/by-user")
     public ResponseEntity<PageResponseDTO<FreeboardCommentResponseDTO>> getCommentsByAuthor(
-            @RequestParam String userId, // "내 활동"이므로 실제로는 인증된 사용자 ID 사용
+            @RequestParam String userId,
+            @ModelAttribute AdminMyCommentFilterDTO filter, // <<< @ModelAttribute로 필터 DTO 받도록 추가
             @PageableDefault(size = 10, sort = "commentCreatedAt", direction = Sort.Direction.DESC) Pageable pageable) {
 
-        PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByAuthor(userId, pageable);
+        // 서비스 호출 시 filter 객체를 전달합니다.
+        PageResponseDTO<FreeboardCommentResponseDTO> response = freeboardCommentService.getCommentsByAuthor(userId, filter, pageable); // <<< filter 전달 추가
         return ResponseEntity.ok(response);
     }
+
 
     @Operation(summary = "[관리자] 전체 신고된 활동 목록 조회 (통합)", description = "신고된 모든 게시글 및 댓글 활동을 최신순으로 페이징하여 조회합니다. (관리자용)")
     @ApiResponses(value = {

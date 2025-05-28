@@ -15,6 +15,7 @@ import com.minute.board.free.repository.FreeboardCommentLikeRepository;
 import com.minute.board.free.repository.FreeboardCommentReportRepository;
 import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
+import com.minute.board.free.repository.specification.FreeboardCommentSpecification;
 import com.minute.user.entity.User; // User 엔티티 import
 import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
@@ -22,11 +23,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
@@ -275,14 +278,41 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     }
 
     @Override
-    public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, Pageable pageable) {
+    public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, @Nullable AdminMyCommentFilterDTO filter, Pageable pageable) {
         User author = userRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + userId));
 
-        Page<FreeboardComment> commentPage = freeboardCommentRepository.findByUserOrderByCommentCreatedAtDesc(author, pageable);
+        Specification<FreeboardComment> spec = Specification.where(FreeboardCommentSpecification.hasAuthor(author));
+
+        if (filter != null) {
+            // AdminMyCommentFilterDTO에 queryStartDate, queryEndDate 필드와 setter가 있어야 합니다.
+            // 또는 여기서 직접 LocalDateTime으로 변환합니다.
+            LocalDateTime queryStartDate = (filter.getStartDate() != null) ? filter.getStartDate().atStartOfDay() : null;
+            LocalDateTime queryEndDate = (filter.getEndDate() != null) ? filter.getEndDate().atTime(LocalTime.MAX) : null;
+            // 만약 queryEndDate를 다음날 00:00 미만으로 하려면:
+            // LocalDateTime queryEndDate = (filter.getEndDate() != null) ? filter.getEndDate().plusDays(1).atStartOfDay() : null;
+
+
+            if (StringUtils.hasText(filter.getSearchKeyword())) {
+                spec = spec.and(FreeboardCommentSpecification.contentContains(filter.getSearchKeyword()));
+            }
+            if (queryStartDate != null) {
+                spec = spec.and(FreeboardCommentSpecification.createdAtAfter(queryStartDate.toLocalDate()));
+            }
+            if (queryEndDate != null) {
+                // JPQL의 createdAtBefore가 <= 연산자를 사용한다면 toLocalDate() 그대로 사용
+                // 만약 JPQL의 createdAtBefore가 < 연산자를 사용한다면 queryEndDate.toLocalDate() 사용 (서비스에서 +1일 처리했으므로)
+                spec = spec.and(FreeboardCommentSpecification.createdAtBefore(queryEndDate.toLocalDate()));
+            }
+        }
+
+
+
+        // FreeboardCommentRepository의 findAll(Specification, Pageable)에 @EntityGraph 적용 필요
+        Page<FreeboardComment> commentPage = freeboardCommentRepository.findAll(spec, pageable);
 
         List<FreeboardCommentResponseDTO> dtoList = commentPage.getContent().stream()
-                .map(this::convertToDto) // 기존 DTO 변환 메서드 재활용
+                .map(this::convertToDto)
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardCommentResponseDTO>builder()

@@ -20,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -313,22 +314,18 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         User user = userRepository.findUserByUserId(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + userId));
 
-        // 1. 사용자가 작성한 게시글 조회 (페이지네이션 없이 일단 최근 N개 또는 전체 가져오기 - 최적화 필요)
-        //    실제로는 pageable의 sort 정보를 활용하여 각 소스에서 정렬된 데이터를 가져와야 함.
-        //    여기서는 예시로 최근 게시글/댓글을 가져와 합치는 방식을 간략히 표현.
-        //    정확한 페이징을 위해서는 DB 레벨에서 UNION 하거나, 더 복잡한 로직 필요.
-        List<FreeboardPost> userPosts = freeboardPostRepository.findByUserOrderByPostCreatedAtDesc(user); // Repository에 메서드 추가 필요
-        List<FreeboardComment> userComments = freeboardCommentRepository.findByUserOrderByCommentCreatedAtDesc(user); // Repository에 메서드 추가 필요
+        // 수정된 리포지토리 메서드 호출
+        List<FreeboardPost> userPosts = freeboardPostRepository.findByUserOrderByPostCreatedAtDesc(user);
+        List<FreeboardComment> userComments = freeboardCommentRepository.findByUserOrderByCommentCreatedAtDesc(user);
 
         List<FreeboardUserActivityItemDTO> activities = new ArrayList<>();
 
-        // 게시글을 DTO로 변환하여 activities 리스트에 추가
+        // 게시글 DTO 변환
         userPosts.forEach(post -> activities.add(
                 FreeboardUserActivityItemDTO.builder()
                         .itemType("POST")
                         .itemId(post.getPostId())
                         .postTitle(post.getPostTitle())
-                        // .contentSnippet(post.getPostContent().substring(0, Math.min(post.getPostContent().length(), 50)) + "...") // 예시
                         .authorUserId(user.getUserId())
                         .authorNickname(user.getUserNickName())
                         .createdAt(post.getPostCreatedAt())
@@ -337,7 +334,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                         .build()
         ));
 
-        // 댓글을 DTO로 변환하여 activities 리스트에 추가
+        // 댓글 DTO 변환
         userComments.forEach(comment -> {
             String contentPreview = comment.getCommentContent();
             if (contentPreview != null && contentPreview.length() > 50) {
@@ -349,7 +346,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                             .itemId(comment.getCommentId())
                             .commentContentPreview(contentPreview)
                             .originalPostId(comment.getFreeboardPost().getPostId())
-                            .originalPostTitle(comment.getFreeboardPost().getPostTitle()) // N+1 주의! 댓글 조회 시 게시글 정보 EAGER 로딩 또는 fetch join 필요
+                            .originalPostTitle(comment.getFreeboardPost().getPostTitle())
                             .authorUserId(user.getUserId())
                             .authorNickname(user.getUserNickName())
                             .createdAt(comment.getCommentCreatedAt())
@@ -359,12 +356,31 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         });
 
         // createdAt 기준으로 최신순 정렬
-        activities.sort(Comparator.comparing(FreeboardUserActivityItemDTO::getCreatedAt).reversed());
+        // Pageable의 sort 정보를 활용하여 정렬
+        if (pageable.getSort().isSorted()) {
+            for (Sort.Order order : pageable.getSort()) {
+                Comparator<FreeboardUserActivityItemDTO> comparator = Comparator.comparing(
+                        activity -> getComparableField(activity, order.getProperty()), // getComparableField는 AdminReportViewServiceImpl에 있던 것과 유사하게 필요
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                );
+                if (order.getDirection().isDescending()) {
+                    comparator = comparator.reversed();
+                }
+                activities.sort(comparator);
+            }
+        } else {
+            // Pageable에 정렬 정보가 없으면 기본 정렬 (예: DTO의 createdAt 최신순)
+            activities.sort(Comparator.comparing(FreeboardUserActivityItemDTO::getCreatedAt, Comparator.nullsLast(Comparator.reverseOrder())));
+        }
+
 
         // 수동 페이징 처리
         int start = (int) pageable.getOffset();
         int end = Math.min((start + pageable.getPageSize()), activities.size());
-        List<FreeboardUserActivityItemDTO> pageContent = (start <= end) ? activities.subList(start, end) : List.of();
+        List<FreeboardUserActivityItemDTO> pageContent = List.of();
+        if (start < end ) {
+            pageContent = activities.subList(start, end);
+        }
 
         Page<FreeboardUserActivityItemDTO> activityPage = new PageImpl<>(pageContent, pageable, activities.size());
 
@@ -378,6 +394,25 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .last(activityPage.isLast())
                 .empty(activityPage.isEmpty())
                 .build();
+    }
+
+    // getComparableField 메서드가 FreeboardPostServiceImpl 에도 필요합니다.
+    // AdminReportViewServiceImpl 에서 가져오거나 유사하게 정의합니다.
+    private Comparable getComparableField(FreeboardUserActivityItemDTO activity, String propertyName) {
+        if (activity == null || propertyName == null) return null;
+        try {
+            switch (propertyName) {
+                case "createdAt": // DTO 필드명 기준
+                    return activity.getCreatedAt();
+                case "itemId": // DTO 필드명 기준
+                    return activity.getItemId();
+                // 필요한 다른 정렬 가능 DTO 필드 추가
+                default:
+                    return null;
+            }
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     // --- Private Helper Methods ---
