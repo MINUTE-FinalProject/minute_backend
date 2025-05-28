@@ -111,7 +111,11 @@ public class AuthServiceImpl implements AuthService {
         try {
 
             String id = dto.getUserId();
-            User user = userRepository.findUserByUserId(id);
+//            User user = userRepository.findUserByUserId(id); 완수 수정했음
+            // 수정된 부분: Optional<User>를 받고, orElseThrow를 사용하거나 orElse(null) 등으로 처리
+            User user = userRepository.findUserByUserId(id)
+                    .orElse(null); // 사용자가 없으면 null을 반환하도록 하거나,
+            // .orElseThrow(() -> new UsernameNotFoundException("사용자를 찾을 수 없습니다: " + id)); // 또는 예외를 던지도록 합니다.
             if(user == null) {System.out.println("로그인 실패 - 유저 없음");return SignInResponseDto.signInFailed();}
 
             String password = dto.getUserPw();
