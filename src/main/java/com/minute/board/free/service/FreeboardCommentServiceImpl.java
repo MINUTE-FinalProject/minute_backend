@@ -6,7 +6,7 @@ import com.minute.board.free.dto.request.*;
 import com.minute.board.free.dto.response.AdminReportedCommentEntryDTO;
 import com.minute.board.free.dto.response.CommentLikeResponseDTO;
 import com.minute.board.free.dto.response.FreeboardCommentResponseDTO;
-import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
+import com.minute.board.free.dto.response.ReportedCommentEntryDTO; // 이 DTO는 현재 이 클래스에서 직접 사용되지 않음
 import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardCommentLike;
 import com.minute.board.free.entity.FreeboardCommentReport;
@@ -17,6 +17,7 @@ import com.minute.board.free.repository.FreeboardCommentRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.board.free.repository.specification.FreeboardCommentSpecification;
 import com.minute.user.entity.User; // User 엔티티 import
+import com.minute.user.enumpackage.Role; // <<< Role enum 임포트 (관리자 역할 확인 등에 필요시)
 import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
@@ -41,276 +42,15 @@ import java.util.stream.Collectors;
 public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
     private final FreeboardCommentRepository freeboardCommentRepository;
-    // private final FreeboardPostRepository freeboardPostRepository; // 게시글 존재 여부 확인 등에 필요할 수 있음
-    private final FreeboardPostRepository freeboardPostRepository; // 게시글 조회를 위해 추가
-    private final UserRepository userRepository; // 사용자 조회를 위해 추가
-    private final FreeboardCommentLikeRepository freeboardCommentLikeRepository; // 주입 추가
-    private final FreeboardCommentReportRepository freeboardCommentReportRepository; // 주입 추가
+    private final FreeboardPostRepository freeboardPostRepository;
+    private final UserRepository userRepository;
+    private final FreeboardCommentLikeRepository freeboardCommentLikeRepository;
+    private final FreeboardCommentReportRepository freeboardCommentReportRepository;
 
     @Override
     public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByPostId(Integer postId, Pageable pageable) {
-        // 게시글 존재 여부를 먼저 확인하는 로직을 추가할 수 있습니다.
-        // 예: if (!freeboardPostRepository.existsById(postId)) { throw new EntityNotFoundException("게시글을 찾을 수 없습니다: " + postId); }
-
+        // 이 메소드는 공개 API용이므로 currentUserId를 받지 않습니다.
         Page<FreeboardComment> commentPage = freeboardCommentRepository.findByFreeboardPost_PostId(postId, pageable);
-
-        List<FreeboardCommentResponseDTO> dtoList = commentPage.getContent().stream()
-                .map(this::convertToDto)
-                .collect(Collectors.toList());
-
-        return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
-                .content(dtoList)
-                .currentPage(commentPage.getNumber() + 1) // Page는 0부터 시작
-                .totalPages(commentPage.getTotalPages())
-                .totalElements(commentPage.getTotalElements())
-                .size(commentPage.getSize())
-                .first(commentPage.isFirst())
-                .last(commentPage.isLast())
-                .empty(commentPage.isEmpty())
-                .build();
-    }
-
-    @Override
-    @Transactional // 데이터 생성(쓰기) 작업
-    public FreeboardCommentResponseDTO createComment(Integer postId, FreeboardCommentRequestDTO requestDto) {
-        // 1. 댓글을 달 게시글(FreeboardPost) 조회
-        FreeboardPost targetPost = freeboardPostRepository.findById(postId)
-                .orElseThrow(() -> new EntityNotFoundException("댓글을 작성할 게시글을 찾을 수 없습니다: " + postId));
-
-        // 2. 댓글 작성자(User) 정보 조회
-        // DTO에 userId가 포함되어 있다고 가정 (인증 연동 전 임시 처리)
-        User author = userRepository.findUserByUserId(requestDto.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("댓글 작성자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
-
-        // 3. DTO를 Entity로 변환하여 새 댓글 생성
-        FreeboardComment newComment = FreeboardComment.builder()
-                .commentContent(requestDto.getCommentContent())
-                .user(author)           // 작성자 엔티티 설정
-                .freeboardPost(targetPost) // 대상 게시글 엔티티 설정
-                // likeCount, isHidden 등은 기본값으로 설정됨 (엔티티 정의에 따라)
-                .build();
-
-        // 4. 댓글 저장
-        FreeboardComment savedComment = freeboardCommentRepository.save(newComment);
-
-        // 5. 저장된 Entity를 Response DTO로 변환하여 반환
-        return convertToDto(savedComment);
-    }
-
-    @Override
-    @Transactional // 데이터 변경(수정) 작업
-    public FreeboardCommentResponseDTO updateComment(Integer commentId, FreeboardCommentRequestDTO requestDto) {
-        // 1. 수정할 댓글 조회
-        FreeboardComment commentToUpdate = freeboardCommentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("수정할 댓글을 찾을 수 없습니다: " + commentId));
-
-        // 2. (임시) 수정 권한 확인: 요청 DTO의 userId와 실제 댓글 작성자의 userId가 일치하는지 확인
-        //    실제 인증 연동 시에는 SecurityContextHolder에서 현재 로그인한 사용자 정보를 가져와 비교해야 합니다.
-        String requestUserId = requestDto.getUserId(); // 수정을 시도하는 사용자의 ID (DTO에서 임시로 받음)
-        if (requestUserId == null || !commentToUpdate.getUser().getUserId().equals(requestUserId)) {
-            // 실제로는 관리자(Admin)도 수정 가능하도록 로직 추가 필요
-            throw new AccessDeniedException("댓글 수정 권한이 없습니다. (작성자 불일치)");
-        }
-        // User updater = userRepository.findUserByUserId(requestUserId)
-        //        .orElseThrow(() -> new EntityNotFoundException("수정자 정보를 찾을 수 없습니다: " + requestUserId));
-        // 위 라인은 requestUserId가 유효한 사용자인지 한번 더 체크하는 용도.
-
-        // 3. 댓글 내용 업데이트 (JPA의 dirty checking 활용)
-        commentToUpdate.setCommentContent(requestDto.getCommentContent());
-        // commentUpdatedAt 필드는 @UpdateTimestamp 어노테이션에 의해 자동 업데이트됩니다.
-
-        // freeboardCommentRepository.save(commentToUpdate); // @Transactional에 의해 자동 업데이트, 명시적 save 불필요
-
-        // 4. 수정된 Entity를 Response DTO로 변환하여 반환
-        return convertToDto(commentToUpdate);
-    }
-
-    @Override
-    @Transactional // 데이터 삭제 작업
-    public void deleteComment(Integer commentId, String requestUserId) {
-        // 1. 삭제할 댓글 조회
-        FreeboardComment commentToDelete = freeboardCommentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("삭제할 댓글을 찾을 수 없습니다: " + commentId));
-
-        // 2. (임시) 삭제 권한 확인: 요청된 userId와 실제 댓글 작성자의 userId가 일치하는지 확인
-        //    실제 인증 연동 시에는 SecurityContextHolder에서 현재 로그인한 사용자 정보를 가져와 비교해야 합니다.
-        if (requestUserId == null || !commentToDelete.getUser().getUserId().equals(requestUserId)) {
-            // 실제로는 관리자(Admin)도 삭제 가능하도록 로직 추가 필요
-            throw new AccessDeniedException("댓글 삭제 권한이 없습니다. (작성자 불일치)");
-        }
-
-        // 3. 댓글 삭제
-        // FreeboardCommentLike, FreeboardCommentReport 등 연관 엔티티는
-        // DB 스키마에서 ON DELETE CASCADE로 설정되어 있다면 댓글 삭제 시 자동으로 함께 삭제됩니다.
-        freeboardCommentRepository.delete(commentToDelete);
-    }
-
-    @Override
-    @Transactional // 데이터 변경(좋아요 추가/삭제 및 댓글 좋아요 수 업데이트)
-    public CommentLikeResponseDTO toggleCommentLike(Integer commentId, CommentLikeRequestDTO requestDto) {
-        // 1. 댓글 조회
-        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 댓글을 찾을 수 없습니다: " + commentId));
-
-        // 2. 사용자 조회
-        User user = userRepository.findUserByUserId(requestDto.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
-
-        // 3. 이미 좋아요를 눌렀는지 확인
-        Optional<FreeboardCommentLike> existingLike = freeboardCommentLikeRepository.findByUserAndFreeboardComment(user, comment);
-
-        boolean likedByCurrentUser;
-
-        if (existingLike.isPresent()) {
-            // 이미 좋아요를 눌렀다면 -> 좋아요 취소
-            freeboardCommentLikeRepository.delete(existingLike.get());
-            comment.setCommentLikeCount(Math.max(0, comment.getCommentLikeCount() - 1)); // 좋아요 수 감소
-            likedByCurrentUser = false;
-        } else {
-            // 좋아요를 누르지 않았다면 -> 좋아요 추가
-            FreeboardCommentLike newLike = FreeboardCommentLike.builder()
-                    .user(user)
-                    .freeboardComment(comment)
-                    .build();
-            freeboardCommentLikeRepository.save(newLike);
-            comment.setCommentLikeCount(comment.getCommentLikeCount() + 1); // 좋아요 수 증가
-            likedByCurrentUser = true;
-        }
-        // FreeboardComment의 변경된 commentLikeCount는 @Transactional에 의해 자동 저장됨
-
-        return CommentLikeResponseDTO.builder()
-                .commentId(comment.getCommentId())
-                .currentLikeCount(comment.getCommentLikeCount())
-                .likedByCurrentUser(likedByCurrentUser)
-                .build();
-    }
-
-    @Override
-    @Transactional // 데이터 생성(신고 기록)
-    public ReportSuccessResponseDTO reportComment(Integer commentId, CommentReportRequestDTO requestDto) {
-        // 1. 댓글 조회
-        FreeboardComment commentToReport = freeboardCommentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("신고할 댓글을 찾을 수 없습니다: " + commentId));
-
-        // 2. 신고자 조회
-        User reporter = userRepository.findUserByUserId(requestDto.getUserId())
-                .orElseThrow(() -> new EntityNotFoundException("신고자 정보를 찾을 수 없습니다: " + requestDto.getUserId()));
-
-        // 3. 자신의 댓글인지 확인
-        if (commentToReport.getUser().getUserId().equals(reporter.getUserId())) {
-            throw new IllegalStateException("자신의 댓글은 신고할 수 없습니다.");
-        }
-
-        // 4. 이미 신고했는지 확인 (DB의 UNIQUE 제약 조건(uk_fcr_user_comment)으로도 방지되지만, 미리 확인)
-        // FreeboardCommentReportRepository에 existsByUserAndFreeboardComment 메서드 필요
-        boolean alreadyReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(reporter, commentToReport);
-        if (alreadyReported) {
-            throw new IllegalStateException("이미 신고한 댓글입니다.");
-        }
-
-        // 5. 신고 기록 생성 및 저장
-        FreeboardCommentReport newReport = FreeboardCommentReport.builder()
-                .user(reporter)
-                .freeboardComment(commentToReport)
-                // comment_report_date는 @CreationTimestamp로 자동 생성
-                .build();
-        freeboardCommentReportRepository.save(newReport);
-
-        return new ReportSuccessResponseDTO("댓글이 성공적으로 신고되었습니다.", commentId);
-    }
-
-    @Override
-    public PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable) {
-        AdminReportedCommentFilterDTO queryFilter = new AdminReportedCommentFilterDTO();
-        // 기존 필터 값 복사
-        queryFilter.setSearchKeyword(filter.getSearchKeyword());
-        queryFilter.setOriginalPostId(filter.getOriginalPostId());
-        queryFilter.setAuthorUserId(filter.getAuthorUserId());
-        queryFilter.setAuthorNickname(filter.getAuthorNickname());
-        queryFilter.setIsHidden(filter.getIsHidden());
-        // reporterUserId와 reporterNickname은 이전 논의에서 DTO에서 제외하기로 했으므로 여기서는 복사하지 않습니다.
-
-        // 날짜 필터 조정
-        if (filter.getReportStartDate() != null) {
-            queryFilter.setQueryReportStartDate(filter.getReportStartDate().atStartOfDay());
-        }
-        if (filter.getReportEndDate() != null) {
-            // 종료일은 해당 일자의 23:59:59.999... 또는 다음날 00:00:00 미만으로 처리
-            queryFilter.setQueryReportEndDate(filter.getReportEndDate().atTime(LocalTime.MAX));
-            // 또는 queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
-            // JPQL에서 '<' 연산자를 사용할 것이므로, atTime(LocalTime.MAX)보다는 plusDays(1).atStartOfDay()가 더 명확할 수 있습니다.
-            // 여기서는 plusDays(1).atStartOfDay()를 사용한다고 가정하고 JPQL을 수정하겠습니다.
-            // queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
-        }
-        // 만약 JPQL에서 <= 연산자를 사용한다면, atTime(LocalTime.MAX)가 적절합니다.
-        // 현재 JPQL은 < :#{#filter.queryReportEndDate} 형태로 가정하고, 서비스에서 +1일 해서 넘깁니다.
-        // 만약 reportEndDate가 null이 아니라면
-        if (filter.getReportEndDate() != null) {
-            queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
-        }
-
-
-        Page<AdminReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummariesWithFilters(queryFilter, pageable);
-
-        return PageResponseDTO.<AdminReportedCommentEntryDTO>builder()
-                .content(reportedCommentPage.getContent())
-                .currentPage(reportedCommentPage.getNumber() + 1)
-                .totalPages(reportedCommentPage.getTotalPages())
-                .totalElements(reportedCommentPage.getTotalElements())
-                .size(reportedCommentPage.getSize())
-                .first(reportedCommentPage.isFirst())
-                .last(reportedCommentPage.isLast())
-                .empty(reportedCommentPage.isEmpty())
-                .build();
-    }
-
-    @Override
-    @Transactional // 데이터 변경(숨김 상태 업데이트)
-    // @PreAuthorize("hasRole('ADMIN')") // TODO: 실제 인증 연동 후 관리자 권한 체크 추가
-    public FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto) {
-        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
-                .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
-
-        comment.setCommentIsHidden(requestDto.getIsHidden());
-        // freeboardCommentRepository.save(comment); // @Transactional에 의해 자동 업데이트
-
-        return convertToDto(comment);
-    }
-
-    @Override
-    public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String userId, @Nullable AdminMyCommentFilterDTO filter, Pageable pageable) {
-        User author = userRepository.findUserByUserId(userId)
-                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + userId));
-
-        Specification<FreeboardComment> spec = Specification.where(FreeboardCommentSpecification.hasAuthor(author));
-
-        if (filter != null) {
-            // AdminMyCommentFilterDTO에 queryStartDate, queryEndDate 필드와 setter가 있어야 합니다.
-            // 또는 여기서 직접 LocalDateTime으로 변환합니다.
-            LocalDateTime queryStartDate = (filter.getStartDate() != null) ? filter.getStartDate().atStartOfDay() : null;
-            LocalDateTime queryEndDate = (filter.getEndDate() != null) ? filter.getEndDate().atTime(LocalTime.MAX) : null;
-            // 만약 queryEndDate를 다음날 00:00 미만으로 하려면:
-            // LocalDateTime queryEndDate = (filter.getEndDate() != null) ? filter.getEndDate().plusDays(1).atStartOfDay() : null;
-
-
-            if (StringUtils.hasText(filter.getSearchKeyword())) {
-                spec = spec.and(FreeboardCommentSpecification.contentContains(filter.getSearchKeyword()));
-            }
-            if (queryStartDate != null) {
-                spec = spec.and(FreeboardCommentSpecification.createdAtAfter(queryStartDate.toLocalDate()));
-            }
-            if (queryEndDate != null) {
-                // JPQL의 createdAtBefore가 <= 연산자를 사용한다면 toLocalDate() 그대로 사용
-                // 만약 JPQL의 createdAtBefore가 < 연산자를 사용한다면 queryEndDate.toLocalDate() 사용 (서비스에서 +1일 처리했으므로)
-                spec = spec.and(FreeboardCommentSpecification.createdAtBefore(queryEndDate.toLocalDate()));
-            }
-        }
-
-
-
-        // FreeboardCommentRepository의 findAll(Specification, Pageable)에 @EntityGraph 적용 필요
-        Page<FreeboardComment> commentPage = freeboardCommentRepository.findAll(spec, pageable);
-
         List<FreeboardCommentResponseDTO> dtoList = commentPage.getContent().stream()
                 .map(this::convertToDto)
                 .collect(Collectors.toList());
@@ -327,21 +67,212 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
     }
 
-    /**
-     * FreeboardComment 엔티티를 FreeboardCommentResponseDTO로 변환합니다.
-     *
-     * @param comment FreeboardComment 엔티티
-     * @return FreeboardCommentResponseDTO
-     */
+    @Override
+    @Transactional
+    public FreeboardCommentResponseDTO createComment(Integer postId, FreeboardCommentRequestDTO requestDto, String currentUserId) { // <<< currentUserId 파라미터 추가
+        FreeboardPost targetPost = freeboardPostRepository.findById(postId)
+                .orElseThrow(() -> new EntityNotFoundException("댓글을 작성할 게시글을 찾을 수 없습니다: " + postId));
+
+        // 댓글 작성자(User) 정보 조회 (이제 DTO가 아닌 currentUserId 사용)
+        User author = userRepository.findUserByUserId(currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("댓글 작성자 정보를 찾을 수 없습니다: " + currentUserId));
+
+        FreeboardComment newComment = FreeboardComment.builder()
+                .commentContent(requestDto.getCommentContent())
+                .user(author)           // 인증된 사용자로 작성자 설정
+                .freeboardPost(targetPost)
+                .build();
+
+        FreeboardComment savedComment = freeboardCommentRepository.save(newComment);
+        return convertToDto(savedComment);
+    }
+
+    @Override
+    @Transactional
+    public FreeboardCommentResponseDTO updateComment(Integer commentId, FreeboardCommentRequestDTO requestDto, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) { // <<< currentUserId 파라미터 추가
+        FreeboardComment commentToUpdate = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("수정할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // User currentUser = userRepository.findUserByUserId(currentUserId).orElseThrow(...); // 필요시 현재 사용자 엔티티 조회
+        // boolean isAdmin = principal != null && principal.getUser().getRole() == Role.ADMIN; // 예시: 관리자 여부 확인
+
+        // 수정 권한 확인: 요청한 사용자(currentUserId)와 실제 댓글 작성자의 userId가 일치하는지 확인
+        // 또는 관리자(Admin)도 수정 가능하도록 로직 추가 가능
+        if (!commentToUpdate.getUser().getUserId().equals(currentUserId) /* && !isAdmin */) {
+            throw new AccessDeniedException("댓글 수정 권한이 없습니다.");
+        }
+
+        commentToUpdate.setCommentContent(requestDto.getCommentContent());
+        return convertToDto(commentToUpdate);
+    }
+
+    @Override
+    @Transactional
+    public void deleteComment(Integer commentId, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) { // <<< requestUserId를 currentUserId로 변경
+        FreeboardComment commentToDelete = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("삭제할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // User currentUser = userRepository.findUserByUserId(currentUserId).orElseThrow(...);
+        // boolean isAdmin = principal != null && principal.getUser().getRole() == Role.ADMIN;
+
+        // 삭제 권한 확인
+        if (!commentToDelete.getUser().getUserId().equals(currentUserId) /* && !isAdmin */) {
+            throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
+        }
+
+        freeboardCommentRepository.delete(commentToDelete);
+    }
+
+    @Override
+    @Transactional
+    public CommentLikeResponseDTO toggleCommentLike(Integer commentId, String currentUserId) { // <<< CommentLikeRequestDTO requestDto 제거, currentUserId 파라미터 추가
+        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("좋아요를 누를 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 사용자 조회 (이제 DTO가 아닌 currentUserId 사용)
+        User user = userRepository.findUserByUserId(currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + currentUserId));
+
+        Optional<FreeboardCommentLike> existingLike = freeboardCommentLikeRepository.findByUserAndFreeboardComment(user, comment);
+        boolean likedByCurrentUser;
+
+        if (existingLike.isPresent()) {
+            freeboardCommentLikeRepository.delete(existingLike.get());
+            comment.setCommentLikeCount(Math.max(0, comment.getCommentLikeCount() - 1));
+            likedByCurrentUser = false;
+        } else {
+            FreeboardCommentLike newLike = FreeboardCommentLike.builder()
+                    .user(user)
+                    .freeboardComment(comment)
+                    .build();
+            freeboardCommentLikeRepository.save(newLike);
+            comment.setCommentLikeCount(comment.getCommentLikeCount() + 1);
+            likedByCurrentUser = true;
+        }
+
+        return CommentLikeResponseDTO.builder()
+                .commentId(comment.getCommentId())
+                .currentLikeCount(comment.getCommentLikeCount())
+                .likedByCurrentUser(likedByCurrentUser)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public ReportSuccessResponseDTO reportComment(Integer commentId, String currentUserId) { // <<< CommentReportRequestDTO requestDto 제거, currentUserId 파라미터 추가
+        FreeboardComment commentToReport = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("신고할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 신고자 조회 (이제 DTO가 아닌 currentUserId 사용)
+        User reporter = userRepository.findUserByUserId(currentUserId)
+                .orElseThrow(() -> new EntityNotFoundException("신고자 정보를 찾을 수 없습니다: " + currentUserId));
+
+        if (commentToReport.getUser().getUserId().equals(reporter.getUserId())) {
+            throw new IllegalStateException("자신의 댓글은 신고할 수 없습니다.");
+        }
+        boolean alreadyReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(reporter, commentToReport);
+        if (alreadyReported) {
+            throw new IllegalStateException("이미 신고한 댓글입니다.");
+        }
+
+        FreeboardCommentReport newReport = FreeboardCommentReport.builder()
+                .user(reporter)
+                .freeboardComment(commentToReport)
+                .build();
+        freeboardCommentReportRepository.save(newReport);
+        return new ReportSuccessResponseDTO("댓글이 성공적으로 신고되었습니다.", commentId);
+    }
+
+    @Override
+    public PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable) {
+        // 이 메소드는 관리자 기능이므로 currentUserId를 직접 받지 않습니다.
+        // 접근 제어는 WebSecurityConfig 또는 컨트롤러의 @PreAuthorize 로 이루어집니다.
+        AdminReportedCommentFilterDTO queryFilter = new AdminReportedCommentFilterDTO();
+        queryFilter.setSearchKeyword(filter.getSearchKeyword());
+        queryFilter.setOriginalPostId(filter.getOriginalPostId());
+        queryFilter.setAuthorUserId(filter.getAuthorUserId());
+        queryFilter.setAuthorNickname(filter.getAuthorNickname());
+        queryFilter.setIsHidden(filter.getIsHidden());
+
+        if (filter.getReportStartDate() != null) {
+            queryFilter.setQueryReportStartDate(filter.getReportStartDate().atStartOfDay());
+        }
+        if (filter.getReportEndDate() != null) {
+            queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
+        }
+
+        Page<AdminReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummariesWithFilters(queryFilter, pageable);
+
+        return PageResponseDTO.<AdminReportedCommentEntryDTO>builder()
+                .content(reportedCommentPage.getContent())
+                .currentPage(reportedCommentPage.getNumber() + 1)
+                .totalPages(reportedCommentPage.getTotalPages())
+                .totalElements(reportedCommentPage.getTotalElements())
+                .size(reportedCommentPage.getSize())
+                .first(reportedCommentPage.isFirst())
+                .last(reportedCommentPage.isLast())
+                .empty(reportedCommentPage.isEmpty())
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto) {
+        // 이 메소드는 관리자 기능이므로 currentUserId를 직접 받지 않습니다.
+        FreeboardComment comment = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
+        comment.setCommentIsHidden(requestDto.getIsHidden());
+        return convertToDto(comment);
+    }
+
+    @Override
+    public PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String currentUserId, @Nullable AdminMyCommentFilterDTO filter, Pageable pageable) { // <<< userId를 currentUserId로 변경
+        User author = userRepository.findUserByUserId(currentUserId) // currentUserId 사용
+                .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + currentUserId));
+
+        Specification<FreeboardComment> spec = Specification.where(FreeboardCommentSpecification.hasAuthor(author));
+
+        if (filter != null) {
+            LocalDateTime queryStartDate = (filter.getStartDate() != null) ? filter.getStartDate().atStartOfDay() : null;
+            LocalDateTime queryEndDate = (filter.getEndDate() != null) ? filter.getEndDate().plusDays(1).atStartOfDay() : null; // 다음 날 자정 미만
+
+            if (StringUtils.hasText(filter.getSearchKeyword())) {
+                spec = spec.and(FreeboardCommentSpecification.contentContains(filter.getSearchKeyword()));
+            }
+            if (queryStartDate != null) {
+                spec = spec.and(FreeboardCommentSpecification.createdAtAfter(queryStartDate.toLocalDate())); // LocalDate로 변경
+            }
+            if (queryEndDate != null) {
+                spec = spec.and(FreeboardCommentSpecification.createdAtBefore(queryEndDate.toLocalDate())); // LocalDate로 변경 (다음 날 자정이므로 해당 일자까지 포함)
+            }
+        }
+
+        Page<FreeboardComment> commentPage = freeboardCommentRepository.findAll(spec, pageable);
+        List<FreeboardCommentResponseDTO> dtoList = commentPage.getContent().stream()
+                .map(this::convertToDto)
+                .collect(Collectors.toList());
+
+        return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
+                .content(dtoList)
+                .currentPage(commentPage.getNumber() + 1)
+                .totalPages(commentPage.getTotalPages())
+                .totalElements(commentPage.getTotalElements())
+                .size(commentPage.getSize())
+                .first(commentPage.isFirst())
+                .last(commentPage.isLast())
+                .empty(commentPage.isEmpty())
+                .build();
+    }
+
     private FreeboardCommentResponseDTO convertToDto(FreeboardComment comment) {
-        User user = comment.getUser(); // @EntityGraph로 인해 추가 쿼리 발생 안 함 (또는 LAZY 로딩 시점)
+        User user = comment.getUser();
         Integer postId = (comment.getFreeboardPost() != null) ? comment.getFreeboardPost().getPostId() : null;
 
         return FreeboardCommentResponseDTO.builder()
                 .commentId(comment.getCommentId())
                 .commentContent(comment.getCommentContent())
                 .commentLikeCount(comment.getCommentLikeCount())
-                .commentIsHidden(comment.isCommentIsHidden()) // 엔티티 필드명 확인
+                .commentIsHidden(comment.isCommentIsHidden())
                 .commentCreatedAt(comment.getCommentCreatedAt())
                 .commentUpdatedAt(comment.getCommentUpdatedAt())
                 .userId(user != null ? user.getUserId() : null)
@@ -350,32 +281,13 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
     }
 
+    // convertToReportedCommentEntryDto 메서드는 이 서비스에서는 직접 사용되지 않으므로,
+    // AdminReportViewServiceImpl로 이동했거나 해당 서비스에만 필요한 경우 여기서는 제거해도 됩니다.
+    // 만약 공통 유틸리티라면 별도의 클래스로 분리하는 것이 좋습니다.
+    // 여기서는 일단 주석 처리하거나, 필요 없다면 삭제합니다.
+    /*
     private ReportedCommentEntryDTO convertToReportedCommentEntryDto(FreeboardCommentReport report) {
-        FreeboardComment comment = report.getFreeboardComment();
-        User commentAuthor = comment.getUser();
-        User reporter = report.getUser();
-        FreeboardPost originalPost = comment.getFreeboardPost();
-
-        String contentPreview = comment.getCommentContent();
-        if (contentPreview != null && contentPreview.length() > 50) {
-            contentPreview = contentPreview.substring(0, 50) + "...";
-        }
-
-        return ReportedCommentEntryDTO.builder() // 이제 이 부분이 정상 동작해야 합니다.
-                .itemType("COMMENT_REPORT") // DTO에 itemType 필드가 있다면
-                .reportId(report.getCommentReportId())
-                .reportedItemId(comment.getCommentId())
-                .itemTitleOrContentPreview(contentPreview)
-                .reportedItemAuthorUserId(commentAuthor.getUserId())
-                .reportedItemAuthorNickname(commentAuthor.getUserNickName())
-                .reporterUserId(reporter.getUserId())
-                .reporterNickname(reporter.getUserNickName())
-                .reportCreatedAt(report.getCommentReportDate())
-                .originalItemCreatedAt(comment.getCommentCreatedAt())
-                .isItemHidden(comment.isCommentIsHidden())
-                .originalPostIdForComment(originalPost.getPostId())
-                // .likeCount() // 이 DTO에는 좋아요 수가 없으므로 주석 또는 제거
-                // .viewCount() // 이 DTO에는 조회 수가 없으므로 주석 또는 제거
-                .build();
+        // ... (내용 생략) ...
     }
+    */
 }
