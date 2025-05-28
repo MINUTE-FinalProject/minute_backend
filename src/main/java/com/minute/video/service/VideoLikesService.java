@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -90,7 +91,8 @@ public class VideoLikesService {
                         like.getVideo().getVideoId(),
                         like.getVideo().getVideoTitle(),
                         like.getVideo().getVideoUrl(),
-                        like.getVideo().getThumbnailUrl()
+                        like.getVideo().getThumbnailUrl(),
+                        like.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
     }

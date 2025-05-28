@@ -5,6 +5,7 @@ import com.minute.auth.dto.request.auth.SignupValidateRequestDto;
 import com.minute.auth.dto.response.auth.SignupResponseDto;
 import com.minute.auth.dto.response.auth.SignupValidateResponseDto;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Service;
 
 public interface AuthService {
 

@@ -7,4 +7,5 @@ import java.util.Optional;
 
 public interface BookmarkRepository extends JpaRepository<Bookmark, Integer> {
     Optional<Bookmark> findByUserIdAndVideoIdAndFolder_FolderId(String userId, String videoId, Integer folderId);
+
 }

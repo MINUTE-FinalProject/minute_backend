@@ -33,6 +33,12 @@ public class Video {
     @Column(length = 255)
     private String thumbnailUrl;
 
+    @Column(length = 255)
+    private String region;
+
+    @Column(length = 255)
+    private String city;
+
     @ManyToOne
     @JoinColumn(name = "channel_id")
     private Channel channel;
