@@ -7,7 +7,7 @@ import lombok.Getter;
 import java.time.LocalDateTime;
 
 @Getter
-@Builder
+@Builder // 빌더 패턴 사용 (Service에서 DTO 변환 시 유용)
 @Schema(description = "자유게시판 댓글 조회 응답 DTO")
 public class FreeboardCommentResponseDTO {
 
@@ -37,4 +37,8 @@ public class FreeboardCommentResponseDTO {
 
     @Schema(description = "댓글이 달린 게시글 ID", example = "101")
     private Integer postId;
+
+    // <<< 추가된 필드 >>>
+    @Schema(description = "현재 로그인한 사용자의 해당 댓글 좋아요 여부", example = "true")
+    private boolean isLikedByCurrentUser;
 }
