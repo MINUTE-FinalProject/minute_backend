@@ -4,6 +4,10 @@ spring:
     username: minutedb
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+  web:
+    resources:
+      static-locations: src/main/resources/static/upload
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -26,14 +30,7 @@ springdoc:
 
 youtube:
   api:
-<<<<<<< HEAD
-<<<<<<< Updated upstream
-=======
 #    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
->>>>>>> Stashed changes
-=======
-    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
->>>>>>> main
 #    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
     key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
 #    key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
