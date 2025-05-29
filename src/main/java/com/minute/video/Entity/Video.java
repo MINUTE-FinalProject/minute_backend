@@ -52,4 +52,14 @@ public class Video {
     // 추천 로직에 필요한 속성
     private long views;
     private long likes;
+
+    // 좋아요 증가
+    public void increaseLikes() {
+        this.likes += 1;
+    }
+
+    // 좋아요 감소
+    public void decreaseLikes() {
+        this.likes = Math.max(0, this.likes - 1);   // -1이 안되게 최소 0
+    }
 }
