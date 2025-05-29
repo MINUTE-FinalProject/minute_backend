@@ -1,7 +1,6 @@
 package com.minute.board.free.service;
 
-// 기존 import 문들 ...
-import com.minute.auth.service.DetailUser; // DetailUser import 추가 (SecurityContextHolder 사용 시)
+import com.minute.auth.service.DetailUser;
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
 import com.minute.board.free.dto.request.*;
@@ -26,18 +25,18 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.lang.Nullable;
 import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.Authentication; // Authentication import 추가
-import org.springframework.security.core.context.SecurityContextHolder; // SecurityContextHolder import 추가
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-// import java.time.LocalTime; // getReportedComments 에서만 사용, 여기서는 불필요시 제거 가능
-import java.util.Collections; // Collections.emptySet() 사용
+// import java.time.LocalTime; // 주석 처리 또는 필요시 복원
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set; // Set import 추가
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -51,7 +50,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     private final FreeboardCommentLikeRepository freeboardCommentLikeRepository;
     private final FreeboardCommentReportRepository freeboardCommentReportRepository;
 
-    // 현재 로그인한 사용자 ID를 가져오는 헬퍼 메서드
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() &&
@@ -63,9 +61,15 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 if (detailUser.getUser() != null) {
                     return detailUser.getUser().getUserId();
                 }
-            } else if (principal instanceof String) { // 만약 UserDetails가 아닌 String ID를 직접 저장하는 경우 (일반적이지 않음)
-                return (String) principal;
             }
+        }
+        return null;
+    }
+
+    private User getCurrentUserEntity() {
+        String currentUserId = getCurrentUserId();
+        if (currentUserId != null) {
+            return userRepository.findUserByUserId(currentUserId).orElse(null);
         }
         return null;
     }
@@ -76,21 +80,25 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         List<FreeboardComment> comments = commentPage.getContent();
 
         Set<Integer> likedCommentIds = Collections.emptySet();
+        Set<Integer> reportedCommentIds = Collections.emptySet();
         String currentUserId = getCurrentUserId();
 
         if (currentUserId != null && !comments.isEmpty()) {
             List<Integer> commentIds = comments.stream().map(FreeboardComment::getCommentId).collect(Collectors.toList());
             likedCommentIds = freeboardCommentLikeRepository.findLikedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds);
+            reportedCommentIds = freeboardCommentReportRepository.findReportedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds); // 새로 추가된 메서드 호출
         }
 
-        final Set<Integer> finalLikedCommentIds = likedCommentIds; // 람다에서 사용하기 위함
+        final Set<Integer> finalLikedCommentIds = likedCommentIds;
+        final Set<Integer> finalReportedCommentIds = reportedCommentIds;
+
         List<FreeboardCommentResponseDTO> dtoList = comments.stream()
-                .map(comment -> convertToDto(comment, finalLikedCommentIds)) // 수정된 convertToDto 호출
+                .map(comment -> convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds)) // 수정된 convertToDto 호출
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
                 .content(dtoList)
-                .currentPage(commentPage.getNumber() + 1) // 프론트엔드는 1-based
+                .currentPage(commentPage.getNumber() + 1)
                 .totalPages(commentPage.getTotalPages())
                 .totalElements(commentPage.getTotalElements())
                 .size(commentPage.getSize())
@@ -116,8 +124,8 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
 
         FreeboardComment savedComment = freeboardCommentRepository.save(newComment);
-        // 새로 생성된 댓글은 현재 사용자가 좋아요를 누르지 않았다고 가정 (또는 필요시 여기서 확인)
-        return convertToDto(savedComment, Collections.emptySet());
+        // 새로 생성된 댓글은 현재 사용자가 좋아요/신고하지 않았다고 가정
+        return convertToDto(savedComment, Collections.emptySet(), Collections.emptySet());
     }
 
     @Override
@@ -131,20 +139,31 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         }
 
         commentToUpdate.setCommentContent(requestDto.getCommentContent());
-        // 수정된 댓글의 좋아요 상태는 기존 상태를 유지하거나, 필요시 여기서 확인
-        // 여기서는 간단히 현재 사용자의 좋아요 정보를 다시 조회하지 않고, 기존 convertToDto의 기본값을 따르도록 함.
-        // 만약 수정 후에도 정확한 isLikedByCurrentUser가 필요하면, currentUserIdFromController와 commentId로 좋아요 상태 조회 로직 추가 필요.
-        // 지금은 목록에서 가져온 isLikedByCurrentUser가 없으므로, 그냥 emptySet 전달.
-        return convertToDto(commentToUpdate, Collections.emptySet()); // 또는 해당 댓글의 좋아요 상태를 조회하여 전달
+
+        // 수정 시에는 기존 좋아요/신고 상태를 유지하거나 정확히 반영하기 위해 조회 필요
+        boolean isLiked = false;
+        boolean isReported = false;
+        User currentUser = getCurrentUserEntity(); // currentUserIdFromController로 조회
+        if (currentUser != null) {
+            // FreeboardCommentLikeRepository의 existsByUserAndFreeboardComment 사용
+            isLiked = freeboardCommentLikeRepository.findByUserAndFreeboardComment(currentUser, commentToUpdate).isPresent();
+            isReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(currentUser, commentToUpdate);
+        }
+        Set<Integer> likedIds = isLiked ? Set.of(commentId) : Collections.emptySet();
+        Set<Integer> reportedIds = isReported ? Set.of(commentId) : Collections.emptySet();
+
+        return convertToDto(commentToUpdate, likedIds, reportedIds);
     }
 
+    // ... (deleteComment, toggleCommentLike, reportComment, getReportedComments 등은 이전과 거의 동일) ...
+    // (단, toggleCommentLike, reportComment의 반환값은 DTO만 정확히 반환, 엔티티의 isLiked/ReportedByCurrentUser는 없음)
     @Override
     @Transactional
     public void deleteComment(Integer commentId, String currentUserIdFromController) {
         FreeboardComment commentToDelete = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("삭제할 댓글을 찾을 수 없습니다: " + commentId));
 
-        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController) /* && !isAdmin */) { // 관리자 삭제 권한은 주석처리된 대로 추가 가능
+        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController) /* && !isAdmin */) {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
 
@@ -176,7 +195,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             comment.setCommentLikeCount(comment.getCommentLikeCount() + 1);
             likedByCurrentUser = true;
         }
-        // comment 엔티티의 변경사항은 @Transactional 에 의해 커밋 시점에 DB에 반영됨
 
         return CommentLikeResponseDTO.builder()
                 .commentId(comment.getCommentId())
@@ -223,7 +241,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             queryFilter.setQueryReportStartDate(filter.getReportStartDate().atStartOfDay());
         }
         if (filter.getReportEndDate() != null) {
-            // 종료일의 마지막 시간까지 포함하도록 하거나, 다음날 0시 미만으로 설정
             queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
         }
 
@@ -241,14 +258,26 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
     }
 
+
     @Override
     @Transactional
     public FreeboardCommentResponseDTO updateCommentVisibility(Integer commentId, CommentVisibilityRequestDTO requestDto) {
         FreeboardComment comment = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
         comment.setCommentIsHidden(requestDto.getIsHidden());
-        // isLikedByCurrentUser는 이 맥락에서는 알 수 없으므로 기본값 false 처리
-        return convertToDto(comment, Collections.emptySet());
+
+        // 숨김 상태 변경 시에도 좋아요/신고 상태는 유지되어야 함
+        boolean isLiked = false;
+        boolean isReported = false;
+        User currentUser = getCurrentUserEntity(); // 이 메서드는 currentUserId를 직접 받지 않으므로 SecurityContextHolder 사용
+        if (currentUser != null) {
+            isLiked = freeboardCommentLikeRepository.findByUserAndFreeboardComment(currentUser, comment).isPresent();
+            isReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(currentUser, comment);
+        }
+        Set<Integer> likedIds = isLiked ? Set.of(commentId) : Collections.emptySet();
+        Set<Integer> reportedIds = isReported ? Set.of(commentId) : Collections.emptySet();
+
+        return convertToDto(comment, likedIds, reportedIds);
     }
 
     @Override
@@ -274,15 +303,20 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         List<FreeboardComment> comments = commentPage.getContent();
 
         Set<Integer> likedCommentIds = Collections.emptySet();
-        // getCommentsByAuthor는 currentUserIdFromController를 이미 알고 있으므로 이를 사용
+        Set<Integer> reportedCommentIds = Collections.emptySet();
+
+        // currentUserIdFromController는 이미 author의 ID이므로 이를 사용
         if (!comments.isEmpty()) {
             List<Integer> commentIds = comments.stream().map(FreeboardComment::getCommentId).collect(Collectors.toList());
             likedCommentIds = freeboardCommentLikeRepository.findLikedCommentIdsByUserIdAndCommentIdsIn(currentUserIdFromController, commentIds);
+            reportedCommentIds = freeboardCommentReportRepository.findReportedCommentIdsByUserIdAndCommentIdsIn(currentUserIdFromController, commentIds);
         }
 
         final Set<Integer> finalLikedCommentIds = likedCommentIds;
+        final Set<Integer> finalReportedCommentIds = reportedCommentIds;
+
         List<FreeboardCommentResponseDTO> dtoList = comments.stream()
-                .map(comment -> convertToDto(comment, finalLikedCommentIds))
+                .map(comment -> convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds))
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
@@ -298,11 +332,15 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
     }
 
     // convertToDto 메서드 시그니처 변경 및 로직 수정
-    private FreeboardCommentResponseDTO convertToDto(FreeboardComment comment, Set<Integer> likedCommentIdsForCurrentUser) {
-        User user = comment.getUser(); // 댓글 작성자
+    private FreeboardCommentResponseDTO convertToDto(FreeboardComment comment,
+                                                     Set<Integer> likedCommentIdsForCurrentUser,
+                                                     Set<Integer> reportedCommentIdsForCurrentUser) {
+        User author = comment.getUser(); // 댓글 작성자
         Integer postId = (comment.getFreeboardPost() != null) ? comment.getFreeboardPost().getPostId() : null;
 
         boolean isLiked = likedCommentIdsForCurrentUser.contains(comment.getCommentId());
+        boolean isReported = reportedCommentIdsForCurrentUser.contains(comment.getCommentId());
+        String authorRole = (author != null && author.getRole() != null) ? author.getRole().name() : "USER"; // 기본값 USER 또는 null 처리
 
         return FreeboardCommentResponseDTO.builder()
                 .commentId(comment.getCommentId())
@@ -311,10 +349,12 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .commentIsHidden(comment.isCommentIsHidden())
                 .commentCreatedAt(comment.getCommentCreatedAt())
                 .commentUpdatedAt(comment.getCommentUpdatedAt())
-                .userId(user != null ? user.getUserId() : null)
-                .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
+                .userId(author != null ? author.getUserId() : null)
+                .userNickName(author != null ? author.getUserNickName() : "알 수 없는 사용자")
                 .postId(postId)
-                .isLikedByCurrentUser(isLiked) // 필드 설정
+                .isLikedByCurrentUser(isLiked)
+                .isReportedByCurrentUser(isReported) // 필드 설정
+                .authorRole(authorRole) // 필드 설정
                 .build();
     }
 }

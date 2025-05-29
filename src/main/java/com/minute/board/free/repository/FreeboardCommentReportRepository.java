@@ -1,19 +1,22 @@
 package com.minute.board.free.repository;
 
-import com.minute.board.free.dto.request.AdminReportedCommentFilterDTO;
-import com.minute.board.free.dto.response.AdminReportedCommentEntryDTO;
-import com.minute.board.free.dto.response.ReportedCommentEntryDTO;
+import com.minute.board.free.dto.request.AdminReportedCommentFilterDTO; // 유지 (다른 메서드에서 사용)
+import com.minute.board.free.dto.response.AdminReportedCommentEntryDTO; // 유지 (다른 메서드에서 사용)
+// import com.minute.board.free.dto.response.ReportedCommentEntryDTO; // 필요시 유지
 import com.minute.board.free.entity.FreeboardComment;
 import com.minute.board.free.entity.FreeboardCommentReport;
 import com.minute.user.entity.User;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.jpa.domain.Specification;
-import org.springframework.data.jpa.repository.EntityGraph;
+import org.springframework.data.jpa.domain.Specification; // 유지 (JpaSpecificationExecutor 사용)
+// import org.springframework.data.jpa.repository.EntityGraph; // 필요시 유지
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
+import java.util.List; // List import 추가
+import java.util.Set;  // Set import 추가
 
 public interface FreeboardCommentReportRepository extends JpaRepository<FreeboardCommentReport, Integer>, JpaSpecificationExecutor<FreeboardCommentReport> {
     // FreeboardCommentReport 엔티티의 ID (commentReportId) 타입은 Integer 입니다.
@@ -23,7 +26,7 @@ public interface FreeboardCommentReportRepository extends JpaRepository<Freeboar
     boolean existsByUserAndFreeboardComment(User user, FreeboardComment freeboardComment);
 
     @Query("SELECT new com.minute.board.free.dto.response.AdminReportedCommentEntryDTO(" +
-            "c.commentId, c.commentContent, u.userId, u.userNickName, c.commentCreatedAt, p.postId, COUNT(r.commentReportId), c.commentIsHidden) " + // COUNT(r.id) -> COUNT(r.commentReportId)로 수정했는지 확인
+            "c.commentId, c.commentContent, u.userId, u.userNickName, c.commentCreatedAt, p.postId, COUNT(r.commentReportId), c.commentIsHidden) " +
             "FROM FreeboardCommentReport r " +
             "JOIN r.freeboardComment c " +
             "JOIN c.user u " +
@@ -37,13 +40,22 @@ public interface FreeboardCommentReportRepository extends JpaRepository<Freeboar
             "      u.userNickName LIKE %:#{#filter.searchKeyword}%" +
             ")) " +
             "AND (:#{#filter.isHidden} IS NULL OR c.commentIsHidden = :#{#filter.isHidden}) " +
-            // 수정된 날짜 조건: 서비스에서 조정한 queryReportStartDate와 queryReportEndDate 사용
             "AND (:#{#filter.queryReportStartDate} IS NULL OR r.commentReportDate >= :#{#filter.queryReportStartDate}) " +
-            "AND (:#{#filter.queryReportEndDate} IS NULL OR r.commentReportDate < :#{#filter.queryReportEndDate}) " + // 서비스에서 +1일 해서 넘겼으므로 < 사용
+            "AND (:#{#filter.queryReportEndDate} IS NULL OR r.commentReportDate < :#{#filter.queryReportEndDate}) " +
             "GROUP BY c.commentId, c.commentContent, u.userId, u.userNickName, c.commentCreatedAt, p.postId, c.commentIsHidden " +
             "ORDER BY COUNT(r.commentReportId) DESC, c.commentCreatedAt DESC")
     Page<AdminReportedCommentEntryDTO> findReportedCommentSummariesWithFilters(
             @Param("filter") AdminReportedCommentFilterDTO filter,
             Pageable pageable
     );
+
+    // <<< 추가된 메소드 (N+1 해결용) >>>
+    /**
+     * 특정 사용자가 주어진 댓글 ID 목록 중에서 신고한 댓글 ID들을 조회합니다.
+     * @param userId 사용자 ID
+     * @param commentIds 댓글 ID 목록
+     * @return 신고한 댓글 ID의 Set
+     */
+    @Query("SELECT fcr.freeboardComment.commentId FROM FreeboardCommentReport fcr WHERE fcr.user.userId = :userId AND fcr.freeboardComment.commentId IN :commentIds")
+    Set<Integer> findReportedCommentIdsByUserIdAndCommentIdsIn(@Param("userId") String userId, @Param("commentIds") List<Integer> commentIds);
 }
