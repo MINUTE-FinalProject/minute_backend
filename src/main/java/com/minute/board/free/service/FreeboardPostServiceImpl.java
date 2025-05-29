@@ -142,18 +142,21 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         FreeboardPost post = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 ID의 게시글을 찾을 수 없습니다: " + postId));
 
-        // 조회수 증가 (트랜잭션 내에서 이루어지므로 Dirty Checking에 의해 DB 반영)
+        // 조회수 증가
         post.setPostViewCount(post.getPostViewCount() + 1);
 
         boolean isLiked = false;
-        boolean isReported = false;
-        User currentUser = getCurrentUserEntity(); // User 엔티티 직접 사용
+        boolean isReported = false; // 초기값 설정
+        User currentUser = getCurrentUserEntity(); // 현재 로그인한 User 엔티티 가져오기
 
         if (currentUser != null) {
-            // FreeboardPostLikeRepository의 existsByUserAndFreeboardPost(User user, FreeboardPost post) 사용
+            // 현재 사용자가 해당 게시글을 좋아요 했는지 확인
             isLiked = freeboardPostLikeRepository.existsByUserAndFreeboardPost(currentUser, post);
-            // FreeboardPostReportRepository의 existsByUserAndFreeboardPost(User user, FreeboardPost post) 사용
+
+            // <<< --- 수정된 부분 시작 --- >>>
+            // 현재 사용자가 해당 게시글을 신고했는지 확인
             isReported = freeboardPostReportRepository.existsByUserAndFreeboardPost(currentUser, post);
+            // <<< --- 수정된 부분 끝 --- >>>
         }
 
         return convertToDetailDto(post, isLiked, isReported);
