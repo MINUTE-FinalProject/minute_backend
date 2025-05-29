@@ -9,12 +9,10 @@ import com.minute.user.dto.response.UserPatchInfoResponseDto;
 import com.minute.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/v1/user")
@@ -37,6 +35,7 @@ public class UserController {
             System.out.println("로그인 사용자 userId가 null입니다!");
             return ResponseEntity.status(400).body("사용자 ID가 존재하지 않습니다.");
         }
+
         return userService.getSignInUser(userId);
     }
 
@@ -72,7 +71,6 @@ public class UserController {
         return userService.userPatchInfo(requestBody, userId);
     }
 
-    //회원탈퇴
     @DeleteMapping("/delete")
     public ResponseEntity<? super ResponseDto> deleteUser(
             @AuthenticationPrincipal DetailUser detailUser) {
@@ -85,23 +83,6 @@ public class UserController {
 
         return userService.deleteUser(userId);
     }
-
-    //프로필 업로드
-    @PostMapping("/profile")
-    public ResponseEntity<? super ResponseDto> uploadProfileImage(
-            @RequestParam("file") MultipartFile file,
-            @AuthenticationPrincipal DetailUser detailUser
-    ) {
-        if (detailUser == null || detailUser.getUser() == null) {
-            return ResponseEntity.status(401).body(new ResponseDto("UNAUTHORIZED", "인증되지 않은 사용자입니다."));
-        }
-
-        String userId = detailUser.getUser().getUserId();
-        return userService.uploadProfileImage(userId, file);
-    }
-
-
-
 
 
 }
