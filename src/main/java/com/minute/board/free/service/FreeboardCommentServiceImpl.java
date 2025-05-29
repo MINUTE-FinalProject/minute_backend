@@ -230,6 +230,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
     @Override
     public PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable) {
+        System.out.println("Service getReportedComments - Pageable Sort: " + pageable.getSort()); // 디버깅 로그 추가
         AdminReportedCommentFilterDTO queryFilter = new AdminReportedCommentFilterDTO();
         queryFilter.setSearchKeyword(filter.getSearchKeyword());
         queryFilter.setOriginalPostId(filter.getOriginalPostId());

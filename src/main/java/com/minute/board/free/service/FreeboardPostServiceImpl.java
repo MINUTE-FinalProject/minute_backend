@@ -282,6 +282,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(AdminReportedPostFilterDTO filter, Pageable pageable) {
+        System.out.println("Service getReportedPosts - Pageable Sort: " + pageable.getSort()); // 디버깅 로그 추가
         AdminReportedPostFilterDTO queryFilter = new AdminReportedPostFilterDTO();
         queryFilter.setPostId(filter.getPostId());
         queryFilter.setAuthorUserId(filter.getAuthorUserId());
