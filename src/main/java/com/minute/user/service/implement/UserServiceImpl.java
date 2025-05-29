@@ -31,47 +31,47 @@ public class UserServiceImpl implements UserService {
     //프론트용 사용자 조회
     @Override
     public ResponseEntity<? super GetSignInUserResponseDto> getSignInUser(String userId) {
-
-        User user;
         try {
-            user = userRepository.findUserByUserId(userId);
+            Optional<User> optionalUser = userRepository.findUserByUserId(userId);
+            if (optionalUser.isEmpty()) return GetSignInUserResponseDto.notExistUser();
 
-            if (user == null) return GetSignInUserResponseDto.notExistUser();
+            User user = optionalUser.get();
+            return GetSignInUserResponseDto.success(user);
 
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseDto.databaseError();
         }
-
-        return GetSignInUserResponseDto.success(user);
-
     }
 
     @Override
     public ResponseEntity<? super GetUserResponseDto> getUser(String userId) {
-        User user = null;
         try {
-            user = userRepository.findUserByUserId(userId);
-            if (user == null) return GetUserResponseDto.notExistUser();
+            Optional<User> optionalUser = userRepository.findUserByUserId(userId);
+            if (optionalUser.isEmpty()) return GetUserResponseDto.notExistUser();
+
+            return GetUserResponseDto.success(optionalUser.get());
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseDto.databaseError();
         }
-        return GetUserResponseDto.success(user);
     }
+
 
     //사용자 정보 수정
     @Override
     public ResponseEntity<? super UserPatchInfoResponseDto> userPatchInfo(UserPatchInfoRequestDto dto, String userId) {
         try {
-            User user = userRepository.findUserByUserId(userId);
-            if (user == null) return UserPatchInfoResponseDto.noExistUser();
+            Optional<User> optionalUser = userRepository.findUserByUserId(userId);
+            if (optionalUser.isEmpty()) return UserPatchInfoResponseDto.noExistUser();
+
+            User user = optionalUser.get();
 
             // 닉네임
             String nickName = dto.getUserNickName();
             if (nickName != null && !nickName.equals(user.getUserNickName())) {
                 if (userRepository.existsByUserNickName(nickName)) {
-                    System.out.println("중복 닉네임");
                     return UserPatchInfoResponseDto.duplicateNickName();
                 }
                 user.setUserNickName(nickName);
@@ -80,30 +80,23 @@ public class UserServiceImpl implements UserService {
             // 전화번호
             String phone = dto.getUserPhone();
             if (phone != null && !phone.equals(user.getUserPhone())) {
-                if (userRepository.existsByUserPhone(phone))
-                    return UserPatchInfoResponseDto.duplicatePhone();
+                if (userRepository.existsByUserPhone(phone)) return UserPatchInfoResponseDto.duplicatePhone();
                 user.setUserPhone(phone);
             }
 
             // 이메일
             String email = dto.getUserEmail();
             if (email != null && !email.equals(user.getUserEmail())) {
-                if (userRepository.existsByUserEmail(email))
-                    return UserPatchInfoResponseDto.duplicateEmail();
+                if (userRepository.existsByUserEmail(email)) return UserPatchInfoResponseDto.duplicateEmail();
                 user.setUserEmail(email);
             }
 
-            // 성별
-            if (dto.getUserGender() != null)
-                user.setUserGender(dto.getUserGender());
-
-            // 프로필 이미지
-            if (dto.getUserProfileImage() != null)
-                user.setProfileImage(dto.getUserProfileImage());
+            // 기타 정보
+            if (dto.getUserGender() != null) user.setUserGender(dto.getUserGender());
+            if (dto.getUserProfileImage() != null) user.setProfileImage(dto.getUserProfileImage());
 
             userRepository.save(user);
             em.flush();
-            User updatedUser = userRepository.findByUserEmail(user.getUserEmail());
             return UserPatchInfoResponseDto.success();
 
         } catch (Exception exception) {
@@ -111,6 +104,7 @@ public class UserServiceImpl implements UserService {
             return ResponseDto.databaseError();
         }
     }
+
 
     //관리자 승격
     @Transactional
@@ -131,19 +125,20 @@ public class UserServiceImpl implements UserService {
     @Override
     public ResponseEntity<? super ResponseDto> deleteUser(String userId) {
         try {
-            User user = userRepository.findUserByUserId(userId);
-            if (user == null) {
+            Optional<User> optionalUser = userRepository.findUserByUserId(userId);
+            if (optionalUser.isEmpty()) {
                 return ResponseEntity.status(404).body(new ResponseDto("NOT_FOUND", "사용자를 찾을 수 없습니다."));
             }
 
-            userRepository.delete(user);
-
+            userRepository.delete(optionalUser.get());
             return ResponseEntity.ok(new ResponseDto("SU", "회원 탈퇴가 완료되었습니다."));
+
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.status(500).body(new ResponseDto("SE", "서버 오류가 발생했습니다."));
         }
     }
+
 
 
 

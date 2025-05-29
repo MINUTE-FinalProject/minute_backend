@@ -1,6 +1,6 @@
 package com.minute.board.notice.service;
 
-import com.minute.board.common.dto.PageResponseDTO;
+import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.notice.dto.request.NoticeCreateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeImportanceUpdateRequestDTO;
 import com.minute.board.notice.dto.request.NoticeUpdateRequestDTO;
@@ -129,12 +129,9 @@ public class NoticeService {
 
     @Transactional // 데이터 변경이 있으므로 @Transactional 추가
     public NoticeDetailResponseDTO createNotice(NoticeCreateRequestDTO requestDto, String authenticatedUserId) {
-        // 1. 작성자(User) 정보 조회
-        User author = userRepository.findUserByUserId(authenticatedUserId);
-        if (author == null) {
-            // 또는 findByUserId가 Optional<User>를 반환한다면 .orElseThrow() 사용
-            throw new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + authenticatedUserId);
-        }
+        // 1. 작성자(User) 정보 조회 (수정된 부분)
+        User author = userRepository.findUserByUserId(authenticatedUserId)
+                .orElseThrow(() -> new EntityNotFoundException("작성자 정보를 찾을 수 없습니다: " + authenticatedUserId));
 
         // 2. Notice 엔티티 생성 및 정보 설정
         Notice newNotice = Notice.builder()

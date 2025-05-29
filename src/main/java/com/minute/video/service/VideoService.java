@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -158,6 +159,53 @@ public class VideoService {
                 .map(videoResponseMapper::toDtoWithStats)
                 .collect(Collectors.toList());
     }
+
+    // ★ Youtube API로부터 받은 영상 리스트를 DB에 저장
+    public void saveVideosFromApi(List<Map<String, Object>> videoList, String region) {
+        for (Map<String, Object> videoMap : videoList) {
+            Map<String, Object> idMap = (Map<String, Object>) videoMap.get("id");
+            Map<String, Object> snippet = (Map<String, Object>) videoMap.get("snippet");
+            String videoId = idMap != null ? (String) idMap.get("videoId") : null;
+            if (videoId == null || snippet == null) continue;
+            if (videoRepository.existsById(videoId)) continue; // 중복방지
+
+            // 썸네일 url 파싱
+            String thumbnailUrl = "";
+            if (snippet.get("thumbnails") != null) {
+                Map<String, Object> thumbnails = (Map<String, Object>) snippet.get("thumbnails");
+                if (thumbnails.get("default") != null) {
+                    Map<String, Object> defaultThumb = (Map<String, Object>) thumbnails.get("default");
+                    thumbnailUrl = (String) defaultThumb.get("url");
+                }
+            }
+
+            Video entity = Video.builder()
+                    .videoId(videoId)
+                    .videoTitle((String) snippet.get("title"))
+                    .videoDescription((String) snippet.get("description"))
+                    .videoUrl("https://www.youtube.com/watch?v=" + videoId)
+                    .thumbnailUrl(thumbnailUrl)
+                    .region(region)
+                    .city("") // 필요하면 추가로 파싱
+                    .build();
+
+            videoRepository.save(entity);
+        }
+    }
+
+    // 필요시: 지역별 조회, etc
+    public List<Video> getVideosByRegion(String region, int limit) {
+        return videoRepository.findByRegion(region).stream().limit(limit).toList();
+    }
+
+    public List<Video> getVideosByRegionAndCity(String region, String city, int limit) {
+        return videoRepository.findByRegionAndCity(region, city).stream().limit(limit).toList();
+    }
+
+    public List<Video> getAllVideos(int limit) {
+        return videoRepository.findAll().stream().limit(limit).toList();
+    }
+
 
 }
 
