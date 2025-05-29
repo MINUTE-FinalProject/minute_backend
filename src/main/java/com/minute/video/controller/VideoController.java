@@ -75,4 +75,19 @@ public class VideoController {
     ){
         return videoService.getVideoDetail(videoId);
     }
+
+    @GetMapping("/searchAll")
+    public List<VideoResponseDTO> searchAnywhere(@RequestParam String keyword) {
+        return videoService.searchByTitleOrRegionOrCity(keyword);
+    }
+
+    @GetMapping("/search/mixed")
+    public List<VideoResponseDTO> searchMixed(
+            @RequestParam String keyword,
+            @RequestParam(defaultValue = "10") int apiCount) {
+        return videoService.searchMixedVideos(keyword, apiCount);
+    }
+
+
+
 }

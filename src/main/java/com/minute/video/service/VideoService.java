@@ -12,12 +12,9 @@ import com.minute.video.repository.VideoRepository;
 import com.minute.video.repository.WatchHistoryRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.Comparator;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -32,6 +29,7 @@ public class VideoService {
     private final SearchHistoryRepository searchHistoryRepository;
     private final VideoMapper videoMapper;
     private final VideoResponseMapper videoResponseMapper;
+    private final YoutubeApiService youtubeApiService;
 
     /* 로그인 여부에 따라 전체 조회 or 추천 영상 조회를 분기 */
     public List<VideoResponseDTO> getVideos(String userId){
@@ -167,7 +165,9 @@ public class VideoService {
             Map<String, Object> snippet = (Map<String, Object>) videoMap.get("snippet");
             String videoId = idMap != null ? (String) idMap.get("videoId") : null;
             if (videoId == null || snippet == null) continue;
-            if (videoRepository.existsById(videoId)) continue; // 중복방지
+
+            // 이미 존재하면 업데이트, 없으면 새로 저장
+            Video entity = videoRepository.findById(videoId).orElse(null);
 
             // 썸네일 url 파싱
             String thumbnailUrl = "";
@@ -179,16 +179,34 @@ public class VideoService {
                 }
             }
 
-            Video entity = Video.builder()
-                    .videoId(videoId)
-                    .videoTitle((String) snippet.get("title"))
-                    .videoDescription((String) snippet.get("description"))
-                    .videoUrl("https://www.youtube.com/watch?v=" + videoId)
-                    .thumbnailUrl(thumbnailUrl)
-                    .region(region)
-                    .city("") // 필요하면 추가로 파싱
-                    .build();
-
+            if (entity == null) {
+                // 신규 추가
+                entity = Video.builder()
+                        .videoId(videoId)
+                        .videoTitle((String) snippet.get("title"))
+                        .videoDescription((String) snippet.get("description"))
+                        .videoUrl("https://www.youtube.com/watch?v=" + videoId)
+                        .thumbnailUrl(thumbnailUrl)
+                        .region(region)
+                        .city("") // 필요하면 추가로 파싱
+                        .build();
+            } else {
+                // 기존 데이터 수정
+                entity = Video.builder()
+                        .videoId(entity.getVideoId())
+                        .videoTitle((String) snippet.get("title"))
+                        .videoDescription((String) snippet.get("description"))
+                        .videoUrl("https://www.youtube.com/watch?v=" + videoId)
+                        .thumbnailUrl(thumbnailUrl)
+                        .region(region)
+                        .city("") // 필요하면 추가로 파싱
+                        .channel(entity.getChannel())
+                        .videoCategories(entity.getVideoCategories())
+                        .videoTags(entity.getVideoTags())
+                        .views(entity.getViews())
+                        .likes(entity.getLikes())
+                        .build();
+            }
             videoRepository.save(entity);
         }
     }
@@ -206,8 +224,52 @@ public class VideoService {
         return videoRepository.findAll().stream().limit(limit).toList();
     }
 
+    public List<VideoResponseDTO> searchByTitleOrRegionOrCity(String keyword) {
+        return videoRepository.searchByTitleOrRegionOrCity(keyword).stream()
+                .map(videoResponseMapper::toDtoWithStats)
+                .collect(Collectors.toList());
+    }
 
+    public List<VideoResponseDTO> searchMixedVideos(String keyword, int apiCount) {
+        // 1. DB 영상
+        List<VideoResponseDTO> dbList = searchByKeyword(keyword);
+
+        // 2. 유튜브 API 영상
+        List<Map<String, Object>> apiList = youtubeApiService.searchVideosByKeyword(keyword, apiCount);
+        List<VideoResponseDTO> apiDtoList = apiList.stream()
+                .map(apiMap -> {
+                    Map<String, Object> idMap = (Map<String, Object>) apiMap.get("id");
+                    Map<String, Object> snippet = (Map<String, Object>) apiMap.get("snippet");
+                    if (idMap == null || snippet == null) return null;
+                    String videoId = (String) idMap.get("videoId");
+                    String title = (String) snippet.get("title");
+                    String description = (String) snippet.get("description");
+                    String channelTitle = (String) snippet.get("channelTitle");
+                    String url = videoId != null ? "https://www.youtube.com/watch?v=" + videoId : null;
+                    String thumbnail = "";
+                    if (snippet.get("thumbnails") != null) {
+                        Map<String, Object> thumbs = (Map<String, Object>) snippet.get("thumbnails");
+                        if (thumbs.get("default") != null) {
+                            thumbnail = (String) ((Map<String, Object>) thumbs.get("default")).get("url");
+                        }
+                    }
+                    return VideoResponseDTO.builder()
+                            .videoId(videoId)
+                            .videoTitle(title)
+                            .videoDescription(description)
+                            .videoUrl(url)
+                            .thumbnailUrl(thumbnail)
+                            .channelName(channelTitle)
+                            .build();
+                })
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        // 3. 두 리스트 합치고, videoId로 중복 제거
+        Map<String, VideoResponseDTO> mergedMap = new LinkedHashMap<>();
+        for (VideoResponseDTO dto : dbList) mergedMap.put(dto.getVideoId(), dto);
+        for (VideoResponseDTO dto : apiDtoList) mergedMap.putIfAbsent(dto.getVideoId(), dto);
+
+        return new ArrayList<>(mergedMap.values());
+    }
 }
-
-
-
