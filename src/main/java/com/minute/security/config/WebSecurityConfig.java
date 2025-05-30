@@ -113,8 +113,11 @@ public class WebSecurityConfig {
 // ADMIN 역할 사용자만 접근 가능한 API
                                 .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasRole("ADMIN") // 신고된 게시글 목록
                                 .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasRole("ADMIN") // 신고된 댓글 목록
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasRole("ADMIN") // 게시글 공개/숨김
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN") // 댓글 공개/숨김
+//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasRole("ADMIN") // 게시글 공개/숨김
+                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN") // hasRole 대신 hasAuthority 사용
+//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN") // 댓글 공개/숨김
+                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN") // 댓글 공개/숨김
+
                                 .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasRole("ADMIN") // 모든 신고된 활동
 
                                 .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
