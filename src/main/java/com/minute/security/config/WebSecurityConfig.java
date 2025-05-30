@@ -93,26 +93,7 @@ public class WebSecurityConfig {
                                 .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
                                 .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
 
-                                // 게시판
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free").permitAll() // <<< 이 줄을 추가 (임시)자유게시판 수정 필요
-//                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/**").permitAll() // 게시글 수정
-//                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/**").permitAll() // 게시글 삭제
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/comments").permitAll() // 댓글 작성
-//                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 수정
-//                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 삭제
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/like").permitAll() // <<< 게시글 좋아요
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/like").permitAll() // <<< 댓글 좋아요
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/report").permitAll() // <<< 게시글 신고
-//                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/report").permitAll() // <<< 댓글 신고
-//                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").permitAll() // <<< 신고된 게시글 목록 조회 (관리자용 임시)
-//                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").permitAll() // <<< 신고된 댓글 목록 조회 (관리자용 임시)
-//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/**/visibility").permitAll() // <<< 게시글 숨김/공개 처리 (관리자용 임시)
-//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/**/visibility").permitAll() // <<< 댓글 숨김/공개 처리 (관리자용 임시)
-//                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").permitAll() // <<< 내 활동 목록 조회 (임시)
-//                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").permitAll() // <<< 내가 쓴 댓글 목록 조회 (임시)
-//                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").permitAll() // <<< 전체 신고 활동 목록 (관리자용 임시)
 
-                                // 자유게시판 (Freeboard) API 경로 권한 설정
 // 공개적으로 접근 가능한 API (주로 GET 요청)
                                 .requestMatchers(HttpMethod.GET, "/api/v1/board/free", "/api/v1/board/free/{postId}", "/api/v1/board/free/{postId}/comments").permitAll()
 
