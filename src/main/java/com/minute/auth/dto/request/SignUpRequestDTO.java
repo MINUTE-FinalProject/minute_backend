@@ -1,12 +1,10 @@
-package com.minute.auth.dto.request.auth;
+package com.minute.auth.dto.request;
 
 import com.minute.user.enumpackage.UserGender;
 import jakarta.validation.constraints.*;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-
-import java.util.Date;
 
 @Getter
 @Setter

@@ -3,6 +3,7 @@ package com.minute.user.controller;
 import com.minute.auth.dto.response.ResponseDto;
 import com.minute.auth.service.DetailUser;
 import com.minute.user.dto.request.UserPatchInfoRequestDto;
+import com.minute.user.dto.response.GetAllUsersResponseDto;
 import com.minute.user.dto.response.GetSignInUserResponseDto;
 import com.minute.user.dto.response.GetUserResponseDto;
 import com.minute.user.dto.response.UserPatchInfoResponseDto;
@@ -100,8 +101,10 @@ public class UserController {
         return userService.uploadProfileImage(userId, file);
     }
 
-
-
-
+    //전체 유저 조회
+    @GetMapping("/all")
+    public ResponseEntity<? super GetAllUsersResponseDto> getAllUsers() {
+        return userService.getAllUsers();
+    }
 
 }

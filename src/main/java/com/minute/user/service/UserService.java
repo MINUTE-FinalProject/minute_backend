@@ -2,6 +2,7 @@ package com.minute.user.service;
 
 import com.minute.auth.dto.response.ResponseDto;
 import com.minute.user.dto.request.UserPatchInfoRequestDto;
+import com.minute.user.dto.response.GetAllUsersResponseDto;
 import com.minute.user.dto.response.GetSignInUserResponseDto;
 import com.minute.user.dto.response.GetUserResponseDto;
 import com.minute.user.dto.response.UserPatchInfoResponseDto;
@@ -24,6 +25,8 @@ public interface UserService {
     ResponseEntity<? super ResponseDto> deleteUser(String userId);
 
     ResponseEntity<? super ResponseDto> uploadProfileImage(String userId, MultipartFile file);
+
+    ResponseEntity<? super GetAllUsersResponseDto> getAllUsers();
 
 
 }

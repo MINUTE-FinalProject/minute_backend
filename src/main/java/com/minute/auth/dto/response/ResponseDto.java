@@ -28,6 +28,10 @@ public class ResponseDto {
         this.fileName = null;  // 명시적으로 null 처리
     }
 
+    public ResponseDto() {
+
+    }
+
     public static ResponseEntity<ResponseDto> databaseError() {
         ResponseDto responsebody = new ResponseDto(ResponseCode.DATABASE_ERROR, ResponseMessage.DATABASE_ERROR);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(responsebody);

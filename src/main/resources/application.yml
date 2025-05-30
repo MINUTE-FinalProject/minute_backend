@@ -4,9 +4,23 @@ spring:
     username: minutedb
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: zes88ni@gmail.com
+    password: jsri bfac ynyg krmg
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
   web:
     resources:
       static-locations: src/main/resources/static/upload
+
 
   jpa:
     hibernate:

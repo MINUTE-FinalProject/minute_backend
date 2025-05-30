@@ -13,7 +13,7 @@ import com.minute.board.qna.entity.Qna;
 import com.minute.board.qna.entity.QnaReply;
 import com.minute.board.qna.entity.QnaReport;
 // User 관련 Enum import (별도 파일로 분리된 경우)
-import com.minute.auth.dto.request.auth.SignUpRequestDTO;
+import com.minute.auth.dto.request.SignUpRequestDTO;
 import com.minute.user.enumpackage.Role;
 import com.minute.user.enumpackage.UserStatus;
 import com.minute.user.enumpackage.UserGender;
@@ -98,12 +98,17 @@ public class User {
     @ColumnDefault("0") // DB 기본값과 동일하게 설정
     private Integer userReport = 0; // 자바 객체 기본값 설정
 
-    public List<String> getRoleList(){
-        if(this.role.getRole().length() > 0){
-            return Arrays.asList(this.role.getRole().split(","));
-        }
-        return new ArrayList<>();
+    @Column(name = "certification_number")
+    private String certificationNumber;
+
+    @Column(name = "is_certified")
+    private boolean isCertified;
+
+    public List<String> getRoleList() {
+        if (this.role == null) return List.of();
+        return List.of(this.role.name()); // 예: ADMIN, USER
     }
+
 
     public User (SignUpRequestDTO dto){
         this.userId = dto.getUserId();

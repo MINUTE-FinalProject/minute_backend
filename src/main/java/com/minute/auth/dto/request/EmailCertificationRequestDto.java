@@ -1,7 +1,7 @@
-package com.minute.auth.dto.request.auth;
+package com.minute.auth.dto.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -9,11 +9,12 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class SignupValidateRequestDto {
+public class EmailCertificationRequestDto {
+
     @NotBlank
     private String userId;
 
+    @Email
     @NotBlank
-    @Size(min = 8, max = 20)
-    private String userPw;
+    private String userEmail;
 }

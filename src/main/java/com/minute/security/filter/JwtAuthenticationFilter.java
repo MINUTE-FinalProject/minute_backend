@@ -44,9 +44,12 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
             throws IOException, ServletException {
 
         // 인증 제외 URI 목록
-        List<String> whitelist = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth");
+        List<String> whitelistPrefixes = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth");
 
-        if (whitelist.contains(request.getRequestURI())) {
+        boolean isWhitelisted = whitelistPrefixes.stream()
+                .anyMatch(prefix -> request.getRequestURI().startsWith(prefix));
+
+        if (isWhitelisted) {
             chain.doFilter(request, response);
             return;
         }
@@ -68,7 +71,7 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
                 String userId = claims.get("userId", String.class);
                 System.out.println("JWT에서 추출한 userId = " + userId);
 
-                String role = claims.get("Role", String.class);
+                String role = claims.get("role", String.class);
 
                 // User, DetailsUser 생성
                 User user = new User();

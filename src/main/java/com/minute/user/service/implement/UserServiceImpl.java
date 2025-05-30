@@ -2,6 +2,7 @@ package com.minute.user.service.implement;
 
 import com.minute.auth.dto.response.ResponseDto;
 import com.minute.user.dto.request.UserPatchInfoRequestDto;
+import com.minute.user.dto.response.GetAllUsersResponseDto;
 import com.minute.user.dto.response.GetSignInUserResponseDto;
 import com.minute.user.dto.response.GetUserResponseDto;
 import com.minute.user.dto.response.UserPatchInfoResponseDto;
@@ -22,6 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.List;
 import java.util.Optional;
 
 import static com.minute.user.enumpackage.UserStatus.N;
@@ -193,17 +195,25 @@ public class UserServiceImpl implements UserService {
     }
 
     //회원 정지
-    @Transactional
     public void changeStatus(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("회원을 찾을 수 없습니다."));
+                .orElseThrow(() -> new RuntimeException("해당 사용자를 찾을 수 없습니다."));
 
-        if (user.getUserStatus() == N) {
-            user.setUserStatus(UserStatus.Y);
-            userRepository.save(user);
-        } else {
-            user.setUserStatus(N);
-            userRepository.save(user);
+        user.setUserStatus(user.getUserStatus().toggle());
+
+        userRepository.save(user);
+    }
+
+    //전체 유저 조회
+    @Override
+    public ResponseEntity<? super GetAllUsersResponseDto> getAllUsers() {
+        try {
+            List<User> userList = userRepository.findAll();
+            return ResponseEntity.ok(GetAllUsersResponseDto.success(userList));
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(500).body(GetAllUsersResponseDto.databaseError());
         }
     }
+
 }
