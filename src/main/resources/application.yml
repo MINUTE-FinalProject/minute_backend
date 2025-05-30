@@ -30,6 +30,14 @@ youtube:
 #    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
     key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
 
+
+logging:
+  level:
+    org:
+      springframework:
+        security: DEBUG
+
 weather:
   api:
     key: 2339a562cb566b35a087b4e0eec2490b
+
