@@ -1,5 +1,8 @@
 package com.minute.bookmark.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.minute.bookmark.dto.BookmarkCreateRequestDTO;
+import com.minute.bookmark.dto.BookmarkResponseDTO;
 import com.minute.bookmark.entity.Bookmark;
 import com.minute.bookmark.repository.BookmarkRepository;
 import com.minute.folder.entity.Folder;
@@ -7,17 +10,16 @@ import com.minute.folder.repository.FolderRepository;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-// DTOs
-import com.minute.bookmark.dto.BookmarkCreateRequestDTO;
-import com.minute.bookmark.dto.BookmarkResponseDTO;
-
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 
 @Service
 @RequiredArgsConstructor
@@ -26,46 +28,77 @@ public class BookmarkService {
     private static final Logger log = LoggerFactory.getLogger(BookmarkService.class);
     private final BookmarkRepository bookmarkRepository;
     private final FolderRepository folderRepository;
+    private final WebClient.Builder webClientBuilder;
+
+    @Value("${youtube.api.key}")
+    private String youtubeApiKey;
 
     @Transactional
-    public Bookmark addVideoToFolder(String userId, BookmarkCreateRequestDTO requestDto /*, String videoTitle, String thumbnailUrl - 필요시 추가 */) {
+    public Bookmark addVideoToFolder(String userId, BookmarkCreateRequestDTO requestDto) {
         log.info("[BookmarkService] addVideoToFolder - 사용자 ID: {}, 요청 DTO: {}", userId, requestDto);
 
         Folder folder = folderRepository.findByFolderIdAndUserId(requestDto.getFolderId(), userId)
-                .orElseThrow(() -> {
-                    log.warn("[BookmarkService] addVideoToFolder: 폴더(ID:{})를 찾을 수 없거나 사용자({})에게 권한 없음.", requestDto.getFolderId(), userId);
-                    return new RuntimeException("폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다. 폴더 ID: " + requestDto.getFolderId());
-                });
+                .orElseThrow(() -> new RuntimeException("폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다."));
 
-        if (bookmarkRepository.findByUserIdAndVideoIdAndFolder_FolderId(userId, requestDto.getVideoId(), folder.getFolderId()).isPresent()) {
-            log.warn("[BookmarkService] addVideoToFolder: 이미 해당 폴더(ID:{})에 비디오(ID:{})가 북마크되어 있습니다. 사용자 ID: {}", folder.getFolderId(), requestDto.getVideoId(), userId);
+        String videoUrl = requestDto.getVideoUrl();
+        String videoId = extractYouTubeVideoId(videoUrl);
+        if (videoId == null) {
+            throw new IllegalArgumentException("유효하지 않은 YouTube URL이거나 영상 ID를 추출할 수 없습니다.");
+        }
+
+        if (bookmarkRepository.findByUserIdAndVideoIdAndFolder_FolderId(userId, videoId, folder.getFolderId()).isPresent()) {
             throw new IllegalStateException("이미 해당 폴더에 동일한 비디오가 북마크되어 있습니다.");
+        }
+
+        JsonNode videoInfo = fetchYouTubeVideoInfo(videoId).block();
+        if (videoInfo == null || videoInfo.get("items").isEmpty()) {
+            throw new RuntimeException("YouTube에서 영상 정보를 가져올 수 없습니다. ID: " + videoId);
+        }
+
+        JsonNode snippet = videoInfo.get("items").get(0).get("snippet");
+        String title = snippet.get("title").asText();
+        String thumbnailUrl = snippet.path("thumbnails").path("high").path("url").asText();
+        if(thumbnailUrl.isEmpty()){
+            thumbnailUrl = snippet.path("thumbnails").path("default").path("url").asText();
         }
 
         Bookmark newBookmark = Bookmark.builder()
                 .userId(userId)
-                .videoId(requestDto.getVideoId())
+                .videoUrl(videoUrl)
+                .videoId(videoId)
                 .folder(folder)
-                // Bookmark 엔티티에 videoTitle, thumbnailUrl, createdAt 등이 있고, DTO에서 받는다면 여기서 설정
-                // .videoTitle(requestDto.getVideoTitle())
-                // .thumbnailUrl(requestDto.getThumbnailUrl())
+                .title(title)
+                .thumbnailUrl(thumbnailUrl)
                 .build();
-        try {
-            return bookmarkRepository.save(newBookmark);
-        } catch (DataIntegrityViolationException e) {
-            log.error("[BookmarkService] addVideoToFolder: 데이터 무결성 위반. 사용자 ID: {}, 폴더 ID: {}, 비디오 ID: {}", userId, requestDto.getFolderId(), requestDto.getVideoId(), e);
-            throw new IllegalStateException("북마크 저장 중 오류가 발생했습니다. 이미 존재하는 북마크일 수 있습니다.", e);
+
+        return bookmarkRepository.save(newBookmark);
+    }
+
+    private Mono<JsonNode> fetchYouTubeVideoInfo(String videoId) {
+        String url = String.format("https://www.googleapis.com/youtube/v3/videos?part=snippet&id=%s&key=%s", videoId, youtubeApiKey);
+        return webClientBuilder.build()
+                .get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(JsonNode.class)
+                .doOnError(e -> log.error("YouTube API 호출 중 에러 발생, Video ID: {}", videoId, e));
+    }
+
+    private String extractYouTubeVideoId(String url) {
+        String pattern = "(?<=watch\\?v=|/videos/|embed\\/|youtu.be\\/|\\/v\\/|\\/e\\/|watch\\?v%3D|watch\\?feature=player_embedded&v=|%2Fvideos%2F|embed\\%2Fvideos\\%2F|youtu.be%2F|\\/v\\/)[^#\\&\\?\\n]*";
+        Pattern compiledPattern = Pattern.compile(pattern);
+        Matcher matcher = compiledPattern.matcher(url);
+        if (matcher.find()) {
+            return matcher.group();
         }
+        return null;
     }
 
     @Transactional
     public void removeBookmarkById(Integer bookmarkId, String userId) {
         log.info("[BookmarkService] removeBookmarkById - 사용자 ID: {}, 북마크 ID: {}", userId, bookmarkId);
         Bookmark bookmark = bookmarkRepository.findByBookmarkIdAndUserId(bookmarkId, userId)
-                .orElseThrow(() -> {
-                    log.warn("[BookmarkService] removeBookmarkById: 북마크(ID:{})를 찾을 수 없거나 사용자({})에게 권한 없음.", bookmarkId, userId);
-                    return new RuntimeException("삭제할 북마크를 찾을 수 없거나 권한이 없습니다. 북마크 ID: " + bookmarkId);
-                });
+                .orElseThrow(() -> new RuntimeException("삭제할 북마크를 찾을 수 없거나 권한이 없습니다."));
         bookmarkRepository.delete(bookmark);
         log.info("[BookmarkService] removeBookmarkById: 북마크(ID:{}) 삭제 완료.", bookmarkId);
     }
@@ -73,15 +106,9 @@ public class BookmarkService {
     @Transactional
     public void removeVideoFromUserFolder(String userId, Integer folderId, String videoId) {
         log.info("[BookmarkService] removeVideoFromUserFolder - 사용자 ID: {}, 폴더 ID: {}, 비디오 ID: {}", userId, folderId, videoId);
-        folderRepository.findByFolderIdAndUserId(folderId, userId) // 폴더 소유권 먼저 확인
+        folderRepository.findByFolderIdAndUserId(folderId, userId)
                 .orElseThrow(() -> new RuntimeException("해당 폴더를 찾을 수 없거나 권한이 없습니다."));
-
-        long deleteCount = bookmarkRepository.deleteByFolder_FolderIdAndVideoIdAndUserId(folderId, videoId, userId);
-        if (deleteCount == 0) {
-            log.warn("[BookmarkService] removeVideoFromUserFolder: 삭제할 북마크를 찾지 못했습니다. 사용자: {}, 폴더: {}, 비디오: {}", userId, folderId, videoId);
-        } else {
-            log.info("[BookmarkService] removeVideoFromUserFolder: 북마크 삭제 완료. 삭제된 수: {}", deleteCount);
-        }
+        bookmarkRepository.deleteByFolder_FolderIdAndVideoIdAndUserId(folderId, videoId, userId);
     }
 
     @Transactional(readOnly = true)
@@ -89,10 +116,10 @@ public class BookmarkService {
         log.info("[BookmarkService] getBookmarksByFolder - 사용자 ID: {}, 폴더 ID: {}", userId, folderId);
         folderRepository.findByFolderIdAndUserId(folderId, userId)
                 .orElseThrow(() -> new RuntimeException("조회하려는 폴더를 찾을 수 없거나 권한이 없습니다."));
-
         List<Bookmark> bookmarks = bookmarkRepository.findByFolder_FolderIdAndUserIdOrderByBookmarkIdDesc(folderId, userId);
+
         return bookmarks.stream()
-                .map(this::convertToResponseDto) // DTO 변환 헬퍼 메소드 사용
+                .map(BookmarkResponseDTO::fromEntity)
                 .collect(Collectors.toList());
     }
 
@@ -100,23 +127,9 @@ public class BookmarkService {
     public List<BookmarkResponseDTO> getAllBookmarksForUser(String userId) {
         log.info("[BookmarkService] getAllBookmarksForUser - 사용자 ID: {}", userId);
         List<Bookmark> bookmarks = bookmarkRepository.findByUserIdOrderByBookmarkIdDesc(userId);
-        return bookmarks.stream()
-                .map(this::convertToResponseDto) // DTO 변환 헬퍼 메소드 사용
-                .collect(Collectors.toList());
-    }
 
-    // Helper method to convert Bookmark entity to BookmarkResponseDTO
-    private BookmarkResponseDTO convertToResponseDto(Bookmark bookmark) {
-        if (bookmark == null) return null;
-        return BookmarkResponseDTO.builder()
-                .bookmarkId(bookmark.getBookmarkId())
-                .videoId(bookmark.getVideoId())
-                .folderId(bookmark.getFolder() != null ? bookmark.getFolder().getFolderId() : null)
-                .userId(bookmark.getUserId())
-                // Bookmark 엔티티에 videoTitle, thumbnailUrl, createdAt 등이 있다면 여기서 매핑
-                // .videoTitle(bookmark.getVideoTitle())
-                // .thumbnailUrl(bookmark.getThumbnailUrl())
-                // .createdAt(bookmark.getCreatedAt())
-                .build();
+        return bookmarks.stream()
+                .map(BookmarkResponseDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 }
