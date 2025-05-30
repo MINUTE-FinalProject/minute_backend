@@ -3,6 +3,8 @@ package com.minute.checklist.service;
 import com.minute.checklist.dto.request.ChecklistRequestDTO;
 import com.minute.checklist.dto.response.ChecklistResponseDTO;
 import com.minute.checklist.entity.Checklist;
+import com.minute.plan.entity.Plan;
+import com.minute.plan.repository.PlanRepository;
 import com.minute.user.entity.User;
 import com.minute.checklist.repository.ChecklistRepository;
 import com.minute.user.repository.UserRepository;
@@ -19,9 +21,10 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ChecklistService {
     private final ChecklistRepository checklistRepository;
+    private final PlanRepository planRepository;
     private final UserRepository userRepository;
 
-    /** 한 달치 dot 조회용 */
+    // 한 달치 dot 데이터
     @Transactional(readOnly = true)
     public List<LocalDate> getChecklistDatesInMonth(String userId, YearMonth ym) {
         LocalDate start = ym.atDay(1);
@@ -29,7 +32,7 @@ public class ChecklistService {
         return checklistRepository.findTravelDatesInMonth(userId, start, end);
     }
 
-    /** 특정 날짜의 Checklist → DTO 매핑 */
+    // 날짜별 DTO 매핑
     @Transactional(readOnly = true)
     public List<ChecklistResponseDTO> getChecklistsByUserAndDate(String userId, LocalDate date) {
         return checklistRepository.findAllByUser_UserIdAndTravelDate(userId, date)
@@ -38,7 +41,7 @@ public class ChecklistService {
                 .collect(Collectors.toList());
     }
 
-    /** CalendarController 용 조회 메서드 */
+    // 캘린더 용
     public List<ChecklistResponseDTO> getChecklistsForCalendar(String userId, LocalDate date) {
         return getChecklistsByUserAndDate(userId, date);
     }
@@ -49,14 +52,21 @@ public class ChecklistService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 사용자: " + userId));
 
-        Checklist entity = Checklist.builder()
+        // 빌더 준비
+        Checklist.ChecklistBuilder builder = Checklist.builder()
                 .user(user)
                 .travelDate(dto.getTravelDate())
                 .itemContent(dto.getItemContent())
-                .isChecked(false)
-                .build();
+                .isChecked(dto.getIsChecked());
 
-        Checklist saved = checklistRepository.save(entity);
+        // planId가 있으면 연관관계 설정
+        if (dto.getPlanId() != null) {
+            Plan plan = planRepository.findById(dto.getPlanId())
+                    .orElseThrow(() -> new IllegalArgumentException("존재하지 않는 Plan: " + dto.getPlanId()));
+            builder.plan(plan);
+        }
+
+        Checklist saved = checklistRepository.save(builder.build());
         return ChecklistResponseDTO.fromEntity(saved);
     }
 
