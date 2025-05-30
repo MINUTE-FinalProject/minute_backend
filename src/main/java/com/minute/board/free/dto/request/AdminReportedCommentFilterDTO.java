@@ -6,7 +6,7 @@ import lombok.Setter;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime; // LocalDateTime import 추가
+import java.time.LocalDateTime;
 
 @Getter
 @Setter
@@ -28,18 +28,18 @@ public class AdminReportedCommentFilterDTO {
     @Schema(description = "댓글 숨김 상태 (true: 숨김, false: 공개, null: 전체)", example = "false")
     private Boolean isHidden;
 
-    @Schema(description = "신고일 검색 시작일 (YYYY-MM-DD)", example = "2025-05-01")
+    @Schema(description = "댓글 작성일 검색 시작일 (YYYY-MM-DD)", example = "2025-05-01") // 설명 변경: 신고일 -> 댓글 작성일
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    private LocalDate reportStartDate;
+    private LocalDate commentCreatedAtStartDate; // 필드명 변경: reportStartDate -> commentCreatedAtStartDate
 
-    @Schema(description = "신고일 검색 종료일 (YYYY-MM-DD)", example = "2025-05-31")
+    @Schema(description = "댓글 작성일 검색 종료일 (YYYY-MM-DD)", example = "2025-05-31") // 설명 변경: 신고일 -> 댓글 작성일
     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-    private LocalDate reportEndDate;
+    private LocalDate commentCreatedAtEndDate; // 필드명 변경: reportEndDate -> commentCreatedAtEndDate
 
     // --- JPQL 쿼리용 조정된 날짜 필드 ---
-    @Schema(hidden = true) // 이 필드들은 Swagger UI에는 노출되지 않아도 됩니다.
-    private LocalDateTime queryReportStartDate;
+    @Schema(hidden = true)
+    private LocalDateTime queryCommentCreatedAtStartDate; // 필드명 변경: queryReportStartDate -> queryCommentCreatedAtStartDate
 
     @Schema(hidden = true)
-    private LocalDateTime queryReportEndDate;
+    private LocalDateTime queryCommentCreatedAtEndDate; // 필드명 변경: queryReportEndDate -> queryCommentCreatedAtEndDate
 }

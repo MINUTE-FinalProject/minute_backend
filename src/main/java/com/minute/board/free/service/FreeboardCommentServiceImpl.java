@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-// import java.time.LocalTime; // 주석 처리 또는 필요시 복원
+// import java.time.LocalTime; // 필요시 주석 해제
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -86,14 +86,14 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         if (currentUserId != null && !comments.isEmpty()) {
             List<Integer> commentIds = comments.stream().map(FreeboardComment::getCommentId).collect(Collectors.toList());
             likedCommentIds = freeboardCommentLikeRepository.findLikedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds);
-            reportedCommentIds = freeboardCommentReportRepository.findReportedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds); // 새로 추가된 메서드 호출
+            reportedCommentIds = freeboardCommentReportRepository.findReportedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds);
         }
 
         final Set<Integer> finalLikedCommentIds = likedCommentIds;
         final Set<Integer> finalReportedCommentIds = reportedCommentIds;
 
         List<FreeboardCommentResponseDTO> dtoList = comments.stream()
-                .map(comment -> convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds)) // 수정된 convertToDto 호출
+                .map(comment -> convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds))
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
@@ -124,7 +124,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
 
         FreeboardComment savedComment = freeboardCommentRepository.save(newComment);
-        // 새로 생성된 댓글은 현재 사용자가 좋아요/신고하지 않았다고 가정
         return convertToDto(savedComment, Collections.emptySet(), Collections.emptySet());
     }
 
@@ -140,12 +139,10 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
         commentToUpdate.setCommentContent(requestDto.getCommentContent());
 
-        // 수정 시에는 기존 좋아요/신고 상태를 유지하거나 정확히 반영하기 위해 조회 필요
         boolean isLiked = false;
         boolean isReported = false;
-        User currentUser = getCurrentUserEntity(); // currentUserIdFromController로 조회
-        if (currentUser != null) {
-            // FreeboardCommentLikeRepository의 existsByUserAndFreeboardComment 사용
+        User currentUser = getCurrentUserEntity();
+        if (currentUser != null && currentUser.getUserId().equals(currentUserIdFromController)) { // 현재 사용자가 수정 요청한 사용자인지 한번 더 확인
             isLiked = freeboardCommentLikeRepository.findByUserAndFreeboardComment(currentUser, commentToUpdate).isPresent();
             isReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(currentUser, commentToUpdate);
         }
@@ -155,15 +152,13 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         return convertToDto(commentToUpdate, likedIds, reportedIds);
     }
 
-    // ... (deleteComment, toggleCommentLike, reportComment, getReportedComments 등은 이전과 거의 동일) ...
-    // (단, toggleCommentLike, reportComment의 반환값은 DTO만 정확히 반환, 엔티티의 isLiked/ReportedByCurrentUser는 없음)
     @Override
     @Transactional
     public void deleteComment(Integer commentId, String currentUserIdFromController) {
         FreeboardComment commentToDelete = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("삭제할 댓글을 찾을 수 없습니다: " + commentId));
 
-        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController) /* && !isAdmin */) {
+        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController) /* && !isAdmin(currentUserIdFromController) */ ) { // 관리자 권한 확인 로직 추가 필요시
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
 
@@ -195,6 +190,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             comment.setCommentLikeCount(comment.getCommentLikeCount() + 1);
             likedByCurrentUser = true;
         }
+        freeboardCommentRepository.save(comment); // 좋아요 수 변경사항 저장
 
         return CommentLikeResponseDTO.builder()
                 .commentId(comment.getCommentId())
@@ -230,7 +226,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
     @Override
     public PageResponseDTO<AdminReportedCommentEntryDTO> getReportedComments(AdminReportedCommentFilterDTO filter, Pageable pageable) {
-        System.out.println("Service getReportedComments - Pageable Sort: " + pageable.getSort()); // 디버깅 로그 추가
+        System.out.println("Service getReportedComments - Pageable Sort: " + pageable.getSort());
         AdminReportedCommentFilterDTO queryFilter = new AdminReportedCommentFilterDTO();
         queryFilter.setSearchKeyword(filter.getSearchKeyword());
         queryFilter.setOriginalPostId(filter.getOriginalPostId());
@@ -238,12 +234,16 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         queryFilter.setAuthorNickname(filter.getAuthorNickname());
         queryFilter.setIsHidden(filter.getIsHidden());
 
-        if (filter.getReportStartDate() != null) {
-            queryFilter.setQueryReportStartDate(filter.getReportStartDate().atStartOfDay());
+        // --- 날짜 필터링 로직 수정 ---
+        // DTO에서 변경된 필드명(commentCreatedAtStartDate, commentCreatedAtEndDate)을 사용합니다.
+        if (filter.getCommentCreatedAtStartDate() != null) {
+            queryFilter.setQueryCommentCreatedAtStartDate(filter.getCommentCreatedAtStartDate().atStartOfDay());
         }
-        if (filter.getReportEndDate() != null) {
-            queryFilter.setQueryReportEndDate(filter.getReportEndDate().plusDays(1).atStartOfDay());
+        if (filter.getCommentCreatedAtEndDate() != null) {
+            // 끝 날짜를 포함하여 검색하기 위해 +1일 후 시작 시간 미만으로 설정 (JPQL에서 '<' 사용 시)
+            queryFilter.setQueryCommentCreatedAtEndDate(filter.getCommentCreatedAtEndDate().plusDays(1).atStartOfDay());
         }
+        // --- 날짜 필터링 로직 수정 끝 ---
 
         Page<AdminReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummariesWithFilters(queryFilter, pageable);
 
@@ -266,11 +266,11 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         FreeboardComment comment = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
         comment.setCommentIsHidden(requestDto.getIsHidden());
+        freeboardCommentRepository.save(comment); // 변경사항 저장
 
-        // 숨김 상태 변경 시에도 좋아요/신고 상태는 유지되어야 함
         boolean isLiked = false;
         boolean isReported = false;
-        User currentUser = getCurrentUserEntity(); // 이 메서드는 currentUserId를 직접 받지 않으므로 SecurityContextHolder 사용
+        User currentUser = getCurrentUserEntity();
         if (currentUser != null) {
             isLiked = freeboardCommentLikeRepository.findByUserAndFreeboardComment(currentUser, comment).isPresent();
             isReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(currentUser, comment);
@@ -292,6 +292,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             if (StringUtils.hasText(filter.getSearchKeyword())) {
                 spec = spec.and(FreeboardCommentSpecification.contentContains(filter.getSearchKeyword()));
             }
+            // AdminMyCommentFilterDTO의 startDate와 endDate는 댓글 작성일 기준입니다.
             if (filter.getStartDate() != null) {
                 spec = spec.and(FreeboardCommentSpecification.createdAtAfter(filter.getStartDate()));
             }
@@ -306,7 +307,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         Set<Integer> likedCommentIds = Collections.emptySet();
         Set<Integer> reportedCommentIds = Collections.emptySet();
 
-        // currentUserIdFromController는 이미 author의 ID이므로 이를 사용
         if (!comments.isEmpty()) {
             List<Integer> commentIds = comments.stream().map(FreeboardComment::getCommentId).collect(Collectors.toList());
             likedCommentIds = freeboardCommentLikeRepository.findLikedCommentIdsByUserIdAndCommentIdsIn(currentUserIdFromController, commentIds);
@@ -332,16 +332,16 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
     }
 
-    // convertToDto 메서드 시그니처 변경 및 로직 수정
     private FreeboardCommentResponseDTO convertToDto(FreeboardComment comment,
                                                      Set<Integer> likedCommentIdsForCurrentUser,
                                                      Set<Integer> reportedCommentIdsForCurrentUser) {
-        User author = comment.getUser(); // 댓글 작성자
+        User author = comment.getUser();
         Integer postId = (comment.getFreeboardPost() != null) ? comment.getFreeboardPost().getPostId() : null;
 
         boolean isLiked = likedCommentIdsForCurrentUser.contains(comment.getCommentId());
         boolean isReported = reportedCommentIdsForCurrentUser.contains(comment.getCommentId());
-        String authorRole = (author != null && author.getRole() != null) ? author.getRole().name() : "USER"; // 기본값 USER 또는 null 처리
+        // User 엔티티의 Role enum이 null일 경우를 대비하여 null 체크 추가
+        String authorRole = (author != null && author.getRole() != null) ? author.getRole().name() : "USER"; // 기본값 또는 예외 처리
 
         return FreeboardCommentResponseDTO.builder()
                 .commentId(comment.getCommentId())
@@ -354,8 +354,8 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .userNickName(author != null ? author.getUserNickName() : "알 수 없는 사용자")
                 .postId(postId)
                 .isLikedByCurrentUser(isLiked)
-                .isReportedByCurrentUser(isReported) // 필드 설정
-                .authorRole(authorRole) // 필드 설정
+                .isReportedByCurrentUser(isReported)
+                .authorRole(authorRole)
                 .build();
     }
 }
