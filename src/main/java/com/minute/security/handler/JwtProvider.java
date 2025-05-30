@@ -59,12 +59,44 @@ public class JwtProvider {
         }
     }
 
+//    public Claims getClaims(String token) {
+//        return Jwts.parserBuilder()
+//                .setSigningKey(key)
+//                .build()
+//                .parseClaimsJws(token)
+//                .getBody();
+//    }
+
+    //완수 디버깅 추가
+    // JwtProvider.java의 getClaims 메서드 (또는 유사한 검증 로직)
     public Claims getClaims(String token) {
-        return Jwts.parserBuilder()
-                .setSigningKey(key)
-                .build()
-                .parseClaimsJws(token)
-                .getBody();
+        try {
+            System.out.println("[JwtProvider] getClaims - 토큰 검증 및 클레임 추출 시도: " + token);
+            System.out.println("[JwtProvider] getClaims - 검증에 사용될 key: " + (key != null ? key.getAlgorithm() + " key initialized" : "KEY IS NULL"));
+
+            Claims claims = Jwts.parserBuilder()
+                    .setSigningKey(key) // 이 'key'가 init()에서 설정된 key와 동일한지, null이 아닌지 중요
+                    .build()
+                    .parseClaimsJws(token)
+                    .getBody();
+            System.out.println("[JwtProvider] getClaims - 클레임 추출 성공: " + claims.toString());
+            return claims;
+        } catch (SignatureException e) {
+            System.err.println("!!!!!!!! [JwtProvider] getClaims - SignatureException 발생: 서명이 유효하지 않음 !!!!!!!!");
+            System.err.println("           (원인: secretKey 불일치 또는 토큰 변조 가능성)");
+            System.err.println("           " + e.getMessage());
+            // e.printStackTrace(); // 필요하면 전체 스택 트레이스 출력
+            throw e; // 예외를 다시 던져서 JwtAuthenticationFilter에서 상세 처리하도록 함
+        } catch (ExpiredJwtException e) {
+            System.err.println("[JwtProvider] getClaims - ExpiredJwtException 발생: 토큰 만료 - " + e.getMessage());
+            throw e;
+        } catch (MalformedJwtException e) {
+            System.err.println("[JwtProvider] getClaims - MalformedJwtException 발생: 토큰 형식 오류 - " + e.getMessage());
+            throw e;
+        } catch (JwtException e) { // 기타 모든 JWT 관련 예외 (UnsupportedJwtException, IllegalArgumentException 등 포함)
+            System.err.println("[JwtProvider] getClaims - JwtException 발생 (일반): " + e.getClass().getName() + " - " + e.getMessage());
+            throw e;
+        }
     }
 
     private static Map<String, Object> createHeader() {
