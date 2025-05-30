@@ -134,7 +134,6 @@ public class UserServiceImpl implements UserService {
         userRepository.save(user);
     }
 
-    //spring security용 사용자 조회(optional 필요)
     @Override
     public Optional<User> getUserEntityByEmail(String email) {
         return userRepository.findById(email);
