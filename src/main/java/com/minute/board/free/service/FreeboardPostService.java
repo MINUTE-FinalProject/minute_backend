@@ -2,8 +2,8 @@ package com.minute.board.free.service; // 실제 프로젝트 구조에 맞게 �
 
 import com.minute.board.common.dto.response.PageResponseDTO;
 import com.minute.board.common.dto.response.ReportSuccessResponseDTO;
-import com.minute.board.free.dto.request.*;
-import com.minute.board.free.dto.response.*;
+import com.minute.board.free.dto.request.*; // request DTO들 import
+import com.minute.board.free.dto.response.*; // response DTO들 import
 import org.springframework.data.domain.Pageable;
 import org.springframework.lang.Nullable; // @Nullable 어노테이션 사용
 
@@ -31,10 +31,6 @@ public interface FreeboardPostService {
             @Nullable LocalDate endDate
     );
 
-
-    // 여기에 다른 게시글 관련 서비스 메서드들이 추가될 예정입니다.
-    // 예: getPostById(Long postId), createPost(FreeboardPostRequestDTO requestDto, String userId), ...
-
     /**
      * 특정 ID의 자유게시판 게시글 상세 정보를 조회합니다.
      * 조회 시 해당 게시글의 조회수가 1 증가합니다.
@@ -43,63 +39,66 @@ public interface FreeboardPostService {
      * @return 게시글 상세 정보 (FreeboardPostResponseDTO)
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없을 경우
      */
-    FreeboardPostResponseDTO getPostById(Integer postId); // postId의 타입은 엔티티와 일치 (Integer)
+    FreeboardPostResponseDTO getPostById(Integer postId);
 
     /**
      * 새로운 자유게시판 게시글을 생성합니다.
      *
-     * @param requestDto 게시글 생성 요청 정보 (제목, 내용, 작성자 ID 등)
+     * @param requestDto 게시글 생성 요청 정보 (제목, 내용). 작성자 ID는 currentUserId로 전달받습니다.
+     * @param currentUserId 현재 인증된 사용자의 ID
      * @return 생성된 게시글 상세 정보 (FreeboardPostResponseDTO)
-     * @throws jakarta.persistence.EntityNotFoundException 요청 DTO의 userId에 해당하는 사용자가 없을 경우
+     * @throws jakarta.persistence.EntityNotFoundException currentUserId에 해당하는 사용자가 없을 경우
      */
-    FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto);
+    FreeboardPostResponseDTO createPost(FreeboardPostRequestDTO requestDto, String currentUserId); // <<< currentUserId 파라미터 추가
 
     /**
      * 특정 ID의 자유게시판 게시글을 수정합니다.
      *
      * @param postId 수정할 게시글의 ID
-     * @param requestDto 수정할 내용 (제목, 내용). 요청 DTO의 userId는 수정 권한 확인에 임시로 사용될 수 있습니다.
+     * @param requestDto 수정할 내용 (제목, 내용).
+     * @param currentUserId 현재 인증된 사용자의 ID (수정 권한 확인용)
      * @return 수정된 게시글 상세 정보 (FreeboardPostResponseDTO)
-     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없거나, 요청 DTO의 userId에 해당하는 사용자가 없을 경우
-     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없을 경우 (임시 로직)
+     * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없거나, currentUserId에 해당하는 사용자가 없을 경우
+     * @throws org.springframework.security.access.AccessDeniedException 수정 권한이 없을 경우
      */
-    FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto);
+    FreeboardPostResponseDTO updatePost(Integer postId, FreeboardPostRequestDTO requestDto, String currentUserId); // <<< currentUserId 파라미터 추가
 
     /**
      * 특정 ID의 자유게시판 게시글을 삭제합니다.
      *
      * @param postId 삭제할 게시글의 ID
-     * @param requestUserId 삭제를 요청하는 사용자의 ID (임시 권한 확인용)
+     * @param currentUserId 삭제를 요청하는 현재 인증된 사용자의 ID (삭제 권한 확인용)
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글이 없을 경우
-     * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없을 경우 (임시 로직)
+     * @throws org.springframework.security.access.AccessDeniedException 삭제 권한이 없을 경우
      */
-    void deletePost(Integer postId, String requestUserId); // 반환 타입 void 또는 간단한 성공 메시지 DTO 가능
+    void deletePost(Integer postId, String currentUserId); // <<< requestUserId를 currentUserId로 변경
 
     /**
      * 특정 게시글에 대한 사용자의 좋아요 상태를 토글(추가/삭제)합니다.
      *
      * @param postId 게시글 ID
-     * @param requestDto 좋아요 요청 DTO (사용자 ID 포함)
+     * @param currentUserId 좋아요를 누르는 현재 인증된 사용자의 ID
      * @return 게시글의 현재 좋아요 수와 사용자의 좋아요 상태 (PostLikeResponseDTO)
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
      */
-    PostLikeResponseDTO togglePostLike(Integer postId, PostLikeRequestDTO requestDto);
+    PostLikeResponseDTO togglePostLike(Integer postId, String currentUserId); // <<< requestDto 파라미터 제거, currentUserId 추가
 
     /**
      * 특정 게시글을 신고합니다. 사용자는 하나의 게시글에 대해 한 번만 신고할 수 있습니다.
      * 자신의 게시글은 신고할 수 없습니다.
      *
      * @param postId 신고할 게시글 ID
-     * @param requestDto 신고 요청 DTO (신고자 ID 포함)
+     * @param currentUserId 신고하는 현재 인증된 사용자의 ID
      * @return 신고 처리 결과 메시지 (ReportSuccessResponseDTO)
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 게시글 또는 사용자가 없을 경우
      * @throws IllegalStateException 이미 신고한 게시글이거나 자신의 게시글을 신고하려는 경우
      */
-    ReportSuccessResponseDTO reportPost(Integer postId, PostReportRequestDTO requestDto);
+    ReportSuccessResponseDTO reportPost(Integer postId, String currentUserId); // <<< requestDto 파라미터 제거, currentUserId 추가
 
     /**
      * 관리자가 신고된 게시글 목록을 페이징하여 조회합니다.
      *
+     * @param filter 필터링 조건 DTO
      * @param pageable 페이징 정보
      * @return 페이징된 신고 게시글 정보 목록 (PageResponseDTO)
      */
@@ -118,10 +117,9 @@ public interface FreeboardPostService {
     /**
      * 특정 사용자의 자유게시판 활동 내역(작성한 게시글 및 댓글)을 통합하여 최신순으로 페이징 조회합니다.
      *
-     * @param userId 조회할 사용자의 ID
+     * @param currentUserId 조회할 현재 인증된 사용자의 ID
      * @param pageable 페이징 정보 (정렬 기준은 주로 createdAt)
      * @return 페이징된 사용자 활동 목록
      */
-    PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String userId, Pageable pageable);
+    PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String currentUserId, Pageable pageable); // <<< userId를 currentUserId로 변경
 }
-
