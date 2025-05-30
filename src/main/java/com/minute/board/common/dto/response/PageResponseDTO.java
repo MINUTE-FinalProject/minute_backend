@@ -1,4 +1,4 @@
-package com.minute.board.common.dto;
+package com.minute.board.common.dto.response;
 
 import io.swagger.v3.oas.annotations.media.Schema; // Schema 임포트
 import lombok.Getter;

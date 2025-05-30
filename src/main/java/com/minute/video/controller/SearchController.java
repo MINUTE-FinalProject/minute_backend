@@ -77,8 +77,9 @@ public class SearchController {
             @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
     @GetMapping("/suggestions")
-    public SearchSuggestionsDTO getSuggestions(@RequestParam String userId){
+    public SearchSuggestionsDTO getSuggestions(@RequestParam(required = false) String userId) {
         return searchHistoryService.getSearchSuggestions(userId);
     }
+
 
 }

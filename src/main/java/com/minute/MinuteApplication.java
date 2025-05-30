@@ -7,6 +7,8 @@ import io.swagger.v3.oas.annotations.info.Info;       // 추가
 import io.swagger.v3.oas.annotations.servers.Server;   // 선택적으로 추가 (서버 URL 정보)
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
 @OpenAPIDefinition( // <<-- 이 어노테이션과 그 내용을 추가합니다.
@@ -36,6 +38,11 @@ public class MinuteApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(MinuteApplication.class, args);
+    }
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
     }
 
 }

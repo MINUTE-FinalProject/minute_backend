@@ -26,6 +26,10 @@ springdoc:
 
 youtube:
   api:
-#    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
+    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
 #    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
-    key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
+#    key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
+
+weather:
+  api:
+    key: 2339a562cb566b35a087b4e0eec2490b

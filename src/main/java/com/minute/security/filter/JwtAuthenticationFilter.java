@@ -28,7 +28,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 
-@Component
+
 public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
 
     private final JwtProvider jwtProvider;
