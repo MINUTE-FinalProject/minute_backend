@@ -128,8 +128,15 @@ public class WebSecurityConfig {
                                 .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
 
                                 .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
-                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+//                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
+//                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+                                .requestMatchers(HttpMethod.POST, "/api/notices").hasAuthority("ADMIN") //공지사항 작성
+                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasAuthority("ADMIN") //공지사항 수정
+//                                .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")//공지사항 삭제
+//                                .requestMatchers(HttpMethod.PATCH, "/api/notices/**").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasAuthority("ADMIN") // .hasRole("ADMIN") 대신 사용
+                                .requestMatchers(HttpMethod.PATCH, "/api/notices/**").hasAuthority("ADMIN")  // .hasRole("ADMIN") 대신 사용
+
 
                                 // 플랜 캘린더
                                 .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
