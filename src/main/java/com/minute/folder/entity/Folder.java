@@ -30,6 +30,6 @@ public class Folder {
     @Column(name = "user_id", nullable = false)
     private String userId;
 
-    @OneToMany(mappedBy = "folder", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "folder", cascade = CascadeType.REMOVE, orphanRemoval = true)
     private List<Bookmark> bookmarks;
 }

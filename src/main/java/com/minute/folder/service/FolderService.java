@@ -3,7 +3,7 @@ package com.minute.folder.service;
 import com.minute.bookmark.dto.BookmarkResponseDTO;
 import com.minute.bookmark.entity.Bookmark;
 import com.minute.bookmark.repository.BookmarkRepository;
-import com.minute.folder.dto.FolderDTO; // ✨ DTO 임포트 추가
+import com.minute.folder.dto.FolderDTO;
 import com.minute.folder.entity.Folder;
 import com.minute.folder.repository.FolderRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Random; // ✨ Random 임포트 추가
+import java.util.Random;
 import java.util.stream.Collectors;
 
 @Service
@@ -82,34 +82,28 @@ public class FolderService {
         return folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
     }
 
-    // ✨ --- [새로 추가된 메서드] ---
-    // 폴더 목록과 함께 랜덤 썸네일을 DTO 리스트로 반환
     @Transactional(readOnly = true)
     public List<FolderDTO> getFoldersWithThumbnailsForCurrentUser() {
         String currentUserId = getCurrentUserId();
+        // 참고: 이 부분은 N+1 문제가 발생할 수 있으므로, 나중에 FolderRepository의 이 메서드에
+        // @EntityGraph(attributePaths = {"bookmarks"})를 추가하여 최적화하는 것을 권장합니다.
         List<Folder> folders = folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
         Random random = new Random();
 
         return folders.stream()
                 .map(folder -> {
-                    // 1. 각 폴더에 속한 북마크 목록을 조회합니다.
-                    // [성능 최적화 제안] 북마크가 매우 많아질 경우,
-                    // Repository에 `findRandomBookmarkInFolder` 같은 네이티브 쿼리를 만들어
-                    // 딱 하나의 북마크만 가져오는 것이 훨씬 효율적입니다.
-                    List<Bookmark> bookmarksInFolder = bookmarkRepository.findByFolder_FolderIdAndUserIdOrderByBookmarkIdDesc(folder.getFolderId(), currentUserId);
+                    List<Bookmark> bookmarksInFolder = folder.getBookmarks(); // Fetch Join으로 이미 로드된 데이터를 사용합니다.
 
                     String thumbnailUrl = null;
-                    // 2. 북마크가 존재하면, 그 중 하나를 랜덤으로 선택해 썸네일 URL을 가져옵니다.
-                    if (!bookmarksInFolder.isEmpty()) {
+                    if (bookmarksInFolder != null && !bookmarksInFolder.isEmpty()) {
                         Bookmark randomBookmark = bookmarksInFolder.get(random.nextInt(bookmarksInFolder.size()));
-                        thumbnailUrl = randomBookmark.getThumbnailUrl(); // Bookmark 엔티티에 getThumbnailUrl()이 있다고 가정
+                        thumbnailUrl = randomBookmark.getThumbnailUrl();
                     }
 
-                    // 3. 최종적으로 FolderDTO를 만듭니다.
                     return FolderDTO.builder()
                             .folderId(folder.getFolderId())
                             .folderName(folder.getFolderName())
-                            .randomThumbnailUrl(thumbnailUrl) // FolderDTO에 이 필드가 있어야 함
+                            .randomThumbnailUrl(thumbnailUrl)
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -131,16 +125,25 @@ public class FolderService {
         return folderRepository.save(folder);
     }
 
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
+    // 여기가 최종적으로 수정된 부분입니다.
+    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     @Transactional
     public void delete(Integer folderId) {
         String currentUserId = getCurrentUserId();
-        Folder folder = folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
+
+        // 1. Repository에 추가한, 북마크를 함께 조회하는 전용 메서드를 호출합니다.
+        Folder folder = folderRepository.findWithBookmarksByFolderIdAndUserId(folderId, currentUserId)
                 .orElseThrow(() -> new RuntimeException("삭제할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId));
 
-        // 참고: 폴더를 삭제할 때 해당 폴더에 속한 모든 북마크도 함께 삭제해야 합니다.
-        // bookmarkRepository.deleteByFolder(folder); 와 같은 로직 추가를 고려해보세요.
-        folderRepository.deleteById(folder.getFolderId());
+        // 2. folder 객체는 이제 연관된 북마크 정보를 모두 가지고 있으므로,
+        //    JPA의 CascadeType.REMOVE 규칙에 따라 북마크와 폴더가 함께 삭제됩니다.
+        folderRepository.delete(folder);
     }
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+    // 여기까지입니다.
+    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
+
 
     @Transactional(readOnly = true)
     public List<BookmarkResponseDTO> getVideosByFolderId(Integer folderId) {

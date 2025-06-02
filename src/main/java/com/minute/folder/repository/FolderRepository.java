@@ -1,6 +1,7 @@
 package com.minute.folder.repository;
 
 import com.minute.folder.entity.Folder;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository; // 👈 @Repository 어노테이션 추가 (선택적이지만 권장)
 
@@ -23,4 +24,8 @@ public interface FolderRepository extends JpaRepository<Folder, Integer> {
 
     // 특정 사용자의 폴더 중 특정 이름으로 시작하는 폴더 목록 조회 (기본 폴더명 생성 시 사용)
     List<Folder> findByUserIdAndFolderNameStartingWith(String userId, String prefix);
+
+    @EntityGraph(attributePaths = {"bookmarks"})
+    Optional<Folder> findWithBookmarksByFolderIdAndUserId(Integer folderId, String userId);
+
 }
