@@ -81,9 +81,9 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
             Claims claims = jwtProvider.getClaims(token); // 여기서 다시 호출하여 claims를 얻거나, isValidToken에서 claims를 반환받는 구조도 가능
 
             String userId = claims.get("userId", String.class);
-            String roleString = claims.get("Role", String.class);
+            String roleString = claims.get("role", String.class);
 
-                String role = claims.get("role", String.class);
+
 
             if (userId == null || roleString == null) {
                 System.err.println("[JwtAuthFilter] 토큰 클레임에 필수 필드(userId, Role) 누락");

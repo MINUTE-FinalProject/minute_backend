@@ -277,6 +277,12 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .freeboardPost(postToReport)
                 .build();
         freeboardPostReportRepository.save(newReport);
+
+        // ✅ 신고 당한 사용자의 신고 횟수 증가
+        User reportedUser = postToReport.getUser();
+        reportedUser.setUserReport(reportedUser.getUserReport() + 1);
+        userRepository.save(reportedUser);
+
         return new ReportSuccessResponseDTO("게시글이 성공적으로 신고되었습니다.", postId);
     }
 
