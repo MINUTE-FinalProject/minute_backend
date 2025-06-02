@@ -79,6 +79,11 @@ public class VideoController {
         return videoService.getVideoDetail(videoId);
     }
 
+    @GetMapping("/latest")
+    public List<VideoResponseDTO> getLatestVideos() {
+        return videoService.getAllVideos();  // 최신순 50개
+    }
+
     @Operation(summary = "카테고리 목록 조회", description = "전체 카테고리 목록을 반환합니다.")
     @GetMapping("/categories")
     public List<CategoryDTO> getAllCategories() {

@@ -8,9 +8,11 @@ import io.swagger.v3.oas.annotations.servers.Server;   // 선택적으로 추가
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Bean;
+import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.web.client.RestTemplate;
 
 @SpringBootApplication
+@EnableScheduling
 @OpenAPIDefinition( // <<-- 이 어노테이션과 그 내용을 추가합니다.
         info = @Info(
                 title = "MINUTE 프로젝트 API 명세서", // API 문서의 제목을 팀에서 정해주세요.
