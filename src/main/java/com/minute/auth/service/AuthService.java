@@ -1,7 +1,10 @@
 package com.minute.auth.service;
 
 import com.minute.auth.dto.request.*;
-import com.minute.auth.dto.response.*;
+import com.minute.auth.dto.response.EmailCertificationResponseDto;
+import com.minute.auth.dto.response.ResetPasswordResponseDto;
+import com.minute.auth.dto.response.SignupResponseDto;
+import com.minute.auth.dto.response.SignupValidateResponseDto;
 import org.springframework.http.ResponseEntity;
 
 public interface AuthService {
@@ -13,9 +16,6 @@ public interface AuthService {
     ResponseEntity<? super EmailCertificationResponseDto> emailCertification(EmailCertificationRequestDto dto);
 
     ResponseEntity<?> verifyCertificationCode(VerifyCodeRequestDto dto);
-
-    ResponseEntity<?> verifyCertificationCodeForSignUp(VerifyCodeRequestDto dto);
-
 
     ResponseEntity<? super ResetPasswordResponseDto> resetPassword(ResetPasswordRequestDto dto);
 }
