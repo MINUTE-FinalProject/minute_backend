@@ -29,7 +29,7 @@ public class Checklist {
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan_id", nullable = false)
+    @JoinColumn(name = "plan_id")
     private Plan plan;
 
     @Column(name = "travel_date", nullable = false)

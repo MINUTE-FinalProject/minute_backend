@@ -21,7 +21,7 @@ public class PlanService {
     private final PlanRepository planRepository;
     private final UserRepository userRepository;
 
-    /** 한 달치 dot 조회용 */
+    // 한 달치 dot 표시용
     @Transactional(readOnly = true)
     public List<LocalDate> getPlanDatesInMonth(String userId, YearMonth ym) {
         LocalDate start = ym.atDay(1);
@@ -30,7 +30,7 @@ public class PlanService {
         return planRepository.findTravelDatesInMonth(userId, start, end);
     }
 
-    /** 특정 날짜의 Plan → DTO 매핑 */
+    // 날짜별 DTO 매핑
     @Transactional(readOnly = true)
     public List<PlanResponseDTO> getPlansByUserAndDate(String userId, LocalDate date) {
         return planRepository
@@ -38,11 +38,6 @@ public class PlanService {
                 .stream()
                 .map(PlanResponseDTO::fromEntity)
                 .collect(Collectors.toList());
-    }
-
-    /** CalendarController 에서 사용될 조회 메서드 */
-    public List<PlanResponseDTO> getPlansForCalendar(String userId, LocalDate date) {
-        return getPlansByUserAndDate(userId, date);
     }
 
     /** Plan 생성 */

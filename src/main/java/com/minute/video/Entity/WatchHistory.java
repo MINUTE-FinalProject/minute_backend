@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.sql.Update;
 
 import java.time.LocalDateTime;
 
@@ -31,4 +32,9 @@ public class WatchHistory {
 
     @Column(nullable = false)
     private LocalDateTime watchedAt;
+
+    @PrePersist
+    public void prePersist() {
+        this.watchedAt = LocalDateTime.now();
+    }
 }

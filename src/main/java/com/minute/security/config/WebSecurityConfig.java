@@ -79,6 +79,7 @@ public class WebSecurityConfig {
                                 "/swagger-ui.html",
                                 "/api-docs/**",
                                 "/webjars/**"
+
                         ).permitAll()
                                 .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
                                 .requestMatchers("/api/v1/auth/sign-up").permitAll()
@@ -138,11 +139,35 @@ public class WebSecurityConfig {
                                 .requestMatchers(HttpMethod.PATCH, "/api/notices/**").hasAuthority("ADMIN")  // .hasRole("ADMIN") 대신 사용
 
 
-                                // 플랜 캘린더
-                                .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/caldendars/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/weather/**").permitAll()
+                                // --- 플랜 캘린더 (인증 필요) ---
+                                .requestMatchers(HttpMethod.GET,    "/api/v1/plans",    "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.POST,   "/api/v1/plans",    "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.PUT,    "/api/v1/plans/{planId}", "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/plans/{planId}", "/api/v1/plans/**").authenticated()
+
+                                // --- 체크리스트 (인증 필요) ---
+                                .requestMatchers(HttpMethod.GET,    "/api/v1/checklists",    "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.POST,   "/api/v1/checklists",    "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.PUT,    "/api/v1/checklists/{id}", "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/checklists/{id}", "/api/v1/checklists/**").authenticated()
+
+                                // --- 비디오 & 쇼츠 & 히스토리 (permitAll) ---
+                                .requestMatchers(HttpMethod.GET, "/api/v1/videos/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
+                                .requestMatchers("/api/v1/watch-history/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+
+                                // --- 공지사항(Notice) ---
+                                .requestMatchers(HttpMethod.GET,  "/api/notices/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.PUT,  "/api/notices/**").hasRole("ADMIN")
+
+                                // --- 나머지 공개 API ---
+                                .requestMatchers(HttpMethod.GET, "/api/v1/mypage/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/weather/**").permitAll()
+
 
                                 // 비디오
 //
@@ -153,6 +178,7 @@ public class WebSecurityConfig {
                                 .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
                         //
                                 .anyRequest().authenticated()
+
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
                 .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)

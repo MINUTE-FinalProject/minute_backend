@@ -71,7 +71,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationException failed) throws IOException, ServletException {
-        System.out.println("❌ 로그인 실패: " + failed.getMessage());
+
         if (failureHandler != null) {
             failureHandler.onAuthenticationFailure(request, response, failed);
         } else {
