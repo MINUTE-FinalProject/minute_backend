@@ -69,4 +69,3 @@ public class DetailUser implements UserDetails {
         return true;
     }
 }
-

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
+import java.util.Optional;
 
 public interface WatchHistoryRepository extends JpaRepository<WatchHistory, Integer> {
 
@@ -23,4 +24,8 @@ public interface WatchHistoryRepository extends JpaRepository<WatchHistory, Inte
     List<Video> findMostWatchedVideos();
 
     List<WatchHistory> findByUserAndVideo(User user, Video video);
+
+    // 특정 영상에 대해 사용자 시청 기록 중 가장 최근 한 건만 찾을 때 사용 (중복 저장 방지 및 시간 갱신용
+    Optional<WatchHistory> findTopByUserAndVideoOrderByWatchedAtDesc(User user, Video video);
+
 }

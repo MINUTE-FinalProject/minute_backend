@@ -10,10 +10,14 @@ import java.util.List;
 
 public interface ChecklistRepository extends JpaRepository<Checklist, Integer> {
 
+    // 캘린더 dot 표시용
     @Query("SELECT DISTINCT c.travelDate FROM Checklist c WHERE c.user.userId = :userId AND c.travelDate BETWEEN :startDate AND :endDate")
     List<LocalDate> findTravelDatesInMonth(@Param("userId") String userId,
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 
+    //
     List<Checklist> findAllByUser_UserIdAndTravelDate(String userId, LocalDate travelDate);
+
+    List<Checklist> findByPlan_PlanId(Integer planId);
 }

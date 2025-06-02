@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -51,6 +52,10 @@ public class VideoLikesService {
                 .video(video)
                 .build();
         videoLikesRepository.save(like);
+
+
+        // 좋아요 수 증가
+        video.increaseLikes();
     }
 
     /**
@@ -74,6 +79,9 @@ public class VideoLikesService {
                     "No existing like to delete for user=" + userId + ", video=" + videoId
             );
         }
+        // 좋아요 수 감소
+        Video video = videoRepository.getReferenceById(videoId); // 🔁 삭제 후라도 참조 가능
+        video.decreaseLikes();
     }
 
     /**
@@ -90,7 +98,8 @@ public class VideoLikesService {
                         like.getVideo().getVideoId(),
                         like.getVideo().getVideoTitle(),
                         like.getVideo().getVideoUrl(),
-                        like.getVideo().getThumbnailUrl()
+                        like.getVideo().getThumbnailUrl(),
+                        like.getCreatedAt()
                 ))
                 .collect(Collectors.toList());
     }

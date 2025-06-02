@@ -1,8 +1,8 @@
 package com.minute.video.controller;
 
-import com.minute.video.Entity.YoutubeVideo;
+import com.minute.video.Entity.Video;
+import com.minute.video.service.VideoService;
 import com.minute.video.service.YoutubeApiService;
-import com.minute.video.service.YoutubeVideoService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
@@ -14,7 +14,7 @@ import java.util.Map;
 public class YoutubeVideoController {
 
     private final YoutubeApiService youtubeApiService;
-    private final YoutubeVideoService youtubeVideoService;
+    private final VideoService videoService;
 
     // 1. 상단 슬라이더 (지역별)
     @GetMapping("/slider")
@@ -42,24 +42,26 @@ public class YoutubeVideoController {
     }
 
     @GetMapping("/db/shorts")
-    public List<YoutubeVideo> getDbShorts(
+    public List<Video> getDbShorts(
             @RequestParam(required = false) String region,
             @RequestParam(required = false) String city,
             @RequestParam(defaultValue = "15") int maxResults
     ) {
         if (region != null && city != null) {
-            return youtubeVideoService.getVideosByRegionAndCity(region, city, maxResults);
+            // VideoService에서 region, city로 검색하는 메소드 만들어둬야 함
+            return videoService.getVideosByRegionAndCity(region, city, maxResults);
         } else if (region != null) {
-            return youtubeVideoService.getVideosByRegion(region, maxResults);
+            return videoService.getVideosByRegion(region, maxResults);
         } else {
-            return youtubeVideoService.getAllVideos(maxResults);
+            return videoService.getAllVideos(maxResults);
         }
     }
 
+    // ▶▶ 유튜브 API에서 받아온 쇼츠 DB 저장
     @PostMapping("/shorts/save")
     public String saveShortsToDb(@RequestParam String region, @RequestParam(defaultValue="15") int maxResults) {
         List<Map<String, Object>> list = youtubeApiService.searchShortsByRegion(region, maxResults);
-        youtubeVideoService.saveYoutubeVideos(list, region);
+        videoService.saveVideosFromApi(list, region);
         return "ok";
     }
 }

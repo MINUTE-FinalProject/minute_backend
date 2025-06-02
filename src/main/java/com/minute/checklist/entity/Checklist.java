@@ -1,11 +1,10 @@
 package com.minute.checklist.entity;
 
+import com.minute.checklist.dto.request.ChecklistRequestDTO;
 import com.minute.plan.entity.Plan;
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
 
@@ -15,6 +14,8 @@ import java.time.LocalDateTime;
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @Getter
 @Entity
+@AllArgsConstructor
+@Builder
 @Table(name = "checklist")
 public class Checklist {
 
@@ -47,4 +48,9 @@ public class Checklist {
     @UpdateTimestamp    // 엔티티를 update() 할 떄마다 현재 시각으로 갱신
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    public void updateFrom(ChecklistRequestDTO dto) {
+        this.itemContent = dto.getItemContent();
+        this.isChecked = dto.getIsChecked();
+    }
 }

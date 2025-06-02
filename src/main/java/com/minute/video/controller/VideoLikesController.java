@@ -9,9 +9,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -32,12 +34,11 @@ public class VideoLikesController {
     })
     @PostMapping("/{userId}/videos/{videoId}/like")
     public ResponseEntity<Void> like(
-            @PathVariable String videoId,
-            @RequestParam String userId){
-        VideoLikesRequestDTO dto = VideoLikesRequestDTO.builder()
-                .userId(userId)
-                .videoId(videoId)
-                .build();
+            @PathVariable String userId,
+            @PathVariable String videoId){
+        if (videoId == null || videoId.trim().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "videoId is missing");
+        }
         videoLikesService.saveLike(userId, videoId);
         return ResponseEntity.noContent().build();
     }
@@ -50,8 +51,8 @@ public class VideoLikesController {
     })
     @DeleteMapping("/{userId}/videos/{videoId}/like")
     public ResponseEntity<Void> delete(
-            @PathVariable String videoId,
-            @RequestParam String userId) {
+            @PathVariable String userId,
+            @PathVariable String videoId) {
 
         videoLikesService.deleteLike(userId, videoId);
         return ResponseEntity.noContent().build();
@@ -64,7 +65,8 @@ public class VideoLikesController {
             @ApiResponse(responseCode = "500", description = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.")
     })
     @GetMapping("/{userId}/likes")
-    public List<VideoLikesResponseDTO> list(@PathVariable String userId) {
+    public List<VideoLikesResponseDTO> list(
+            @PathVariable String userId) {
         return videoLikesService.getUserLikedVideos(userId);
     }
 }

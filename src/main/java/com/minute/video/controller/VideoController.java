@@ -1,8 +1,10 @@
 package com.minute.video.controller;
 
 import com.minute.video.Entity.Category;
+import com.minute.video.dto.CategoryDTO;
 import com.minute.video.dto.VideoResponseDTO;
 import com.minute.video.repository.CategoryRepository;
+import com.minute.video.service.CategoryService;
 import com.minute.video.service.VideoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -23,6 +25,7 @@ import java.util.List;
 public class VideoController {
 
     private final VideoService videoService;
+    private final CategoryService categoryService;
 
     @Operation(summary = "영상 목록 조회", description =
             "영상 목록을 조회합니다.\n\n" +
@@ -75,4 +78,16 @@ public class VideoController {
     ){
         return videoService.getVideoDetail(videoId);
     }
+
+    @GetMapping("/latest")
+    public List<VideoResponseDTO> getLatestVideos() {
+        return videoService.getAllVideos();  // 최신순 50개
+    }
+
+    @Operation(summary = "카테고리 목록 조회", description = "전체 카테고리 목록을 반환합니다.")
+    @GetMapping("/categories")
+    public List<CategoryDTO> getAllCategories() {
+        return categoryService.getCategoryList(); // 서비스에 구현 필요
+    }
+
 }
