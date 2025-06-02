@@ -1,124 +1,163 @@
 package com.minute.folder.service;
 
+import com.minute.bookmark.dto.BookmarkResponseDTO;
+import com.minute.bookmark.entity.Bookmark;
+import com.minute.bookmark.repository.BookmarkRepository;
+import com.minute.folder.dto.FolderDTO; // ✨ DTO 임포트 추가
 import com.minute.folder.entity.Folder;
 import com.minute.folder.repository.FolderRepository;
-import org.springframework.security.core.Authentication; // 👈 Spring Security import 추가
-import org.springframework.security.core.context.SecurityContextHolder; // 👈 Spring Security import 추가
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import lombok.RequiredArgsConstructor;
 
 import java.time.LocalDateTime;
-import java.util.Collections; // 👈 Collections import 추가 (getVideosByFolderId 임시 반환용)
 import java.util.List;
+import java.util.Random; // ✨ Random 임포트 추가
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class FolderService {
 
     private final FolderRepository folderRepository;
+    private final BookmarkRepository bookmarkRepository;
+    private static final Logger log = LoggerFactory.getLogger(FolderService.class);
 
-    // 현재 로그인한 사용자 ID를 가져오는 헬퍼 메소드
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
-            // 실제 운영 환경에서는 이 부분에 대해 더 강력한 예외 처리나 로직이 필요할 수 있습니다.
-            // 예를 들어, 로그인이 필요한 기능에 접근 시 명확한 예외를 발생시켜야 합니다.
-            throw new IllegalStateException("인증된 사용자 정보를 찾을 수 없습니다. 로그인이 필요합니다.");
+        if (authentication == null) {
+            log.warn("[FolderService] getCurrentUserId: Authentication 객체가 null입니다.");
+            throw new IllegalStateException("인증 정보를 찾을 수 없습니다. (Auth is null)");
         }
-        // Spring Security의 Principal 객체가 UserDetails를 구현한 커스텀 객체라면,
-        // ((YourCustomUserDetails) authentication.getPrincipal()).getUserId() 와 같이 실제 ID를 가져와야 합니다.
-        // 기본적으로 authentication.getName()은 username (여기서는 userId)을 반환합니다.
-        return authentication.getName();
+        if (!authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            log.warn("[FolderService] getCurrentUserId: 사용자가 인증되지 않았습니다.");
+            throw new IllegalStateException("인증되지 않은 사용자입니다. (Not Authenticated)");
+        }
+        Object principal = authentication.getPrincipal();
+        if (principal instanceof UserDetails) {
+            return ((UserDetails) principal).getUsername();
+        } else if (principal instanceof String) {
+            return (String) principal;
+        }
+        throw new IllegalStateException("사용자 ID를 추출할 수 없는 인증 객체 타입입니다.");
     }
 
     @Transactional
     public Folder createFolder(String folderName) {
-        String currentUserId = getCurrentUserId(); // 현재 사용자 ID 가져오기
-
+        String currentUserId = getCurrentUserId();
         if (folderName == null || folderName.trim().isEmpty()) {
-            folderName = generateDefaultName(currentUserId); // 사용자별 기본 폴더명 생성
+            folderName = generateDefaultName(currentUserId);
         }
-        // TODO: 동일 사용자의 폴더 중 이름 중복 체크 로직 추가하면 좋습니다.
-
         Folder folder = Folder.builder()
                 .folderName(folderName)
-                .userId(currentUserId) // 👈 생성 시 userId 저장
+                .userId(currentUserId)
                 .createdAt(LocalDateTime.now())
                 .build();
-
         return folderRepository.save(folder);
     }
 
     private String generateDefaultName(String userId) {
         String base = "기본폴더";
-        // 👇 FolderRepository에 추가한 findByUserIdAndFolderNameStartingWith 사용
         List<Folder> existing = folderRepository.findByUserIdAndFolderNameStartingWith(userId, base);
         int idx = 0;
+        String candidate;
         while (true) {
-            String candidate = idx == 0 ? base : base + idx;
-            boolean exists = existing.stream().anyMatch(f -> f.getFolderName().equals(candidate));
-            if (!exists) return candidate;
+            candidate = idx == 0 ? base : base + idx;
+            final String finalCandidate = candidate;
+            boolean exists = existing.stream().anyMatch(f -> f.getFolderName().equals(finalCandidate));
+            if (!exists) {
+                return candidate;
+            }
             idx++;
         }
     }
 
-    // 기존 getAll() 대신 현재 사용자의 폴더만 가져오는 메소드로 변경
     public List<Folder> getAllFoldersForCurrentUser() {
         String currentUserId = getCurrentUserId();
-        // 👇 FolderRepository에 추가한 findByUserIdOrderByCreatedAtDesc 사용
         return folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
     }
+
+    // ✨ --- [새로 추가된 메서드] ---
+    // 폴더 목록과 함께 랜덤 썸네일을 DTO 리스트로 반환
+    @Transactional(readOnly = true)
+    public List<FolderDTO> getFoldersWithThumbnailsForCurrentUser() {
+        String currentUserId = getCurrentUserId();
+        List<Folder> folders = folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
+        Random random = new Random();
+
+        return folders.stream()
+                .map(folder -> {
+                    // 1. 각 폴더에 속한 북마크 목록을 조회합니다.
+                    // [성능 최적화 제안] 북마크가 매우 많아질 경우,
+                    // Repository에 `findRandomBookmarkInFolder` 같은 네이티브 쿼리를 만들어
+                    // 딱 하나의 북마크만 가져오는 것이 훨씬 효율적입니다.
+                    List<Bookmark> bookmarksInFolder = bookmarkRepository.findByFolder_FolderIdAndUserIdOrderByBookmarkIdDesc(folder.getFolderId(), currentUserId);
+
+                    String thumbnailUrl = null;
+                    // 2. 북마크가 존재하면, 그 중 하나를 랜덤으로 선택해 썸네일 URL을 가져옵니다.
+                    if (!bookmarksInFolder.isEmpty()) {
+                        Bookmark randomBookmark = bookmarksInFolder.get(random.nextInt(bookmarksInFolder.size()));
+                        thumbnailUrl = randomBookmark.getThumbnailUrl(); // Bookmark 엔티티에 getThumbnailUrl()이 있다고 가정
+                    }
+
+                    // 3. 최종적으로 FolderDTO를 만듭니다.
+                    return FolderDTO.builder()
+                            .folderId(folder.getFolderId())
+                            .folderName(folder.getFolderName())
+                            .randomThumbnailUrl(thumbnailUrl) // FolderDTO에 이 필드가 있어야 함
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
 
     @Transactional
     public Folder updateName(Integer folderId, String newName) {
         String currentUserId = getCurrentUserId();
-
         if (newName == null || newName.trim().isEmpty()) {
             throw new IllegalArgumentException("폴더 이름은 비워둘 수 없습니다.");
         }
-        if (newName.length() > 10) { // DTO에서 @Size로 이미 검증했을 수 있지만, 서비스 레벨에서도 방어
+        if (newName.length() > 10) {
             throw new IllegalArgumentException("폴더 이름은 최대 10자까지 가능합니다.");
         }
-
-        // 👇 FolderRepository에 추가한 findByFolderIdAndUserId를 사용하여 해당 폴더가 현재 사용자의 것인지 확인
         Folder folder = folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
                 .orElseThrow(() -> new RuntimeException("수정할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId));
-
         folder.setFolderName(newName);
-        // folder.setUpdatedAt(LocalDateTime.now()); // 수정 시간 업데이트가 필요하다면 추가
         return folderRepository.save(folder);
     }
 
     @Transactional
     public void delete(Integer folderId) {
         String currentUserId = getCurrentUserId();
-
-        // 👇 FolderRepository에 추가한 findByFolderIdAndUserId를 사용하여 해당 폴더가 현재 사용자의 것인지 확인
         Folder folder = folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
                 .orElseThrow(() -> new RuntimeException("삭제할 폴더를 찾을 수 없거나 해당 폴더에 대한 권한이 없습니다. ID: " + folderId));
 
-        // folder 객체에서 ID를 가져와서 삭제 (위에서 이미 folder 객체를 가져왔으므로)
+        // 참고: 폴더를 삭제할 때 해당 폴더에 속한 모든 북마크도 함께 삭제해야 합니다.
+        // bookmarkRepository.deleteByFolder(folder); 와 같은 로직 추가를 고려해보세요.
         folderRepository.deleteById(folder.getFolderId());
     }
 
-    // 👇 [새로 추가될 메소드 - 폴더 안의 비디오 목록 조회]
-    // 이 메소드는 Video 관련 로직이 필요하므로, Video 엔티티, DTO, Repository가 먼저 정의되어야 합니다.
-    // 현재는 임시로 빈 목록을 반환하여 /api/folder/{id}/videos API가 401 대신 200 OK를 반환하도록 합니다.
-    @Transactional(readOnly = true) // 데이터 변경이 없으므로 읽기 전용 트랜잭션
-    public List<?> getVideosByFolderId(Integer folderId) { // TODO: 실제로는 List<VideoDTO> 등을 반환해야 합니다.
+    @Transactional(readOnly = true)
+    public List<BookmarkResponseDTO> getVideosByFolderId(Integer folderId) {
         String currentUserId = getCurrentUserId();
+        log.info("[FolderService] getVideosByFolderId 호출 - 사용자 ID: {}, 폴더 ID: {}", currentUserId, folderId);
 
-        // 1. 요청한 폴더가 현재 사용자의 소유인지 확인
         folderRepository.findByFolderIdAndUserId(folderId, currentUserId)
-                .orElseThrow(() -> new RuntimeException("요청한 폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다. ID: " + folderId));
+                .orElseThrow(() -> {
+                    log.warn("[FolderService] getVideosByFolderId: 폴더(ID:{})를 찾을 수 없거나 접근 권한 없음.", folderId);
+                    return new RuntimeException("요청한 폴더를 찾을 수 없거나 해당 폴더에 대한 접근 권한이 없습니다.");
+                });
 
-        // 2. TODO: (향후 작업) VideoRepository 등을 사용하여 folderId에 해당하는 실제 비디오 목록을 조회하고,
-        //    VideoDTO 리스트로 변환하여 반환해야 합니다.
-        //    예: return videoRepository.findByFolder_FolderIdAndFolder_UserId(folderId, currentUserId)
-        //               .stream().map(video -> new VideoDTO(...)).collect(Collectors.toList());
+        List<Bookmark> bookmarks = bookmarkRepository.findByFolder_FolderIdAndUserIdOrderByBookmarkIdDesc(folderId, currentUserId);
+        log.info("[FolderService] getVideosByFolderId: 폴더(ID:{})에서 북마크 {}개 조회됨.", folderId, bookmarks.size());
 
-        System.out.println("[FolderService] getVideosByFolderId (임시 응답) 호출, folderId=" + folderId + ", userId=" + currentUserId);
-        return Collections.emptyList(); // 현재는 비디오 관련 기능이 없으므로 빈 리스트 반환
+        return bookmarks.stream()
+                .map(BookmarkResponseDTO::fromEntity)
+                .collect(Collectors.toList());
     }
 }
