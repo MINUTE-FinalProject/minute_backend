@@ -19,7 +19,7 @@ import java.util.Map;
 import java.util.Optional;
 
 @RestController
-@RequestMapping("api/v1/auth")
+@RequestMapping("/api/v1/auth")
 @RequiredArgsConstructor
 public class AuthController {
 
@@ -47,6 +47,11 @@ public class AuthController {
     @PostMapping("/verify-code")
     public ResponseEntity<?> verifyCode(@RequestBody VerifyCodeRequestDto dto) {
         return authService.verifyCertificationCode(dto);
+    }
+
+    @PostMapping("/verify-code-signup")
+    public ResponseEntity<?> verifyCodeForSignUp(@RequestBody VerifyCodeRequestDto dto) {
+        return authService.verifyCertificationCodeForSignUp(dto);
     }
 
     @PatchMapping("/reset-password")

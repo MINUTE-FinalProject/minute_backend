@@ -139,6 +139,7 @@ public class AuthServiceImpl implements AuthService {
         String userEmail = dto.getUserEmail();
         String certificationNumber = dto.getCertificationNumber();
 
+
         // 1. 임시 저장소에서 인증번호 조회
         String storedNumber = certificationStorage.get(userEmail);
         if (storedNumber == null || !storedNumber.equals(certificationNumber)) {
@@ -153,6 +154,21 @@ public class AuthServiceImpl implements AuthService {
 
         user.setCertified(true);
         userRepository.save(user);
+
+        return ResponseEntity.ok().body("인증 성공");
+    }
+
+    //인증번호 검증하기
+    @Override
+    public ResponseEntity<?> verifyCertificationCodeForSignUp(VerifyCodeRequestDto dto) {
+        String userEmail = dto.getUserEmail();
+        String certificationNumber = dto.getCertificationNumber();
+
+        // 1. 임시 저장소에서 인증번호 조회
+        String storedNumber = certificationStorage.get(userEmail);
+        if (storedNumber == null || !storedNumber.equals(certificationNumber)) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("인증번호가 일치하지 않거나 만료되었습니다.");
+        }
 
         return ResponseEntity.ok().body("인증 성공");
     }
