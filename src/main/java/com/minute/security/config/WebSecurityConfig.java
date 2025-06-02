@@ -73,102 +73,80 @@ public class WebSecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(request -> request
                         .requestMatchers(
-                                "/swagger-ui/**",
-                                "/v3/api-docs/**",
-                                "/swagger-resources/**",
-                                "/swagger-ui.html",
-                                "/api-docs/**",
-                                "/webjars/**"
+                                // Swagger
+                                "/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**",
+                                "/swagger-ui.html", "/api-docs/**", "/webjars/**",
+
+                                // 인증 관련
+                                "/api/v1/auth/**",
+                                "/upload/**",
+                                "/file/**",
+
+                                // 사용자 관련
+                                "/api/v1/user/*",
+
+                                // 검색, 비디오
+                                "/api/v1/search/**", "/api/v1/videos/**",
+                                "/api/v1/watch-history/**", "/api/v1/youtube/**",
+                                "/api/v1/youtube/shorts/save",
+
+                                // 게시판 조회
+                                "/api/v1/board/**",
+
+                                // 마이페이지, 플랜 캘린더
+                                "/api/v1/mypage/**", "/api/v1/plans/**", "/api/v1/caldendars/**",
+                                "/api/v1/weather/**",
+
+                                // 공지사항 (조회는 모두 허용)
+                                "/api/notices/**"
                         ).permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
-                                .requestMatchers("/upload/**").permitAll()
-                                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                                .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
-                                .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
 
-                                // 게시판
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free").permitAll() // <<< 이 줄을 추가 (임시)자유게시판 수정 필요
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/**").permitAll() // 게시글 수정
-                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/**").permitAll() // 게시글 삭제
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/comments").permitAll() // 댓글 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 수정
-                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/**").permitAll() // <<< 댓글 삭제
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/like").permitAll() // <<< 게시글 좋아요
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/like").permitAll() // <<< 댓글 좋아요
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/report").permitAll() // <<< 게시글 신고
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/report").permitAll() // <<< 댓글 신고
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").permitAll() // <<< 신고된 게시글 목록 조회 (관리자용 임시)
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").permitAll() // <<< 신고된 댓글 목록 조회 (관리자용 임시)
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/**/visibility").permitAll() // <<< 게시글 숨김/공개 처리 (관리자용 임시)
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/**/visibility").permitAll() // <<< 댓글 숨김/공개 처리 (관리자용 임시)
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").permitAll() // <<< 내 활동 목록 조회 (임시)
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").permitAll() // <<< 내가 쓴 댓글 목록 조회 (임시)
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").permitAll() // <<< 전체 신고 활동 목록 (관리자용 임시)
+                        // 게시판 쓰기 및 기능 관련 (임시 공개)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/comments").permitAll()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/**").permitAll()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/like").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/like").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/**/report").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/**/report").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/**/visibility").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/**/visibility").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").permitAll()
 
-                                .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
-                                .requestMatchers("/api/v1/watch-history/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/**").permitAll()
-                                .requestMatchers("/api/v1/videos/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
-
-                                .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
-                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
-
-                                // 플랜 캘린더
-                                .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/caldendars/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/weather/**").permitAll()
-
-                                // 비디오
-//
-                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
-                                .requestMatchers("/api/v1/watch-history/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/**").permitAll()
-                                .requestMatchers("/api/v1/videos/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
-                        //
-                                .anyRequest().authenticated()
+                        // 회원가입 및 비밀번호 재설정
+                        .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/auth/reset-password").permitAll()
                         .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
                         .requestMatchers("/api/v1/auth/sign-up").permitAll()
-                        .requestMatchers("/upload/**").permitAll()
+
+                        // 공지사항 관리자 권한
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/notices/{noticeId}/importance").hasRole("ADMIN")
+
+                        // 관리자 API
                         .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*","/api/v1/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/*").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
-                        .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
-                        .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
-                        .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
-                        .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
-                        .requestMatchers("/api/v1/watch-history/**").permitAll()
-                        .requestMatchers("/api/v1/youtube/**").permitAll()
-                        .requestMatchers("/api/v1/videos/**").permitAll()
-                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
-                        .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
-                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
-                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN") //공지사항 삭제
-                        .requestMatchers(HttpMethod.PATCH, "/api/notices/{noticeId}/importance").hasRole("ADMIN") //공지사항 중요도 변경
-                        .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
+
+                        // 나머지 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
                 .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(jwtAuthenticationFilter(authenticationManager), JwtLoginFilter.class);
 
-
         return httpSecurity.build();
     }
+
 
     class FailedAuthenticationEntryPoint implements AuthenticationEntryPoint {
         @Override

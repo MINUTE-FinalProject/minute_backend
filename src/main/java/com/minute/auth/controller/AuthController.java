@@ -49,6 +49,11 @@ public class AuthController {
         return authService.verifyCertificationCode(dto);
     }
 
+    @PostMapping("/verify-code-signup")
+    public ResponseEntity<?> verifyCodeForSignUp(@RequestBody VerifyCodeRequestDto dto) {
+        return authService.verifyCertificationCodeForSignUp(dto);
+    }
+
     @PatchMapping("/reset-password")
     public ResponseEntity<?> resetPassword(@RequestBody ResetPasswordRequestDto dto) {
         return authService.resetPassword(dto);

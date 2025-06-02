@@ -18,5 +18,7 @@ public interface AuthService {
 
     ResponseEntity<?> verifyCertificationCode(VerifyCodeRequestDto dto);
 
+    ResponseEntity<?> verifyCertificationCodeForSignUp(VerifyCodeRequestDto dto);
+
     ResponseEntity<? super ResetPasswordResponseDto> resetPassword(ResetPasswordRequestDto dto);
 }
