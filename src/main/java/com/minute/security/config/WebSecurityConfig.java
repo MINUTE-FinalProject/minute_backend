@@ -89,6 +89,20 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*","/api/v1/auth/reset-password").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/admin/*").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
+                        .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
+                        .requestMatchers("/api/v1/watch-history/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/**").permitAll()
+                        .requestMatchers("/api/v1/videos/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasRole("ADMIN") //공지사항 삭제
+                        .requestMatchers(HttpMethod.PATCH, "/api/notices/{noticeId}/importance").hasRole("ADMIN") //공지사항 중요도 변경
+                        .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))

@@ -6,6 +6,8 @@ import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -18,29 +20,31 @@ public class Checklist {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "checklist_id")
-    private int checklistId;
+    @Column(name = "checklist_id", nullable = false)
+    private Integer checklistId;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User userId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    @ManyToOne
-    @JoinColumn(name = "plan_id")
-    private Plan planId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "plan_id", nullable = false)
+    private Plan plan;
 
-    @Column(name = "travel_date")
+    @Column(name = "travel_date", nullable = false)
     private LocalDate travelDate;
 
-    @Column(name = "item_content")
+    @Column(name = "item_content", nullable = false)
     private String itemContent;
 
-    @Column(name = "is_checked")
-    private Boolean isChecked;
+    @Column(name = "is_checked", nullable = false)
+    private Boolean isChecked = false;  // 필드 객체 생성 시 기본 false
 
-    @Column(name = "created_at")
+    @CreationTimestamp  // 엔티티가 처음 persist() 될 때 한 번만 현재 시각 설정
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at")
+    @UpdateTimestamp    // 엔티티를 update() 할 떄마다 현재 시각으로 갱신
+    @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 }

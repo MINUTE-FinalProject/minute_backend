@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -32,11 +33,14 @@ public class SearchHistoryService {
         User user = userRepository.findById(searchRequestDTO.getUserId())
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + searchRequestDTO.getUserId()));
 
+        // 항상 현재 시각을 사용
+        LocalDateTime now = LocalDateTime.now();
+
         // 1. 개인 검색 이력 저장
         SearchHistory searchHistory = SearchHistory.builder()
                 .user(user)
                 .keyword(searchRequestDTO.getKeyword())
-                .searchedAt(searchRequestDTO.getSearchedAt())
+                .searchedAt(now)
                 .build();
         searchHistoryRepository.save(searchHistory);
 
@@ -89,8 +93,12 @@ public class SearchHistoryService {
 
     // 검색창에 최신검색어, 인기검색어 나오게
     public SearchSuggestionsDTO getSearchSuggestions(String userId){
-        List<String> recent = getRecentKeywords(userId);
-        List<String> popular = getPopularKeywords();
+        List<SearchHistoryResponseDTO> recent = getUserSearchHistory(userId)
+                .stream()
+                .limit(5) // 최대 5개
+                .collect(Collectors.toList());
+
+        List<String> popular = getPopularKeywords();  // 상위 5개
         return new SearchSuggestionsDTO(recent,popular);
     }
 
