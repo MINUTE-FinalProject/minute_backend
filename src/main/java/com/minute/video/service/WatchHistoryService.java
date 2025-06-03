@@ -16,7 +16,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -30,34 +29,25 @@ public class WatchHistoryService {
     private final VideoMapper videoMapper;
 
     // 시청기록저장
-    public void saveWatchHistory(String userId, WatchHistoryRequestDTO dto) {
+    public void saveWatchHistory(String userId,WatchHistoryRequestDTO watchHistoryRequestDTO) {
+
+        // User 객체 조회
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
-        Video video = videoRepository.findById(dto.getVideoId())
-                .orElseThrow(() -> new RuntimeException("Video not found with ID: " + dto.getVideoId()));
+                .orElseThrow(() -> new RuntimeException("User not found with ID: " +userId));
 
-        Optional<WatchHistory> existingHistoryOpt = watchHistoryRepository.findTopByUserAndVideoOrderByWatchedAtDesc(user, video);
+        // Video 객체 조회
+        Video video = videoRepository.findById(watchHistoryRequestDTO.getVideoId())
+                .orElseThrow(() -> new RuntimeException("Video not found with ID: " + watchHistoryRequestDTO.getVideoId()));
 
-        if (existingHistoryOpt.isPresent()) {
-            WatchHistory existingHistory = existingHistoryOpt.get();
-            // 엔티티가 mutable하지 않다면 새 객체 생성
-            WatchHistory updatedHistory = WatchHistory.builder()
-                    .watchId(existingHistory.getWatchId())
-                    .user(user)
-                    .video(video)
-                    .watchedAt(LocalDateTime.now())
-                    .build();
-            watchHistoryRepository.save(updatedHistory);
-        } else {
-            WatchHistory newHistory = WatchHistory.builder()
-                    .user(user)
-                    .video(video)
-                    .watchedAt(LocalDateTime.now())
-                    .build();
-            watchHistoryRepository.save(newHistory);
-        }
+        LocalDateTime now = LocalDateTime.now();
+
+        WatchHistory watchHistory = WatchHistory.builder()
+                .user(user)
+                .video(video)
+                .watchedAt(now)
+                .build();
+        watchHistoryRepository.save(watchHistory);
     }
-
 
     // 시청 기록 삭제
     public void deleteWatchHistory(String userId, String videoId) {

@@ -2,9 +2,9 @@ package com.minute.auth.common.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import net.minidev.json.parser.JSONParser;
+import net.minidev.json.parser.ParseException;
 
 
 public class ConvertUtil {

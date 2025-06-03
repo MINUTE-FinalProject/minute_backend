@@ -37,6 +37,9 @@ dependencies {
     implementation 'com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.3'
     implementation 'org.springframework.boot:spring-boot-starter-mail'
 
+    implementation 'mysql:mysql-connector-java:8.0.33' // 버전은 최신으로 맞추세요
+    implementation 'net.minidev:json-smart:2.5.1' // 최신 버전을 확인하세요 (2.5.1은 현재 최신 버전 중 하나입니다)
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
