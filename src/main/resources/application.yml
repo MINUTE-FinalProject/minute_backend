@@ -42,3 +42,16 @@ weather:
   api:
     key: 2339a562cb566b35a087b4e0eec2490b
 
+#cloud:
+#  aws:
+#    credentials:
+#      access-key:
+#      secret-key:
+#    region:
+#      static: ap-northeast-2 # S3 버킷을 생성한 리전 (예: 서울은 ap-northeast-2)
+#    s3:
+#      bucket-name: minuteproject # 생성하신 S3 버킷 이름
+#    # 만약 AWS CloudFormation 스택을 사용하지 않는다면 아래 설정도 추가하는 것이 좋습니다.
+#    stack:
+#      auto: false
+
