@@ -47,8 +47,13 @@ public class Video {
     private List<VideoTag> videoTags = new ArrayList<>();
 
     // 추천 로직에 필요한 속성
-    private Long views;
-    private Long likes;
+    @Builder.Default
+    @Column(name = "likes", nullable = false)
+    private Long likes = 0L;
+
+    @Builder.Default
+    @Column(name = "views", nullable = false)
+    private Long views = 0L;
 
     // 좋아요 증가
     public void increaseLikes() {

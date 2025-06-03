@@ -42,6 +42,7 @@ dependencies {
     implementation 'mysql:mysql-connector-java:8.0.33' // 버전은 최신으로 맞추세요
     implementation 'net.minidev:json-smart:2.5.1' // 최신 버전을 확인하세요 (2.5.1은 현재 최신 버전 중 하나입니다)
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
+    implementation 'org.apache.commons:commons-text:1.11.0' // 최신 버전 사용 권장  알고리즘 점수계산을 위해 추가
 
     compileOnly 'org.projectlombok:lombok'
     developmentOnly 'org.springframework.boot:spring-boot-devtools'
