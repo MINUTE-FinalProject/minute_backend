@@ -34,6 +34,7 @@ import com.minute.board.qna.entity.QnaReply; // 추가
 import com.minute.board.qna.repository.QnaReplyRepository; // 추가
 import org.springframework.data.jpa.domain.Specification; // Specification 추가 (동적 쿼리용)
 import jakarta.persistence.criteria.Predicate; // Predicate 추가
+import com.minute.board.qna.dto.request.QnaUpdateRequestDTO; // 추가
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -345,4 +346,210 @@ public class QnaServiceImpl implements QnaService {
                 .replyUpdatedAt(savedReply.getReplyUpdatedAt())
                 .build();
     }
+
+    // --- 사용자 문의 수정/삭제 메서드 구현 (새로 추가) ---
+
+    @Override
+    @Transactional // 쓰기 작업
+    public QnaDetailResponseDTO updateMyQna(Integer qnaId, QnaUpdateRequestDTO requestDTO, List<MultipartFile> newFiles, String userId) throws IOException {
+        log.info("User {} updating QnA ID: {}", userId, qnaId);
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new EntityNotFoundException("수정할 문의를 찾을 수 없습니다: ID " + qnaId));
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + userId));
+
+        // 본인 문의 여부 확인
+        if (!qna.getUser().getUserId().equals(userId)) {
+            throw new AccessDeniedException("해당 문의를 수정할 권한이 없습니다.");
+        }
+
+        // 문의 제목 및 내용 업데이트
+        qna.setInquiryTitle(requestDTO.getInquiryTitle());
+        qna.setInquiryContent(requestDTO.getInquiryContent());
+
+        // 기존 첨부파일 삭제 처리
+        List<Integer> idsToDelete = requestDTO.getAttachmentIdsToDelete();
+        List<QnaAttachment> remainingAttachments = new ArrayList<>();
+        if (idsToDelete != null && !idsToDelete.isEmpty()) {
+            List<QnaAttachment> attachmentsToRemove = new ArrayList<>();
+            for (QnaAttachment attachment : qna.getAttachments()) {
+                if (idsToDelete.contains(attachment.getImgId())) {
+                    attachmentsToRemove.add(attachment);
+                    // S3에서 파일 삭제 (imgFilePath에 전체 URL이 저장되어 있다고 가정)
+                    // 또는 imgSavedFilename(S3 Key)을 사용한다면 해당 키로 삭제
+                    fileStorageService.deleteFile(attachment.getImgFilePath()); // 또는 getImgSavedFilename()
+                } else {
+                    remainingAttachments.add(attachment);
+                }
+            }
+            qnaAttachmentRepository.deleteAll(attachmentsToRemove); // DB에서 첨부파일 정보 삭제
+            qna.getAttachments().removeAll(attachmentsToRemove); // Qna 엔티티의 컬렉션에서도 제거
+        } else {
+            remainingAttachments.addAll(qna.getAttachments());
+        }
+
+
+        // 새 첨부파일 추가 처리 (기존 + 신규 합쳐서 최대 개수 제한 등 로직 필요시 추가)
+        List<QnaAttachmentResponseDTO> currentAttachmentDTOs = remainingAttachments.stream()
+                .map(att -> QnaAttachmentResponseDTO.builder()
+                        .imgId(att.getImgId())
+                        .fileUrl(att.getImgFilePath())
+                        .originalFilename(att.getImgOriginalFilename())
+                        .createdAt(att.getImgCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+
+
+        if (newFiles != null && !newFiles.isEmpty()) {
+            List<String> uploadedFileUrls = fileStorageService.uploadFiles(newFiles, QNA_FILE_SUBDIRECTORY);
+            for (int i = 0; i < newFiles.size(); i++) {
+                MultipartFile file = newFiles.get(i);
+                String fileUrl = uploadedFileUrls.get(i);
+
+                QnaAttachment newAttachment = QnaAttachment.builder()
+                        .qna(qna)
+                        .imgFilePath(fileUrl)
+                        .imgOriginalFilename(file.getOriginalFilename())
+                        .imgSavedFilename(extractKeyFromUrl(fileUrl)) // S3 Key 추출
+                        .build();
+                qnaAttachmentRepository.save(newAttachment);
+                qna.getAttachments().add(newAttachment); // Qna 엔티티 컬렉션에 추가
+
+                currentAttachmentDTOs.add(QnaAttachmentResponseDTO.builder()
+                        .imgId(newAttachment.getImgId())
+                        .fileUrl(newAttachment.getImgFilePath())
+                        .originalFilename(newAttachment.getImgOriginalFilename())
+                        .createdAt(newAttachment.getImgCreatedAt())
+                        .build());
+            }
+        }
+
+        Qna updatedQna = qnaRepository.save(qna); // 변경된 문의 내용 및 첨부파일 관계 저장
+
+        // 답변 정보 DTO 변환
+        QnaReplyResponseDTO replyDTO = null;
+        if (updatedQna.getQnaReply() != null) {
+            replyDTO = QnaReplyResponseDTO.builder()
+                    // ... (getMyQnaDetail에서 사용한 변환 로직과 동일하게 채우기) ...
+                    .replyId(updatedQna.getQnaReply().getReplyId())
+                    .replyContent(updatedQna.getQnaReply().getReplyContent())
+                    .replierNickname(updatedQna.getQnaReply().getUser().getUserNickName())
+                    .replyCreatedAt(updatedQna.getQnaReply().getReplyCreatedAt())
+                    .replyUpdatedAt(updatedQna.getQnaReply().getReplyUpdatedAt())
+                    .build();
+        }
+
+        return QnaDetailResponseDTO.builder()
+                .inquiryId(updatedQna.getInquiryId())
+                .inquiryTitle(updatedQna.getInquiryTitle())
+                .inquiryContent(updatedQna.getInquiryContent())
+                .authorNickname(user.getUserNickName())
+                .inquiryStatus(updatedQna.getInquiryStatus().name())
+                .inquiryCreatedAt(updatedQna.getInquiryCreatedAt())
+                .inquiryUpdatedAt(updatedQna.getInquiryUpdatedAt())
+                .attachments(currentAttachmentDTOs)
+                .reply(replyDTO)
+                .build();
+    }
+
+    @Override
+    @Transactional // 쓰기 작업
+    public void deleteMyQna(Integer qnaId, String userId) {
+        log.info("User {} deleting QnA ID: {}", userId, qnaId);
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new EntityNotFoundException("삭제할 문의를 찾을 수 없습니다: ID " + qnaId));
+
+        // 본인 문의 여부 확인
+        if (!qna.getUser().getUserId().equals(userId)) {
+            throw new AccessDeniedException("해당 문의를 삭제할 권한이 없습니다.");
+        }
+
+        // 1. S3에서 첨부파일 삭제
+        if (qna.getAttachments() != null) {
+            for (QnaAttachment attachment : qna.getAttachments()) {
+                fileStorageService.deleteFile(attachment.getImgFilePath()); // 또는 getImgSavedFilename()
+            }
+        }
+        // Qna 엔티티 삭제 시, QnaAttachment, QnaReply는 CascadeType.ALL 또는 CascadeType.REMOVE 등으로
+        // 자동으로 함께 삭제되도록 설정되어 있다면 DB에서는 별도 삭제 호출이 필요 없을 수 있습니다.
+        // (Qna 엔티티의 @OneToMany, @OneToOne 관계 설정 확인 필요)
+        // 현재 Qna 엔티티에는 attachments와 reports에 cascade = CascadeType.ALL, orphanRemoval = true 설정,
+        // qnaReply 에는 cascade = CascadeType.ALL, orphanRemoval = true 설정이 되어 있으므로,
+        // qnaRepository.delete(qna) 호출 시 연관된 QnaAttachment, QnaReply, QnaReport 엔티티도 함께 삭제됩니다.
+
+        // 만약 Cascade 설정이 없다면 수동으로 삭제:
+        // if (qna.getQnaReply() != null) {
+        //     qnaReplyRepository.delete(qna.getQnaReply());
+        // }
+        // qnaAttachmentRepository.deleteAll(qna.getAttachments());
+        // qnaReportRepository.deleteAll(qna.getReports()); // QnaReport도 있다면
+
+        qnaRepository.delete(qna); // Qna 삭제 (Cascade 설정에 따라 연관 엔티티도 삭제됨)
+        log.info("QnA ID: {} deleted successfully by user {}", qnaId, userId);
+    }
+
+    // --- 관리자 답변 수정/삭제 메서드 구현 (새로 추가) ---
+
+    @Override
+    @Transactional // 쓰기 작업
+    public QnaReplyResponseDTO updateAdminReply(Integer replyId, QnaReplyRequestDTO replyDTO, String adminUserId) {
+        log.info("Admin {} updating reply ID: {}", adminUserId, replyId);
+
+        QnaReply qnaReply = qnaReplyRepository.findById(replyId)
+                .orElseThrow(() -> new EntityNotFoundException("수정할 답변을 찾을 수 없습니다: ID " + replyId));
+
+        // (선택 사항) 답변을 작성한 관리자 본인 또는 특정 권한을 가진 관리자만 수정 가능하도록 체크
+        // if (!qnaReply.getUser().getUserId().equals(adminUserId)) {
+        //     throw new AccessDeniedException("해당 답변을 수정할 권한이 없습니다.");
+        // }
+        // 현재는 요청한 adminUserId로 작성자 정보를 업데이트 하거나, 최초 작성자 정보를 유지할 수 있습니다.
+        // 여기서는 내용만 업데이트하고, 작성자 정보는 최초 작성자를 유지하는 것으로 가정합니다.
+        // 필요하다면, 답변 엔티티에 '최초 작성자', '최종 수정자' 필드를 둘 수도 있습니다.
+
+        qnaReply.setReplyContent(replyDTO.getReplyContent());
+        // qnaReply.setReplyUpdatedAt(LocalDateTime.now()); // @UpdateTimestamp 어노테이션이 자동으로 처리
+        QnaReply updatedReply = qnaReplyRepository.save(qnaReply);
+
+        // Qna 상태는 이미 'ANSWERED'일 것이므로 별도 변경은 필요 없을 수 있습니다.
+        // 만약 수정 시에도 Qna의 updatedAt을 갱신하고 싶다면 qnaRepository.save(qnaReply.getQna()) 호출
+
+        return QnaReplyResponseDTO.builder()
+                .replyId(updatedReply.getReplyId())
+                .replyContent(updatedReply.getReplyContent())
+                .replierNickname(updatedReply.getUser().getUserNickName()) // 최초 작성자 닉네임
+                .replyCreatedAt(updatedReply.getReplyCreatedAt())
+                .replyUpdatedAt(updatedReply.getReplyUpdatedAt())
+                .build();
+    }
+
+    @Override
+    @Transactional // 쓰기 작업
+    public void deleteAdminReply(Integer replyId, String adminUserId) {
+        log.info("Admin {} deleting reply ID: {}", adminUserId, replyId);
+
+        QnaReply qnaReply = qnaReplyRepository.findById(replyId)
+                .orElseThrow(() -> new EntityNotFoundException("삭제할 답변을 찾을 수 없습니다: ID " + replyId));
+
+        // (선택 사항) 답변을 작성한 관리자 본인 또는 특정 권한을 가진 관리자만 삭제 가능하도록 체크
+        // if (!qnaReply.getUser().getUserId().equals(adminUserId)) {
+        //    throw new AccessDeniedException("해당 답변을 삭제할 권한이 없습니다.");
+        // }
+
+        Qna qna = qnaReply.getQna();
+        if (qna == null) {
+            // 이론적으로 발생하기 어렵지만, 데이터 정합성 문제 방지
+            throw new IllegalStateException("답변에 연결된 원본 문의를 찾을 수 없습니다.");
+        }
+
+        qnaReplyRepository.delete(qnaReply);
+
+        // 답변이 삭제되었으므로 원본 문의(Qna)의 상태를 PENDING으로 변경
+        qna.setInquiryStatus(QnaStatus.PENDING);
+        qna.setQnaReply(null); // Qna 엔티티에서 답변 연관관계 제거
+        qnaRepository.save(qna);
+
+        log.info("Reply ID: {} deleted successfully. QnA ID: {} status updated to PENDING.", replyId, qna.getInquiryId());
+    }
+
 }

@@ -1,6 +1,7 @@
 package com.minute.board.qna.controller;
 
 import com.minute.board.qna.dto.request.QnaCreateRequestDTO;
+import com.minute.board.qna.dto.request.QnaUpdateRequestDTO; // 추가
 import com.minute.board.qna.dto.response.QnaDetailResponseDTO;
 import com.minute.board.qna.dto.response.QnaSummaryResponseDTO;
 import com.minute.board.qna.service.QnaService;
@@ -115,5 +116,58 @@ public class QnaController {
 
         QnaDetailResponseDTO qnaDetail = qnaService.getMyQnaDetail(qnaId, userId);
         return ResponseEntity.ok(qnaDetail);
+    }
+
+    // --- 사용자 문의 수정/삭제 엔드포인트 (새로 추가) ---
+
+    @Operation(summary = "내 문의 수정", description = "사용자가 자신이 작성한 문의를 수정합니다. (제목, 내용, 첨부파일 변경)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "문의 수정 성공",
+                    content = @Content(schema = @Schema(implementation = QnaDetailResponseDTO.class))),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+            @ApiResponse(responseCode = "403", description = "수정 권한 없음 (본인 문의가 아님)"),
+            @ApiResponse(responseCode = "404", description = "수정할 문의를 찾을 수 없음"),
+            @ApiResponse(responseCode = "500", description = "서버 내부 오류 (파일 처리 실패 등)")
+    })
+    @PutMapping(value = "/{qnaId}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<QnaDetailResponseDTO> updateMyQna(
+            @Parameter(description = "수정할 문의 ID", required = true, example = "1") @PathVariable Integer qnaId,
+            @Parameter(description = "수정할 문의 내용 DTO (JSON 형식)", schema = @Schema(type = "string", format = "binary"))
+            @Valid @RequestPart("qnaUpdateRequest") QnaUpdateRequestDTO requestDTO, // 프론트에서 'qnaUpdateRequest' key로 JSON 데이터 전송
+            @Parameter(description = "새로 첨부할 파일 목록 (기존 파일은 qnaUpdateRequest.attachmentIdsToDelete 로 삭제 지정)")
+            @RequestPart(value = "newFiles", required = false) List<MultipartFile> newFiles,
+            Authentication authentication) throws IOException {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String userId = authentication.getName();
+        log.info("User {} updating QnA ID: {}", userId, qnaId);
+
+        QnaDetailResponseDTO updatedQna = qnaService.updateMyQna(qnaId, requestDTO, newFiles, userId);
+        return ResponseEntity.ok(updatedQna);
+    }
+
+    @Operation(summary = "내 문의 삭제", description = "사용자가 자신이 작성한 문의를 삭제합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "문의 삭제 성공 (No Content)"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않은 사용자"),
+            @ApiResponse(responseCode = "403", description = "삭제 권한 없음 (본인 문의가 아님)"),
+            @ApiResponse(responseCode = "404", description = "삭제할 문의를 찾을 수 없음")
+    })
+    @DeleteMapping("/{qnaId}")
+    public ResponseEntity<Void> deleteMyQna(
+            @Parameter(description = "삭제할 문의 ID", required = true, example = "1") @PathVariable Integer qnaId,
+            Authentication authentication) {
+
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        String userId = authentication.getName();
+        log.info("User {} deleting QnA ID: {}", userId, qnaId);
+
+        qnaService.deleteMyQna(qnaId, userId);
+        return ResponseEntity.noContent().build(); // HTTP 204 No Content
     }
 }

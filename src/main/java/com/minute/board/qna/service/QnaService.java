@@ -1,6 +1,7 @@
 package com.minute.board.qna.service;
 
 import com.minute.board.qna.dto.request.QnaCreateRequestDTO;
+import com.minute.board.qna.dto.request.QnaUpdateRequestDTO;
 import com.minute.board.qna.dto.response.QnaDetailResponseDTO;
 import com.minute.board.qna.dto.response.QnaSummaryResponseDTO;
 import org.springframework.data.domain.Page;
@@ -82,4 +83,53 @@ public interface QnaService {
     QnaReplyResponseDTO createReplyToQna(Integer qnaId, QnaReplyRequestDTO replyDTO, String adminUserId);
 
     // 여기에 나중에 관리자 답변 수정/삭제, 문의 강제 삭제 등의 메서드 시그니처가 추가될 것입니다.
+
+    // --- 사용자 문의 수정/삭제 메서드 (새로 추가) ---
+
+    /**
+     * 현재 로그인한 사용자가 작성한 문의를 수정합니다.
+     * (제목, 내용 수정 및 첨부파일 변경 - 기존 파일 삭제, 새 파일 추가)
+     *
+     * @param qnaId       수정할 문의 ID
+     * @param requestDTO  수정할 내용 DTO (삭제할 첨부파일 ID 목록 포함)
+     * @param newFiles    새로 첨부할 파일 목록
+     * @param userId      요청 사용자 ID
+     * @return 수정된 문의의 상세 정보 DTO
+     * @throws IOException 파일 처리 중 오류 발생 시
+     */
+    QnaDetailResponseDTO updateMyQna(Integer qnaId, QnaUpdateRequestDTO requestDTO, List<MultipartFile> newFiles, String userId) throws IOException;
+
+    /**
+     * 현재 로그인한 사용자가 작성한 문의를 삭제합니다.
+     * (문의글, 관련 첨부파일(S3 및 DB), 관련 답변 모두 삭제)
+     *
+     * @param qnaId  삭제할 문의 ID
+     * @param userId 요청 사용자 ID
+     */
+    void deleteMyQna(Integer qnaId, String userId);
+
+    // 여기에 나중에 관리자 답변 수정/삭제, 문의 강제 삭제 등의 메서드 시그니처가 추가될 것입니다.
+
+    // --- 관리자 답변 수정/삭제 메서드 (새로 추가) ---
+
+    /**
+     * (관리자용) 특정 문의 답변을 수정합니다.
+     *
+     * @param replyId     수정할 답변 ID
+     * @param replyDTO    수정할 답변 내용 DTO
+     * @param adminUserId 요청 관리자 ID
+     * @return 수정된 답변 정보 DTO
+     */
+    QnaReplyResponseDTO updateAdminReply(Integer replyId, QnaReplyRequestDTO replyDTO, String adminUserId);
+
+    /**
+     * (관리자용) 특정 문의 답변을 삭제합니다.
+     * 답변 삭제 시 해당 문의(Qna)의 상태는 'PENDING'으로 변경됩니다.
+     *
+     * @param replyId     삭제할 답변 ID
+     * @param adminUserId 요청 관리자 ID
+     */
+    void deleteAdminReply(Integer replyId, String adminUserId);
+
+    // 여기에 나중에 관리자 문의 강제 삭제 등의 메서드 시그니처가 추가될 것입니다.
 }

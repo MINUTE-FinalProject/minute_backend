@@ -106,4 +106,46 @@ public class AdminQnaController {
         QnaReplyResponseDTO createdReply = qnaService.createReplyToQna(qnaId, requestDTO, adminUserId);
         return ResponseEntity.status(HttpStatus.CREATED).body(createdReply);
     }
+
+    // --- 관리자 답변 수정/삭제 엔드포인트 (새로 추가) ---
+
+    @Operation(summary = "문의 답변 수정 (관리자용)", description = "관리자가 특정 문의 답변을 수정합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "답변 수정 성공"),
+            @ApiResponse(responseCode = "400", description = "잘못된 요청 데이터 (내용 누락 등)"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않음"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "수정할 답변을 찾을 수 없음")
+    })
+    @PutMapping("/replies/{replyId}") // 경로를 /replies/{replyId}로 명확히 함
+    public ResponseEntity<QnaReplyResponseDTO> updateAdminReply(
+            @Parameter(description = "수정할 답변 ID", required = true, example = "1") @PathVariable Integer replyId,
+            @Valid @RequestBody QnaReplyRequestDTO requestDTO,
+            Authentication authentication) {
+
+        String adminUserId = authentication.getName();
+        log.info("Admin request: Update reply ID: {} by admin: {}", replyId, adminUserId);
+
+        QnaReplyResponseDTO updatedReply = qnaService.updateAdminReply(replyId, requestDTO, adminUserId);
+        return ResponseEntity.ok(updatedReply);
+    }
+
+    @Operation(summary = "문의 답변 삭제 (관리자용)", description = "관리자가 특정 문의 답변을 삭제합니다. 삭제 시 원본 문의는 'PENDING' 상태로 변경됩니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "204", description = "답변 삭제 성공 (No Content)"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않음"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음"),
+            @ApiResponse(responseCode = "404", description = "삭제할 답변을 찾을 수 없음")
+    })
+    @DeleteMapping("/replies/{replyId}") // 경로를 /replies/{replyId}로 명확히 함
+    public ResponseEntity<Void> deleteAdminReply(
+            @Parameter(description = "삭제할 답변 ID", required = true, example = "1") @PathVariable Integer replyId,
+            Authentication authentication) {
+
+        String adminUserId = authentication.getName();
+        log.info("Admin request: Delete reply ID: {} by admin: {}", replyId, adminUserId);
+
+        qnaService.deleteAdminReply(replyId, adminUserId);
+        return ResponseEntity.noContent().build(); // HTTP 204 No Content
+    }
 }
