@@ -19,22 +19,35 @@ public class VideoTag {
     @EmbeddedId
     private VideoTagId id;
 
-    @ManyToOne
+    // video_id 컬럼은 VideoTagId.videoId 와 매핑
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("videoId")
-    @JoinColumn(name = "video_id")
+    @JoinColumn(name = "video_id", nullable = false)
     private Video video;
 
-    @ManyToOne
+    // tag_id 컬럼은 VideoTagId.tagId 와 매핑
+    @ManyToOne(fetch = FetchType.LAZY)
     @MapsId("tagId")
-    @JoinColumn(name = "tag_id")
+    @JoinColumn(name = "tag_id", nullable = false)
     private Tag tag;
+
+    // 편의를 위해 생성자 추가 (builder 대신 사용할 때 유용)
+    public VideoTag(Video video, Tag tag) {
+        this.video = video;
+        this.tag = tag;
+        this.id = new VideoTagId(video.getVideoId(), tag.getTagId());
+    }
 
     @Embeddable
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class VideoTagId implements Serializable {
+
+        @Column(length = 50)
         private String videoId;
+
+        @Column
         private int tagId;
 
         @Override
@@ -42,8 +55,8 @@ public class VideoTag {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             VideoTagId that = (VideoTagId) o;
-            return Objects.equals(videoId, that.videoId) &&
-                    Objects.equals(tagId, that.tagId);
+            return tagId == that.tagId &&
+                    Objects.equals(videoId, that.videoId);
         }
 
         @Override
