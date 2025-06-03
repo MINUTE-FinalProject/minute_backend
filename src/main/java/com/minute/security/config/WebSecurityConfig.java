@@ -119,8 +119,47 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasRole("ADMIN")
 
-                        // 기타 모든 요청은 인증 필요
-                        .anyRequest().authenticated()
+
+                                // --- 플랜 캘린더 (인증 필요) ---
+                                .requestMatchers(HttpMethod.GET,    "/api/v1/plans",    "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.POST,   "/api/v1/plans",    "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.PUT,    "/api/v1/plans/{planId}", "/api/v1/plans/**").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/plans/{planId}", "/api/v1/plans/**").authenticated()
+
+                                // --- 체크리스트 (인증 필요) ---
+                                .requestMatchers(HttpMethod.GET,    "/api/v1/checklists",    "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.POST,   "/api/v1/checklists",    "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.PUT,    "/api/v1/checklists/{id}", "/api/v1/checklists/**").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/v1/checklists/{id}", "/api/v1/checklists/**").authenticated()
+
+                                // --- 비디오 & 쇼츠 & 히스토리 (permitAll) ---
+                                .requestMatchers(HttpMethod.GET, "/api/v1/videos/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/search/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
+                                .requestMatchers("/api/v1/watch-history/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+
+                                // --- 공지사항(Notice) ---
+                                .requestMatchers(HttpMethod.GET,  "/api/notices/**").permitAll()
+                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN")
+                                .requestMatchers(HttpMethod.PUT,  "/api/notices/**").hasRole("ADMIN")
+
+                                // --- 나머지 공개 API ---
+                                .requestMatchers(HttpMethod.GET, "/api/v1/mypage/**").permitAll()
+                                .requestMatchers(HttpMethod.GET, "/api/v1/weather/**").permitAll()
+
+
+                                // 비디오
+//
+                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
+                                .requestMatchers("/api/v1/watch-history/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/**").permitAll()
+                                .requestMatchers("/api/v1/videos/**").permitAll()
+                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+                        //
+                                .anyRequest().authenticated()
+
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
                 .addFilterBefore(jwtAuthenticationFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
