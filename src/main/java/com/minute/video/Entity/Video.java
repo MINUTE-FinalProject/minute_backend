@@ -1,6 +1,5 @@
 package com.minute.video.Entity;
 
-import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -42,15 +41,14 @@ public class Video {
     private Channel channel;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
-//    private List<VideoCategory> videoCategories;
     private List<VideoCategory> videoCategories = new ArrayList<>();
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<VideoTag> videoTags;
+    private List<VideoTag> videoTags = new ArrayList<>();
 
     // 추천 로직에 필요한 속성
-    private long views;
-    private long likes;
+    private Long views;
+    private Long likes;
 
     // 좋아요 증가
     public void increaseLikes() {

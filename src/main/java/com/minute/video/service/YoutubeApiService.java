@@ -112,6 +112,8 @@ public class YoutubeApiService {
                 .queryParam("maxResults", maxResults)
                 .queryParam("q", query)
                 .queryParam("regionCode", "KR")
+                .queryParam("videoCategoryId", "17")
+                .queryParam("safeSearch", "moderate")
                 .build()
                 .toUriString();
 

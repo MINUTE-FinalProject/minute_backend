@@ -35,4 +35,7 @@ public class VideoResponseDTO {
     @Schema(description = "좋아요 수")
     private Long likes;
 
+    // 추가: 추천 점수
+    private Integer recommendationScore;
+
 }
