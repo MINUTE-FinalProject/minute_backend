@@ -4,6 +4,24 @@ spring:
     username: minutedb
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: zes88ni@gmail.com
+    password: jsri bfac ynyg krmg
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  web:
+    resources:
+      static-locations: src/main/resources/static/upload
+
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -26,7 +44,7 @@ springdoc:
 
 youtube:
   api:
-#    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
+    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
 #    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
 #    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
 #    key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
@@ -41,3 +59,4 @@ logging:
 weather:
   api:
     key: 2339a562cb566b35a087b4e0eec2490b
+

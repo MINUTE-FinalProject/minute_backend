@@ -21,4 +21,5 @@ public interface ResponseCode {
 
     //Http Status 500
     String DATABASE_ERROR = "DE";
+    String MAIL_FAIL = "MF";
 }

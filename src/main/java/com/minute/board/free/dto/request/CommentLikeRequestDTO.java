@@ -9,7 +9,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-@Schema(description = "댓글 좋아요 요청 DTO (인증 연동 후에는 내용이 없을 수 있습니다)")
+@Schema(description = "댓글 좋아요 요청 DTO")
 public class CommentLikeRequestDTO {
 
     // userId 필드가 제거되어 내용이 없는 DTO가 되었습니다.

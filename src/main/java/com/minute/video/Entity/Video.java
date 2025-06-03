@@ -1,11 +1,7 @@
 package com.minute.video.Entity;
 
-import com.minute.user.entity.User;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,6 +9,7 @@ import java.util.List;
 @Entity
 @Table(name = "video")
 @Getter
+@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -44,14 +41,19 @@ public class Video {
     private Channel channel;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<VideoCategory> videoCategories;
+    private List<VideoCategory> videoCategories = new ArrayList<>();
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<VideoTag> videoTags;
+    private List<VideoTag> videoTags = new ArrayList<>();
 
     // 추천 로직에 필요한 속성
-    private long views;
-    private long likes;
+    @Builder.Default
+    @Column(name = "likes", nullable = false)
+    private Long likes = 0L;
+
+    @Builder.Default
+    @Column(name = "views", nullable = false)
+    private Long views = 0L;
 
     // 좋아요 증가
     public void increaseLikes() {

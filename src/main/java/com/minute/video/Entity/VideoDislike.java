@@ -27,7 +27,7 @@ public class VideoDislike {
     @ManyToOne
     @JoinColumn(name = "video_id", nullable = false)
     private Video video;
-    
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -10,7 +10,7 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Table(name = "bookmark", uniqueConstraints = { // 테이블 이름을 'bookmark'로 변경하는 것을 권장합니다.
+@Table(name = "bookmark", uniqueConstraints = { // 테이블 이름을 'bookmarks'로 변경하는 것을 권장합니다.
         @UniqueConstraint(columnNames = {"user_id", "video_id", "folder_id"})
 })
 public class Bookmark {

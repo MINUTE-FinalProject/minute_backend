@@ -8,7 +8,7 @@ import com.minute.user.enumpackage.UserStatus;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.json.simple.JSONObject;
+import net.minidev.json.JSONObject;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
@@ -60,5 +60,3 @@ public class CustomAuthSuccessHandler extends SavedRequestAwareAuthenticationSuc
         printWriter.close();
     }
 }
-
-

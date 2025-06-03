@@ -1,4 +1,4 @@
-package com.minute.auth.dto.request.auth;
+package com.minute.auth.dto.request;
 
 import lombok.Getter;
 import lombok.Setter;

@@ -20,6 +20,7 @@ public interface ResponseMessage {
 
     //Http Status 500
     String DATABASE_ERROR = "Database error";
+    String MAIL_FAIL = "Mail send failed";
 
     // ResponseMessage.java
     String USER_UPDATE_SUCCESS = "User information update success";

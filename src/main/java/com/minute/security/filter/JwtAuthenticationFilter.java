@@ -10,8 +10,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import org.json.simple.JSONObject;
+import net.minidev.json.JSONObject;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -36,72 +35,17 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
         this.jwtProvider = jwtProvider;
     }
 
-//    @Override
-//    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
-//            throws IOException, ServletException {
-//
-//        // 인증 제외 URI 목록
-//        List<String> whitelist = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth");
-//
-//        if (whitelist.contains(request.getRequestURI())) {
-//            chain.doFilter(request, response);
-//            return;
-//        }
-//
-//        String header = request.getHeader("Authorization");
-//
-//        try {
-//            if (header == null || !header.startsWith("Bearer ")) {
-//                chain.doFilter(request, response);
-//                return;
-//            }
-//
-//            String token = header.substring(7);
-//
-//            if (jwtProvider.isValidToken(token)) {
-//                Claims claims = jwtProvider.getClaims(token);
-//
-//                // 사용자 정보 파싱
-//                String userId = claims.get("userId", String.class);
-//                System.out.println("JWT에서 추출한 userId = " + userId);
-//
-//                String role = claims.get("Role", String.class);
-//
-//                // User, DetailsUser 생성
-//                User user = new User();
-//                user.setUserId(userId);
-//                user.setRole(Role.valueOf(role));
-//
-//                DetailUser detailUser = new DetailUser();
-//                detailUser.setUser(user);
-//
-//                // 인증 객체 생성 및 설정
-//                AbstractAuthenticationToken authenticationToken =
-//                        UsernamePasswordAuthenticationToken.authenticated(
-//                                detailUser, token, detailUser.getAuthorities()
-//                        );
-//                authenticationToken.setDetails(new WebAuthenticationDetails(request));
-//                SecurityContextHolder.getContext().setAuthentication(authenticationToken);
-//            }
-//
-//            chain.doFilter(request, response);
-//
-//        } catch (Exception e) {
-//            sendErrorResponse(response, e);
-//        }
-//    }
-
-    // JwtAuthenticationFilter.java의 doFilterInternal 메서드
-
-    //완수 디버깅 추가
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        // 인증 제외 URI 목록 (기존 유지)
-        List<String> whitelist = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth"); // 실제 운영에서는 WebSecurityConfig에서 관리하는 것이 더 일반적입니다.
+        // 인증 제외 URI 목록
+        List<String> whitelistPrefixes = Arrays.asList("/api/v1/auth/signup", "/api/v1/auth");
 
-        if (whitelist.contains(request.getRequestURI())) {
+        boolean isWhitelisted = whitelistPrefixes.stream()
+                .anyMatch(prefix -> request.getRequestURI().startsWith(prefix));
+
+        if (isWhitelisted) {
             chain.doFilter(request, response);
             return;
         }
@@ -136,9 +80,9 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
             Claims claims = jwtProvider.getClaims(token); // 여기서 다시 호출하여 claims를 얻거나, isValidToken에서 claims를 반환받는 구조도 가능
 
             String userId = claims.get("userId", String.class);
-            String roleString = claims.get("Role", String.class);
+            String roleString = claims.get("role", String.class);
 
-            System.out.println("[JwtAuthFilter] JWT에서 추출한 userId = " + userId + ", Role = " + roleString);
+
 
             if (userId == null || roleString == null) {
                 System.err.println("[JwtAuthFilter] 토큰 클레임에 필수 필드(userId, Role) 누락");
@@ -184,7 +128,6 @@ public class JwtAuthenticationFilter extends BasicAuthenticationFilter {
             // e.printStackTrace(); // 개발 중에만 스택 트레이스 전체 확인
             sendErrorResponse(response, e); // 일반적인 오류 메시지
         }
-        // 오류 발생 시 sendErrorResponse가 호출되고 응답이 커밋되므로, 추가적인 chain.doFilter 호출 없음
     }
 
 
