@@ -4,10 +4,11 @@ import com.minute.board.qna.entity.Qna;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-public interface QnaRepository extends JpaRepository<Qna, Integer> {
+public interface QnaRepository extends JpaRepository<Qna, Integer>, JpaSpecificationExecutor<Qna> {
     // Qna (Inquiry) 엔티티의 ID (inquiryId) 타입은 Integer 입니다.
     // 기능 구현 시 필요한 쿼리 메서드를 여기에 추가합니다.
 
@@ -31,7 +32,7 @@ public interface QnaRepository extends JpaRepository<Qna, Integer> {
      */
     @Query("SELECT q FROM Qna q WHERE q.user.userId = :userId AND " +
             "(LOWER(q.inquiryTitle) LIKE LOWER(CONCAT('%', :searchTerm, '%')) OR " +
-            "LOWER(q.inquiryContent) LIKE LOWER(CONCAT('%', :searchTerm, '%'))) " +
+            "q.inquiryContent LIKE CONCAT('%', :searchTerm, '%')) " + // LOWER() 함수 제거
             "ORDER BY q.inquiryCreatedAt DESC")
     Page<Qna> findByUser_UserIdAndSearchTermOrderByInquiryCreatedAtDesc(
             @Param("userId") String userId,
