@@ -1,9 +1,10 @@
 package com.minute.bookmark.controller;
 
 import com.minute.bookmark.dto.BookmarkCreateRequestDTO;
-import com.minute.bookmark.dto.BookmarkResponseDTO;
+import com.minute.bookmark.dto.BookmarkResponseDTO; // addBookmark에서는 여전히 사용
 import com.minute.bookmark.entity.Bookmark;
 import com.minute.bookmark.service.BookmarkService;
+import com.minute.video.dto.VideoResponseDTO; // VideoResponseDTO 사용
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -53,7 +54,7 @@ public class BookmarkController {
 
         Bookmark savedBookmark = bookmarkService.addVideoToFolder(currentUserId, requestDto).block();
 
-        // DTO의 정적 메소드를 사용하도록 수정
+        // 북마크 '생성' 결과에 대한 응답은 BookmarkResponseDTO를 유지합니다.
         return ResponseEntity.status(HttpStatus.CREATED).body(BookmarkResponseDTO.fromEntity(savedBookmark));
     }
 
@@ -80,22 +81,20 @@ public class BookmarkController {
 
     @GetMapping("/folder/{folderId}")
     @Operation(summary = "특정 폴더 내의 모든 북마크(비디오) 목록 조회")
-    public ResponseEntity<List<BookmarkResponseDTO>> getBookmarksInFolder(
+    public ResponseEntity<List<VideoResponseDTO>> getBookmarksInFolder(
             @Parameter(description = "북마크를 조회할 폴더의 ID") @PathVariable Integer folderId) {
         String currentUserId = getCurrentUserId();
         log.info("폴더 내 북마크 목록 조회 요청 - 사용자: {}, 폴더 ID: {}", currentUserId, folderId);
-        List<BookmarkResponseDTO> bookmarks = bookmarkService.getBookmarksByFolder(folderId, currentUserId);
-        return ResponseEntity.ok(bookmarks);
+        List<VideoResponseDTO> videos = bookmarkService.getBookmarksByFolder(folderId, currentUserId);
+        return ResponseEntity.ok(videos);
     }
 
     @GetMapping("/user/mine")
     @Operation(summary = "현재 사용자의 모든 북마크 목록 조회")
-    public ResponseEntity<List<BookmarkResponseDTO>> getAllMyBookmarks() {
+    public ResponseEntity<List<VideoResponseDTO>> getAllMyBookmarks() {
         String currentUserId = getCurrentUserId();
         log.info("현재 사용자({})의 모든 북마크 목록 조회 요청", currentUserId);
-        List<BookmarkResponseDTO> bookmarks = bookmarkService.getAllBookmarksForUser(currentUserId);
-        return ResponseEntity.ok(bookmarks);
+        List<VideoResponseDTO> videos = bookmarkService.getAllBookmarksForUser(currentUserId);
+        return ResponseEntity.ok(videos);
     }
-
-    // private convertToResponseDto 헬퍼 메소드는 삭제되었습니다.
 }

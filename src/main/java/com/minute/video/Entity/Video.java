@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -44,9 +45,11 @@ public class Video {
     private Channel channel;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
+    @JsonManagedReference
     private List<VideoCategory> videoCategories;
 
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<VideoTag> videoTags;
 
     // 추천 로직에 필요한 속성
