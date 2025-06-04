@@ -5,10 +5,9 @@ import com.minute.board.qna.dto.response.QnaAttachmentResponseDTO;
 import com.minute.board.qna.dto.response.QnaDetailResponseDTO;
 import com.minute.board.qna.dto.response.QnaReplyResponseDTO;
 import com.minute.board.qna.dto.response.QnaSummaryResponseDTO;
-import com.minute.board.qna.entity.Qna;
-import com.minute.board.qna.entity.QnaAttachment;
-import com.minute.board.qna.entity.QnaStatus;
+import com.minute.board.qna.entity.*;
 import com.minute.board.qna.repository.QnaAttachmentRepository;
+import com.minute.board.qna.repository.QnaReportRepository;
 import com.minute.board.qna.repository.QnaRepository;
 import com.minute.board.qna.service.QnaService;
 import com.minute.common.file.service.FileStorageService; // FileStorageService 인터페이스
@@ -30,11 +29,11 @@ import com.minute.board.qna.dto.request.QnaReplyRequestDTO; // 추가
 import com.minute.board.qna.dto.response.AdminQnaDetailResponseDTO; // 추가
 import com.minute.board.qna.dto.response.AdminQnaSummaryResponseDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReplyResponseDTO; // 추가
-import com.minute.board.qna.entity.QnaReply; // 추가
 import com.minute.board.qna.repository.QnaReplyRepository; // 추가
 import org.springframework.data.jpa.domain.Specification; // Specification 추가 (동적 쿼리용)
 import jakarta.persistence.criteria.Predicate; // Predicate 추가
 import com.minute.board.qna.dto.request.QnaUpdateRequestDTO; // 추가
+import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -44,6 +43,8 @@ import java.util.stream.Collectors;
 import java.time.LocalDate; // 추가
 import java.time.LocalDateTime; // 추가
 import java.time.LocalTime; // 추가
+
+import java.util.Optional; // 추가
 
 @Slf4j
 @Service
@@ -55,6 +56,7 @@ public class QnaServiceImpl implements QnaService {
     private final QnaAttachmentRepository qnaAttachmentRepository;
     private final UserRepository userRepository;
     private final QnaReplyRepository qnaReplyRepository; // 추가
+    private final QnaReportRepository qnaReportRepository; // 추가
 
     @Qualifier("s3FileStorageService") // 특정 빈 이름 지정 (S3FileStorageService에 @Service("s3FileStorageService") 설정 필요)
     private final FileStorageService fileStorageService; // S3 서비스 주입
@@ -550,6 +552,41 @@ public class QnaServiceImpl implements QnaService {
         qnaRepository.save(qna);
 
         log.info("Reply ID: {} deleted successfully. QnA ID: {} status updated to PENDING.", replyId, qna.getInquiryId());
+    }
+
+    // --- 관리자 QnA 신고 생성 메서드 구현 (새로 추가) ---
+
+    @Override
+    @Transactional // 쓰기 작업
+    public QnaReportResponseDTO createQnaReportByAdmin(Integer qnaId, String adminUserId) {
+        log.info("Admin {} attempting to create a report for QnA ID: {}", adminUserId, qnaId);
+
+        Qna qna = qnaRepository.findById(qnaId)
+                .orElseThrow(() -> new EntityNotFoundException("신고할 문의를 찾을 수 없습니다: ID " + qnaId));
+
+        User adminUser = userRepository.findById(adminUserId)
+                .orElseThrow(() -> new EntityNotFoundException("관리자 계정을 찾을 수 없습니다: " + adminUserId));
+
+        // QnaReportRepository에 findByQnaAndUser 또는 existsByQnaAndUser 메서드가 정의되어 있다고 가정
+        if (qnaReportRepository.existsByQnaAndUser(qna, adminUser)) { // existsBy... 사용 권장
+            log.warn("Admin {} already reported QnA ID: {}. Throwing IllegalStateException.", adminUserId, qnaId);
+            throw new IllegalStateException("이미 해당 관리자가 신고한 문의입니다."); // 409 Conflict 유도
+        }
+
+        QnaReport newReport = QnaReport.builder()
+                .qna(qna)
+                .user(adminUser)
+                .build();
+        QnaReport savedReport = qnaReportRepository.save(newReport);
+
+        log.info("Admin {} successfully reported QnA ID: {}. New Report ID: {}", adminUserId, qnaId, savedReport.getInquiryReportId());
+        return QnaReportResponseDTO.builder()
+                .reportId(savedReport.getInquiryReportId())
+                .qnaId(qnaId)
+                .reporterUserId(adminUserId)
+                .reportedAt(savedReport.getInquiryReportDate())
+                .message("문의가 성공적으로 신고(접수)되었습니다.")
+                .build();
     }
 
 }

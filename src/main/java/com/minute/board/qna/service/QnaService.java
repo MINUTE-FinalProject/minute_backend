@@ -11,6 +11,8 @@ import com.minute.board.qna.dto.request.QnaReplyRequestDTO; // 추가
 import com.minute.board.qna.dto.response.AdminQnaDetailResponseDTO; // 추가
 import com.minute.board.qna.dto.response.AdminQnaSummaryResponseDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReplyResponseDTO; // 추가
+import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
+import jakarta.persistence.EntityNotFoundException;
 
 import java.io.IOException;
 import java.time.LocalDate; // 추가
@@ -132,4 +134,17 @@ public interface QnaService {
     void deleteAdminReply(Integer replyId, String adminUserId);
 
     // 여기에 나중에 관리자 문의 강제 삭제 등의 메서드 시그니처가 추가될 것입니다.
+
+    // --- 관리자 QnA 신고 생성 메서드 (새로 추가) ---
+    /**
+     * (관리자용) 특정 문의(QnA)에 대해 관리자가 신고(QnaReport 생성)합니다.
+     * 이미 해당 관리자가 해당 문의를 신고한 경우, 기존 신고 정보를 반환하거나 적절한 메시지를 포함한 DTO를 반환합니다.
+     *
+     * @param qnaId       신고할 문의 ID
+     * @param adminUserId 신고하는 관리자 ID
+     * @return 생성된 QnaReport 정보 또는 관련 메시지를 담은 DTO
+     * @throws EntityNotFoundException QnA 또는 관리자 User를 찾을 수 없는 경우
+     */
+    QnaReportResponseDTO createQnaReportByAdmin(Integer qnaId, String adminUserId);
+
 }

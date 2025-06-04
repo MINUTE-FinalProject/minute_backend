@@ -9,6 +9,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.Parameters;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -25,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
 
 import java.time.LocalDate;
 
@@ -147,5 +150,31 @@ public class AdminQnaController {
 
         qnaService.deleteAdminReply(replyId, adminUserId);
         return ResponseEntity.noContent().build(); // HTTP 204 No Content
+    }
+
+    // --- 관리자 QnA 신고 생성 엔드포인트 (새로 추가) ---
+    @Operation(summary = "문의에 대한 관리자 신고 생성", description = "관리자가 특정 문의(QnA)에 대해 신고(QnaReport)를 생성합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "201", description = "관리자 신고 성공적으로 생성됨",
+                    content = @Content(schema = @Schema(implementation = QnaReportResponseDTO.class))),
+            @ApiResponse(responseCode = "401", description = "인증되지 않음"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님)"),
+            @ApiResponse(responseCode = "404", description = "신고할 문의 또는 관리자 계정을 찾을 수 없음"),
+            @ApiResponse(responseCode = "409", description = "이미 해당 관리자가 신고한 문의 (Conflict)")
+    })
+    @PostMapping("/{qnaId}/reports") // 특정 QnA에 대한 'reports' 리소스 생성으로 해석
+    public ResponseEntity<QnaReportResponseDTO> createQnaReportByAdmin(
+            @Parameter(description = "신고할 문의(QnA)의 ID", required = true, example = "1") @PathVariable Integer qnaId,
+            Authentication authentication) {
+
+        String adminUserId = authentication.getName(); // 관리자 ID (Principal)
+        log.info("Admin request: Admin {} creating report for QnA ID: {}", adminUserId, qnaId);
+
+        // 서비스 호출: 성공 시 QnaReportResponseDTO 반환, 이미 신고했거나 문제 발생 시 예외 발생
+        // (QnaServiceImpl에서 EntityNotFoundException 또는 IllegalStateException 등을 던지도록 구현)
+        QnaReportResponseDTO reportResponse = qnaService.createQnaReportByAdmin(qnaId, adminUserId);
+
+        // 성공적으로 새로운 신고가 생성된 경우
+        return ResponseEntity.status(HttpStatus.CREATED).body(reportResponse);
     }
 }
