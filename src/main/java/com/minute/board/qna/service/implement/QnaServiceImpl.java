@@ -404,6 +404,13 @@ public class QnaServiceImpl implements QnaService {
             throw new AccessDeniedException("해당 문의를 수정할 권한이 없습니다.");
         }
 
+        // --- 👇 [수정] 답변 완료된 문의는 수정 불가 로직 추가 ---
+        if (qna.getInquiryStatus() == QnaStatus.ANSWERED) {
+            log.warn("User {} attempted to update an already answered QnA ID: {}. Denying update.", userId, qnaId);
+            throw new IllegalStateException("이미 답변이 완료된 문의는 수정할 수 없습니다."); // 400 또는 409 에러로 처리될 수 있음 (GlobalExceptionHandler 설정에 따라)
+        }
+        // --- 👆 [수정] 답변 완료된 문의는 수정 불가 로직 추가 ---
+
         // 문의 제목 및 내용 업데이트
         qna.setInquiryTitle(requestDTO.getInquiryTitle());
         qna.setInquiryContent(requestDTO.getInquiryContent());
@@ -416,21 +423,17 @@ public class QnaServiceImpl implements QnaService {
             for (QnaAttachment attachment : qna.getAttachments()) {
                 if (idsToDelete.contains(attachment.getImgId())) {
                     attachmentsToRemove.add(attachment);
-                    // S3에서 파일 삭제 (imgFilePath에 전체 URL이 저장되어 있다고 가정)
-                    // 또는 imgSavedFilename(S3 Key)을 사용한다면 해당 키로 삭제
-                    fileStorageService.deleteFile(attachment.getImgFilePath()); // 또는 getImgSavedFilename()
+                    fileStorageService.deleteFile(attachment.getImgFilePath());
                 } else {
                     remainingAttachments.add(attachment);
                 }
             }
-            qnaAttachmentRepository.deleteAll(attachmentsToRemove); // DB에서 첨부파일 정보 삭제
-            qna.getAttachments().removeAll(attachmentsToRemove); // Qna 엔티티의 컬렉션에서도 제거
+            qnaAttachmentRepository.deleteAll(attachmentsToRemove);
+            qna.getAttachments().removeAll(attachmentsToRemove);
         } else {
             remainingAttachments.addAll(qna.getAttachments());
         }
 
-
-        // 새 첨부파일 추가 처리 (기존 + 신규 합쳐서 최대 개수 제한 등 로직 필요시 추가)
         List<QnaAttachmentResponseDTO> currentAttachmentDTOs = remainingAttachments.stream()
                 .map(att -> QnaAttachmentResponseDTO.builder()
                         .imgId(att.getImgId())
@@ -439,7 +442,6 @@ public class QnaServiceImpl implements QnaService {
                         .createdAt(att.getImgCreatedAt())
                         .build())
                 .collect(Collectors.toList());
-
 
         if (newFiles != null && !newFiles.isEmpty()) {
             List<String> uploadedFileUrls = fileStorageService.uploadFiles(newFiles, QNA_FILE_SUBDIRECTORY);
@@ -451,10 +453,10 @@ public class QnaServiceImpl implements QnaService {
                         .qna(qna)
                         .imgFilePath(fileUrl)
                         .imgOriginalFilename(file.getOriginalFilename())
-                        .imgSavedFilename(extractKeyFromUrl(fileUrl)) // S3 Key 추출
+                        .imgSavedFilename(extractKeyFromUrl(fileUrl))
                         .build();
                 qnaAttachmentRepository.save(newAttachment);
-                qna.getAttachments().add(newAttachment); // Qna 엔티티 컬렉션에 추가
+                qna.getAttachments().add(newAttachment);
 
                 currentAttachmentDTOs.add(QnaAttachmentResponseDTO.builder()
                         .imgId(newAttachment.getImgId())
@@ -465,13 +467,11 @@ public class QnaServiceImpl implements QnaService {
             }
         }
 
-        Qna updatedQna = qnaRepository.save(qna); // 변경된 문의 내용 및 첨부파일 관계 저장
+        Qna updatedQna = qnaRepository.save(qna);
 
-        // 답변 정보 DTO 변환
         QnaReplyResponseDTO replyDTO = null;
         if (updatedQna.getQnaReply() != null) {
             replyDTO = QnaReplyResponseDTO.builder()
-                    // ... (getMyQnaDetail에서 사용한 변환 로직과 동일하게 채우기) ...
                     .replyId(updatedQna.getQnaReply().getReplyId())
                     .replyContent(updatedQna.getQnaReply().getReplyContent())
                     .replierNickname(updatedQna.getQnaReply().getUser().getUserNickName())
