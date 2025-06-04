@@ -253,21 +253,38 @@ public class QnaServiceImpl implements QnaService {
     // --- 관리자 QnA 메서드 구현 (추가) ---
 
     @Override
-    public Page<AdminQnaSummaryResponseDTO> getAllQnasForAdmin(Pageable pageable, String searchTerm, String statusFilter, LocalDate startDate, LocalDate endDate) {
+    public Page<AdminQnaSummaryResponseDTO> getAllQnasForAdmin(Pageable pageable, String searchTerm,
+                                                               String statusFilter, LocalDate startDate, LocalDate endDate) {
         log.info("Admin: Fetching all QnAs. Page: {}, Size: {}, Search: '{}', Status: '{}', StartDate: {}, EndDate: {}",
                 pageable.getPageNumber(), pageable.getPageSize(), searchTerm, statusFilter, startDate, endDate);
 
-        // Specification을 사용한 동적 쿼리 생성
         Specification<Qna> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            // 검색어 조건 (제목, 내용, 사용자 ID, 사용자 닉네임)
+            // 검색어 조건
             if (StringUtils.hasText(searchTerm)) {
-                String likePattern = "%" + searchTerm.toLowerCase() + "%";
-                Predicate titleMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryTitle")), likePattern);
-                Predicate contentMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryContent")), likePattern);
-                Predicate userIdMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("user").get("userId")), likePattern);
-                Predicate userNicknameMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("user").get("userNickName")), likePattern);
+                String likePattern = "%" + searchTerm + "%"; // 원본 검색어 패턴 (CLOB 용)
+                String lowerSearchTermPattern = "%" + searchTerm.toLowerCase() + "%"; // 소문자 변환 검색어 패턴 (VARCHAR 용)
+
+                // Qna 엔티티의 User 필드를 통해 User 정보에 접근
+                Join<Qna, User> userJoin = root.join("user", JoinType.INNER); // 명시적 조인
+
+                Predicate titleMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("inquiryTitle")), // 제목 (VARCHAR)은 소문자 비교
+                        lowerSearchTermPattern
+                );
+                Predicate contentMatch = criteriaBuilder.like( // 내용 (CLOB)은 LOWER() 없이 비교
+                        root.get("inquiryContent"),
+                        likePattern
+                );
+                Predicate userIdMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(userJoin.get("userId")), // 작성자 ID (VARCHAR)는 소문자 비교
+                        lowerSearchTermPattern
+                );
+                Predicate userNicknameMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(userJoin.get("userNickName")), // 작성자 닉네임 (VARCHAR)은 소문자 비교
+                        lowerSearchTermPattern
+                );
                 predicates.add(criteriaBuilder.or(titleMatch, contentMatch, userIdMatch, userNicknameMatch));
             }
 
@@ -278,7 +295,6 @@ public class QnaServiceImpl implements QnaService {
                     predicates.add(criteriaBuilder.equal(root.get("inquiryStatus"), qnaStatus));
                 } catch (IllegalArgumentException e) {
                     log.warn("Invalid QnaStatus filter value: {}", statusFilter);
-                    // 유효하지 않은 상태 값은 무시하거나 또는 예외 처리
                 }
             }
 
@@ -290,14 +306,10 @@ public class QnaServiceImpl implements QnaService {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("inquiryCreatedAt"), LocalDateTime.of(endDate, LocalTime.MAX)));
             }
 
-            // 기본 정렬이 Pageable에 포함되어 있지 않으면 여기서 추가 가능
-            // query.orderBy(criteriaBuilder.desc(root.get("inquiryCreatedAt")));
-
-
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
 
-        Page<Qna> qnaPage = qnaRepository.findAll(spec, pageable); // Specification 사용
+        Page<Qna> qnaPage = qnaRepository.findAll(spec, pageable);
 
         return qnaPage.map(qna -> AdminQnaSummaryResponseDTO.builder()
                 .inquiryId(qna.getInquiryId())
@@ -306,7 +318,7 @@ public class QnaServiceImpl implements QnaService {
                 .authorNickname(qna.getUser() != null ? qna.getUser().getUserNickName() : "N/A")
                 .inquiryStatus(qna.getInquiryStatus().name())
                 .inquiryCreatedAt(qna.getInquiryCreatedAt())
-                .reportCount(qna.getReports() != null ? qna.getReports().size() : 0) // Qna 엔티티에 getReports()가 있다고 가정
+                .reportCount(qna.getReports() != null ? qna.getReports().size() : 0)
                 .hasAttachments(qna.getAttachments() != null && !qna.getAttachments().isEmpty())
                 .build());
     }

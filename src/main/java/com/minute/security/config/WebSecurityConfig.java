@@ -72,6 +72,7 @@ public class WebSecurityConfig {
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(request -> request
+                        // 1. Publicly accessible paths (Swagger, Auth validation, etc.)
                         .requestMatchers(
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
@@ -80,81 +81,93 @@ public class WebSecurityConfig {
                                 "/api-docs/**",
                                 "/webjars/**"
                         ).permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
-                                .requestMatchers("/upload/**").permitAll()
-                                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
-                                .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll()
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
-                                .requestMatchers("/api/v1/auth/sign-up").permitAll()
-                                .requestMatchers("/","/api/v1/auth/**", "/api/v1/search/**","/file/**").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/board/**","/api/v1/user/*").permitAll()
+                        .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
+                        .requestMatchers("/api/v1/auth/sign-up").permitAll()
+                        .requestMatchers("/upload/**").permitAll()
+                        .requestMatchers("/", "/api/v1/auth/**", "/api/v1/search/**", "/file/**").permitAll() // General public paths
 
-                                // 자유게시판 (Freeboard) API 경로 권한 설정
-// 공개적으로 접근 가능한 API (주로 GET 요청)
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free", "/api/v1/board/free/{postId}", "/api/v1/board/free/{postId}/comments").permitAll()
+                        // 2. Admin-specific paths (Most restrictive first)
+                        //    Assuming DetailUser provides "ADMIN" as GrantedAuthority string
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN") // Catch-all for admin paths
 
-// 인증된 사용자만 접근 가능한 API
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free").authenticated() // 게시글 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/{postId}").authenticated() // 게시글 수정
-                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/{postId}").authenticated() // 게시글 삭제
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/comments").authenticated() // 댓글 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/{commentId}").authenticated() // 댓글 수정
-                                .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/{commentId}").authenticated() // 댓글 삭제
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/like").authenticated() // 게시글 좋아요
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/{commentId}/like").authenticated() // 댓글 좋아요
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/report").authenticated() // 게시글 신고
-                                .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/{commentId}/report").authenticated() // 댓글 신고
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").authenticated() // 내 활동 보기
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").authenticated() // 내가 쓴 댓글 보기 (만약 "내"가 기준이라면)
+                        // Freeboard ADMIN paths (already covered by /api/v1/admin/** if paths start with /admin)
+                        // If paths are /api/v1/board/free/admin/**, then /api/v1/admin/** won't cover them.
+                        // Ensure these specific admin paths are also correctly configured or covered.
+                        // For now, let's assume /api/v1/admin/** covers them.
+                        // If not, they need individual .hasAuthority("ADMIN") rules before more general board rules.
+                        // Example:
+                        // .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasAuthority("ADMIN")
+                        // .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN")
+                        // .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN")
 
-// ADMIN 역할 사용자만 접근 가능한 API
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasRole("ADMIN") // 신고된 게시글 목록
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasRole("ADMIN") // 신고된 댓글 목록
-//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasRole("ADMIN") // 게시글 공개/숨김
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN") // hasRole 대신 hasAuthority 사용
-//                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN") // 댓글 공개/숨김
-                                .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN") // 댓글 공개/숨김
+                        // Notices ADMIN paths
+                        .requestMatchers(HttpMethod.POST, "/api/notices").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasAuthority("ADMIN")
 
-                                .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasRole("ADMIN") // 모든 신고된 활동
 
-                                .requestMatchers(HttpMethod.GET,"/api/v1/videos/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/search/**","/api/v1/user/*").permitAll()
-                                .requestMatchers("/api/v1/watch-history/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/**").permitAll()
-                                .requestMatchers("/api/v1/videos/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+                        // 3. Authenticated user paths (More general than admin, less general than permitAll for specific sub-paths)
 
-                                .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() //공지사항 목록/상세조회
-                                .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
-                                .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
+                        // Freeboard (Authenticated User - Non-Admin)
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/{postId}").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/{postId}").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/comments").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/board/free/comments/{commentId}").authenticated()
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/board/free/comments/{commentId}").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/like").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/{commentId}/like").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/{postId}/report").authenticated()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/board/free/comments/{commentId}/report").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").authenticated()
 
-                                // QnA (사용자) - 인증된 사용자만 접근
-                                .requestMatchers("/api/v1/qna/**").authenticated()
-                                .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN") // QnA 관리자 API 포함
+                        // QnA (User) - Authenticated
+                        // This rule should come AFTER /api/v1/admin/** if there's an overlap (e.g. /api/v1/admin/qna)
+                        // Since /api/v1/admin/** is already defined with hasAuthority("ADMIN"),
+                        // /api/v1/qna/** will correctly apply to non-admin qna paths.
+                        .requestMatchers("/api/v1/qna/**").authenticated()
 
-                                // 플랜 캘린더
-                                .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/caldendars/**","/api/v1/user/*").permitAll()
-                                .requestMatchers(HttpMethod.GET,"/api/v1/weather/**").permitAll()
 
-                                // 비디오
-//
-                                .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
-                                .requestMatchers("/api/v1/watch-history/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/**").permitAll()
-                                .requestMatchers("/api/v1/videos/**").permitAll()
-                                .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
-                        //
-                                .anyRequest().authenticated()
+                        // 4. General GET permitAll paths (if not covered by more specific permitAll above)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/**", "/api/v1/user/*").permitAll() // Broad GET access to boards and user info
+                        .requestMatchers(HttpMethod.GET,"/api/v1/videos/**").permitAll()
+                        .requestMatchers(HttpMethod.GET,"/api/v1/search/**").permitAll() // Duplicates above general search, can be consolidated
+                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll() // Notices list/detail
+                        .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**").permitAll() // mypage related
+                        .requestMatchers(HttpMethod.GET,"/api/v1/plans/**").permitAll() // plans related
+                        .requestMatchers(HttpMethod.GET,"/api/v1/caldendars/**").permitAll() // calendars related
+                        .requestMatchers(HttpMethod.GET,"/api/v1/weather/**").permitAll() // weather related
+                        .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll() // youtube shorts
+
+
+                        // 5. Other specific permitAll paths (if any)
+                        .requestMatchers("/api/v1/watch-history/**").permitAll()
+                        .requestMatchers("/api/v1/youtube/**").permitAll() // Could be broad, ensure no admin subpaths are unintentionally permitted
+                        .requestMatchers("/api/v1/videos/**").permitAll() // Duplicates GET videos, can be consolidated if only GET
+                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll() // Assuming this is a public save endpoint
+
+
+                        // 6. User modification paths (permitAll might be too open, consider 'authenticated' or more specific roles if needed)
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll() // User patching info
+                        .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()  // User creation/other POST actions
+
+
+                        // 자유게시판 중복된 ADMIN 규칙들 (위에서 /api/v1/admin/** 이나 개별 ADMIN 경로로 커버되는지 확인)
+                        // 만약 /api/v1/board/free/admin/** 형태가 아니라면, 이 규칙들은 유지되어야 함.
+                        // .hasAuthority("ADMIN")으로 통일
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN")
+
+
+                        // 7. Default: any other request must be authenticated
+                        .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
                 .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(jwtAuthenticationFilter(authenticationManager), JwtLoginFilter.class);
-
 
         return httpSecurity.build();
     }
@@ -164,7 +177,7 @@ public class WebSecurityConfig {
         public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException)
                 throws IOException, ServletException {
             response.setContentType("application/json");
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED); // This is what frontend receives as 401
             response.getWriter().write("{\"code\":\"AP\",\"message\":\"Authorization Failed\"}");
         }
     }
@@ -172,7 +185,7 @@ public class WebSecurityConfig {
     @Bean
     protected CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(List.of("http://localhost:[*]"));
+        configuration.setAllowedOriginPatterns(List.of("http://localhost:[*]")); // Allow requests from any localhost port
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
@@ -181,6 +194,4 @@ public class WebSecurityConfig {
         source.registerCorsConfiguration("/**", configuration);
         return source;
     }
-
-
 }

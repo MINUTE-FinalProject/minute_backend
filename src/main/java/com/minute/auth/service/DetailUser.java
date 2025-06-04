@@ -2,6 +2,7 @@ package com.minute.auth.service;
 
 import com.minute.user.entity.User;
 import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.ArrayList;
@@ -26,10 +27,27 @@ public class DetailUser implements UserDetails {
         this.user = user;
     }
 
+//    @Override
+//    public Collection<? extends GrantedAuthority> getAuthorities() {
+//        Collection<GrantedAuthority> authorities = new ArrayList<>();
+//        user.getRoleList().forEach(role -> authorities.add(() -> role));
+//        return authorities;
+//    }
+
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
-        user.getRoleList().forEach(role -> authorities.add(() -> role));
+        if (user != null && user.getRoleList() != null) {
+            for (String role : user.getRoleList()) {
+                if (role != null && !role.trim().isEmpty()) {
+                    // SimpleGrantedAuthority를 사용하여 명시적으로 권한 객체 생성
+                    SimpleGrantedAuthority authority = new SimpleGrantedAuthority(role);
+                    authorities.add(authority);
+                    // ⭐⭐⭐ 로그 추가: 실제로 생성된 권한 문자열 확인 ⭐⭐⭐
+                    System.out.println("[DetailUser DEBUG] GrantedAuthority created: " + authority.getAuthority());
+                }
+            }
+        }
         return authorities;
     }
 
