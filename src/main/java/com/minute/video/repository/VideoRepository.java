@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import org.springframework.data.domain.Pageable;
 import java.util.List;
 
 public interface VideoRepository extends JpaRepository<Video, String> {
@@ -30,9 +31,9 @@ public interface VideoRepository extends JpaRepository<Video, String> {
     // 좋아요 순
     List<Video> findTop50ByOrderByLikesDesc();
 
-    List<Video> findByRegion(String region);
+    List<Video> findByRegion(String region, Pageable pageable);
 
-    List<Video> findByRegionAndCity(String region, String city);
+    List<Video> findByRegionAndCity(String region, String city,Pageable pageable);
 
     @Query("""
     SELECT v FROM Video v 
