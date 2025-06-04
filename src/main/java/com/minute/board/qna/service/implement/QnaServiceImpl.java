@@ -126,37 +126,42 @@ public class QnaServiceImpl implements QnaService {
     // QnaServiceImpl.java 내 getMyQnas 메서드 수정 예시
     @Override
     public Page<QnaSummaryResponseDTO> getMyQnas(String userId, Pageable pageable, String searchTerm,
-                                                 String statusFilter, LocalDate startDate, LocalDate endDate) { // 파라미터 추가
+                                                 String statusFilter, LocalDate startDate, LocalDate endDate) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + userId));
 
-        // Specification을 사용한 동적 쿼리 생성
         Specification<Qna> spec = (root, query, criteriaBuilder) -> {
             List<Predicate> predicates = new ArrayList<>();
+            predicates.add(criteriaBuilder.equal(root.get("user"), user));
 
-            // 1. 현재 로그인한 사용자(userId)의 문의만 조회
-            predicates.add(criteriaBuilder.equal(root.get("user"), user)); // 또는 root.get("user").get("userId")
-
-            // 2. 검색어 조건 (제목 또는 내용)
             if (StringUtils.hasText(searchTerm)) {
-                String likePattern = "%" + searchTerm.toLowerCase() + "%";
-                Predicate titleMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryTitle")), likePattern);
-                Predicate contentMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryContent")), likePattern);
+                String likePattern = "%" + searchTerm + "%"; // searchTerm 자체를 사용 (DB가 대소문자 구분 안하게 설정되었거나, 구분 감수)
+                String lowerSearchTermPattern = "%" + searchTerm.toLowerCase() + "%"; // 제목은 소문자로 변환하여 비교
+
+                Predicate titleMatch = criteriaBuilder.like(
+                        criteriaBuilder.lower(root.get("inquiryTitle")), // 제목은 VARCHAR이므로 LCASE/LOWER 가능
+                        lowerSearchTermPattern
+                );
+
+                // inquiryContent (CLOB)는 LOWER 함수 없이 직접 LIKE 검색
+                // DB의 collation 설정이 대소문자를 구분하지 않는다면 (예: _ci 접미사), 잘 동작할 수 있음
+                Predicate contentMatch = criteriaBuilder.like(
+                        root.get("inquiryContent"),
+                        likePattern
+                );
+
                 predicates.add(criteriaBuilder.or(titleMatch, contentMatch));
             }
 
-            // 3. 답변 상태 필터 (statusFilter)
             if (StringUtils.hasText(statusFilter)) {
                 try {
                     QnaStatus qnaStatus = QnaStatus.valueOf(statusFilter.toUpperCase());
                     predicates.add(criteriaBuilder.equal(root.get("inquiryStatus"), qnaStatus));
                 } catch (IllegalArgumentException e) {
                     log.warn("Invalid QnaStatus filter value for user QnA list: {}", statusFilter);
-                    // 유효하지 않은 상태 값은 무시하거나 또는 예외 처리 (예: 빈 결과 반환)
                 }
             }
 
-            // 4. 날짜 범위 필터 (작성일: inquiryCreatedAt 기준)
             if (startDate != null) {
                 predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("inquiryCreatedAt"), LocalDateTime.of(startDate, LocalTime.MIN)));
             }
@@ -164,8 +169,7 @@ public class QnaServiceImpl implements QnaService {
                 predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("inquiryCreatedAt"), LocalDateTime.of(endDate, LocalTime.MAX)));
             }
 
-            // Pageable에 정렬 정보가 없으면 기본 정렬 추가 가능 (이미 PageableDefault로 createdAt desc 되어 있음)
-            // query.orderBy(criteriaBuilder.desc(root.get("inquiryCreatedAt")));
+            // query.orderBy(criteriaBuilder.desc(root.get("inquiryCreatedAt"))); // Pageable에 의해 처리
 
             return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
         };
@@ -175,7 +179,7 @@ public class QnaServiceImpl implements QnaService {
         return qnaPage.map(qna -> QnaSummaryResponseDTO.builder()
                 .inquiryId(qna.getInquiryId())
                 .inquiryTitle(qna.getInquiryTitle())
-                .authorNickname(qna.getUser().getUserNickName()) // 어차피 본인 닉네임
+                .authorNickname(qna.getUser().getUserNickName())
                 .inquiryStatus(qna.getInquiryStatus().name())
                 .inquiryCreatedAt(qna.getInquiryCreatedAt())
                 .hasAttachments(qna.getAttachments() != null && !qna.getAttachments().isEmpty())
