@@ -5,6 +5,7 @@ import com.minute.auth.common.ResponseMessage;
 import com.minute.auth.dto.response.ResponseDto;
 import com.minute.user.entity.User;
 import com.minute.user.enumpackage.Role;
+import com.minute.user.enumpackage.UserGender;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +21,9 @@ public class GetUserResponseDto extends ResponseDto {
     private LocalDateTime createdAt;
     private String userPhone;
     private String profileImage;
+    private int userReport;
     private Role role;
+    private UserGender userGender;
 
     private GetUserResponseDto(User user) {
         super(ResponseCode.SUCCESS, ResponseMessage.SUCCESS);
@@ -32,6 +35,8 @@ public class GetUserResponseDto extends ResponseDto {
         this.profileImage=user.getProfileImage();
         this.userPhone = user.getUserPhone();
         this.role = user.getRole();
+        this.userGender = user.getUserGender();
+        this.userReport = user.getUserReport();
     }
 
     public static ResponseEntity<GetUserResponseDto> success(User user) {

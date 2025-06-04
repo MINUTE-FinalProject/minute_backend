@@ -18,4 +18,11 @@ public class VideoResponseMapper {
         dto.setViews(video.getViews());
         return dto;
     }
+
+    // 추천 점수를 함께 전달받는 오버로드 메서드
+    public VideoResponseDTO toDtoWithStats(Video video, int score) {
+        VideoResponseDTO dto = toDtoWithStats(video); // 위 메서드 재사용
+        dto.setRecommendationScore(score);            // 추천 점수 추가
+        return dto;
+    }
 }

@@ -1,6 +1,7 @@
 package com.minute.video.Entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
@@ -11,7 +12,6 @@ import java.util.List;
 @Entity
 @Table(name = "video")
 @Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

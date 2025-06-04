@@ -9,7 +9,6 @@ import com.minute.video.repository.VideoDislikeRepository;
 import com.minute.video.repository.VideoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
@@ -20,7 +19,6 @@ public class VideoDislikeService {
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
 
-    @Transactional
     public void toggleDislike(String userId, String videoId) {
         // 존재 확인
         if (!userRepository.existsById(userId)) {

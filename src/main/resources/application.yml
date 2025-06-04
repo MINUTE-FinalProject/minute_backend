@@ -1,10 +1,27 @@
-
 spring:
   datasource:
     url: jdbc:mysql://15.164.166.199:3306/minutedb?serverTimezone=UTC
     username: minutedb
     password: 1234
     driver-class-name: com.mysql.cj.jdbc.Driver
+
+  mail:
+    host: smtp.gmail.com
+    port: 587
+    username: zes88ni@gmail.com
+    password: jsri bfac ynyg krmg
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+  web:
+    resources:
+      static-locations: src/main/resources/static/upload
+
+
   jpa:
     hibernate:
       ddl-auto: none
@@ -42,3 +59,4 @@ logging:
 weather:
   api:
     key: 2339a562cb566b35a087b4e0eec2490b
+

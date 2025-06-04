@@ -221,6 +221,12 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .freeboardComment(commentToReport)
                 .build();
         freeboardCommentReportRepository.save(newReport);
+
+        // ✅ 신고 당한 사용자의 신고 횟수 증가
+        User reportedUser = commentToReport.getUser();
+        reportedUser.setUserReport(reportedUser.getUserReport() + 1);
+        userRepository.save(reportedUser);
+
         return new ReportSuccessResponseDTO("댓글이 성공적으로 신고되었습니다.", commentId);
     }
 

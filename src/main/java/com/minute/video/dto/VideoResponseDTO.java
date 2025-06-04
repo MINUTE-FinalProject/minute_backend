@@ -18,6 +18,7 @@ import java.util.stream.Collectors;
 @NoArgsConstructor
 @Schema(name = "VideoResponseDTO", description = "영상 조회 응답 DTO")
 public class VideoResponseDTO {
+    // 추천 결과나 목록 보여줄 때 필요 응답용
 
     @Schema(description = "영상 고유 ID", example = "xyz123abs")
     private String videoId;
@@ -43,7 +44,8 @@ public class VideoResponseDTO {
     private Long views;
     @Schema(description = "좋아요 수")
     private Long likes;
-
+    // 추가: 추천 점수
+    private Integer recommendationScore;
     /**
      * Video 엔티티를 VideoResponseDTO로 변환하는 정적 팩토리 메소드.
      * 제공해주신 Video 엔티티의 구조를 기반으로 작성되었습니다.
@@ -83,6 +85,7 @@ public class VideoResponseDTO {
         if (video.getChannel() != null && video.getChannel().getChannelName() != null) {
             channelNameStr = video.getChannel().getChannelName();
         }
+
 
         return VideoResponseDTO.builder()
                 .videoId(video.getVideoId())

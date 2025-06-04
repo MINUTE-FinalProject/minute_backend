@@ -1,8 +1,7 @@
-package com.minute.auth.dto.response.auth;
+package com.minute.auth.dto.response;
 
 import com.minute.auth.common.ResponseCode;
 import com.minute.auth.common.ResponseMessage;
-import com.minute.auth.dto.response.ResponseDto;
 import com.minute.user.dto.response.CommonResponseDto;
 import lombok.Getter;
 import org.springframework.http.HttpStatus;

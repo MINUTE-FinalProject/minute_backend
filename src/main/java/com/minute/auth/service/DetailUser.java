@@ -29,9 +29,11 @@ public class DetailUser implements UserDetails {
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
         Collection<GrantedAuthority> authorities = new ArrayList<>();
-        user.getRoleList().forEach(role -> authorities.add(() -> role));
+        user.getRoleList().forEach(role -> authorities.add(() -> "ROLE_" + role));
         return authorities;
     }
+
+
 
     public String getUserId(){
         return user.getUserId();
