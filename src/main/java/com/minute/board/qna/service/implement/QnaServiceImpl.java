@@ -14,6 +14,7 @@ import com.minute.common.file.service.FileStorageService; // FileStorageService 
 import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -31,9 +32,11 @@ import com.minute.board.qna.dto.response.AdminQnaSummaryResponseDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReplyResponseDTO; // 추가
 import com.minute.board.qna.repository.QnaReplyRepository; // 추가
 import org.springframework.data.jpa.domain.Specification; // Specification 추가 (동적 쿼리용)
-import jakarta.persistence.criteria.Predicate; // Predicate 추가
 import com.minute.board.qna.dto.request.QnaUpdateRequestDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
+
+import com.minute.board.qna.dto.response.ReportedQnaItemResponseDTO; // 추가
+import com.minute.board.qna.entity.QnaReport; // 추가
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -588,5 +591,71 @@ public class QnaServiceImpl implements QnaService {
                 .message("문의가 성공적으로 신고(접수)되었습니다.")
                 .build();
     }
+
+    // --- (관리자용) 신고된 QnA 목록 조회 메서드 구현 (새로 추가) ---
+    @Override
+    public Page<ReportedQnaItemResponseDTO> getReportedQnasForAdmin(
+            Pageable pageable,
+            String searchTerm,
+            LocalDate reportStartDate,
+            LocalDate reportEndDate) {
+
+        log.info("Admin: Fetching reported QnAs. Page: {}, Size: {}, Search: '{}', ReportStart: {}, ReportEnd: {}",
+                pageable.getPageNumber(), pageable.getPageSize(), searchTerm, reportStartDate, reportEndDate);
+
+        Specification<Qna> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 1. QnaReport가 존재하는 QnA만 선택 (관리자가 신고한 QnA)
+            // Subquery를 사용하여 QnaReport 테이블에 해당 QnA에 대한 레코드가 있는지 확인
+            Subquery<Long> reportExistsSubquery = query.subquery(Long.class);
+            Root<QnaReport> qnaReportRoot = reportExistsSubquery.from(QnaReport.class);
+            reportExistsSubquery.select(criteriaBuilder.literal(1L)); // 존재 여부만 확인
+
+            List<Predicate> subqueryPredicates = new ArrayList<>();
+            subqueryPredicates.add(criteriaBuilder.equal(qnaReportRoot.get("qna"), root)); // QnaReport.qna == Qna (현재 Qna)
+
+            // 2. 신고일(QnaReport.inquiryReportDate) 기준으로 필터링
+            if (reportStartDate != null) {
+                subqueryPredicates.add(criteriaBuilder.greaterThanOrEqualTo(qnaReportRoot.get("inquiryReportDate"), LocalDateTime.of(reportStartDate, LocalTime.MIN)));
+            }
+            if (reportEndDate != null) {
+                subqueryPredicates.add(criteriaBuilder.lessThanOrEqualTo(qnaReportRoot.get("inquiryReportDate"), LocalDateTime.of(reportEndDate, LocalTime.MAX)));
+            }
+            reportExistsSubquery.where(criteriaBuilder.and(subqueryPredicates.toArray(new Predicate[0])));
+            predicates.add(criteriaBuilder.exists(reportExistsSubquery));
+
+
+            // 3. 검색어(searchTerm) 조건 (QnA 제목, 내용, QnA 작성자 ID, QnA 작성자 닉네임)
+            if (StringUtils.hasText(searchTerm)) {
+                String likePattern = "%" + searchTerm.toLowerCase() + "%";
+                Predicate titleMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryTitle")), likePattern);
+                Predicate contentMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryContent")), likePattern);
+                // User 엔티티 조인 (이미 ManyToOne으로 매핑되어 있음)
+                Join<Qna, User> userJoin = root.join("user", JoinType.INNER);
+                Predicate authorIdMatch = criteriaBuilder.like(criteriaBuilder.lower(userJoin.get("userId")), likePattern);
+                Predicate authorNicknameMatch = criteriaBuilder.like(criteriaBuilder.lower(userJoin.get("userNickName")), likePattern);
+                predicates.add(criteriaBuilder.or(titleMatch, contentMatch, authorIdMatch, authorNicknameMatch));
+            }
+
+            // 중복된 QnA가 결과에 포함되지 않도록 distinct 설정
+            query.distinct(true);
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Qna> reportedQnaPage = qnaRepository.findAll(spec, pageable);
+
+        return reportedQnaPage.map(qna -> ReportedQnaItemResponseDTO.builder()
+                .id(qna.getInquiryId())
+                .itemType("QNA") // 프론트엔드 구분용
+                .authorId(qna.getUser() != null ? qna.getUser().getUserId() : "N/A")
+                .authorNickname(qna.getUser() != null ? qna.getUser().getUserNickName() : "N/A")
+                .titleOrContentSnippet(qna.getInquiryTitle())
+                .originalPostDate(qna.getInquiryCreatedAt())
+                .reportCount(qna.getReports() != null ? qna.getReports().size() : 0) // Qna에 연결된 전체 신고 수
+                .build());
+    }
+
 
 }

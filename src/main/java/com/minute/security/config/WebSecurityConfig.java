@@ -131,6 +131,10 @@ public class WebSecurityConfig {
                                 .requestMatchers(HttpMethod.POST, "/api/notices").hasRole("ADMIN") //공지사항 작성
                                 .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasRole("ADMIN") //공지사항 수정
 
+                                // QnA (사용자) - 인증된 사용자만 접근
+                                .requestMatchers("/api/v1/qna/**").authenticated()
+                                .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN") // QnA 관리자 API 포함
+
                                 // 플랜 캘린더
                                 .requestMatchers(HttpMethod.GET,"/api/v1/mypage/**","/api/v1/user/*").permitAll()
                                 .requestMatchers(HttpMethod.GET,"/api/v1/plans/**","/api/v1/user/*").permitAll()

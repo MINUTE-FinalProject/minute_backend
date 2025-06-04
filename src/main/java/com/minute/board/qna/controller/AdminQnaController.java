@@ -28,6 +28,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
+import com.minute.board.qna.dto.response.ReportedQnaItemResponseDTO; // 추가
 
 import java.time.LocalDate;
 
@@ -176,5 +177,39 @@ public class AdminQnaController {
 
         // 성공적으로 새로운 신고가 생성된 경우
         return ResponseEntity.status(HttpStatus.CREATED).body(reportResponse);
+    }
+
+    // --- (관리자용) 신고된 QnA 목록 조회 엔드포인트 (새로 추가) ---
+    @Operation(summary = "신고된 QnA 목록 조회 (관리자용)",
+            description = "관리자가 신고한 QnA 목록을 페이징, 검색, 신고일자 필터 조건과 함께 조회합니다. " +
+                    "QnA 자체는 관리자만 신고할 수 있으므로, 이 목록은 관리자에 의해 신고된 QnA 목록입니다.")
+    @Parameters({
+            @Parameter(name = "page", description = "페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY),
+            @Parameter(name = "size", description = "페이지 당 항목 수", example = "10", in = ParameterIn.QUERY),
+            @Parameter(name = "sort", description = "정렬 조건 (QnA 필드 기준, 예: inquiryCreatedAt,desc). 기본 정렬은 서비스 로직에서 결정될 수 있음.",
+                    example = "inquiryCreatedAt,desc", in = ParameterIn.QUERY),
+            @Parameter(name = "searchTerm", description = "검색어 (QnA 제목, 내용, QnA 작성자ID, 닉네임)", example = "문제", in = ParameterIn.QUERY),
+            @Parameter(name = "reportStartDate", description = "신고일 검색 시작일 (QnaReport의 inquiryReportDate 기준, YYYY-MM-DD)", example = "2024-01-01", in = ParameterIn.QUERY),
+            @Parameter(name = "reportEndDate", description = "신고일 검색 종료일 (QnaReport의 inquiryReportDate 기준, YYYY-MM-DD)", example = "2024-12-31", in = ParameterIn.QUERY)
+    })
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "신고된 QnA 목록 조회 성공"),
+            @ApiResponse(responseCode = "401", description = "인증되지 않음"),
+            @ApiResponse(responseCode = "403", description = "접근 권한 없음 (관리자 아님)")
+    })
+    @GetMapping("/reported-items") // 경로 예: /api/v1/admin/qna/reported-items
+    public ResponseEntity<Page<ReportedQnaItemResponseDTO>> getReportedQnasForAdmin(
+            @PageableDefault(size = 10, sort = "inquiryCreatedAt", direction = Sort.Direction.DESC) Pageable pageable,
+            // pageable의 sort는 QnA 엔티티 필드 기준. Report 날짜 기준 정렬은 서비스 계층에서 Specification으로 처리하거나,
+            // 별도 sort 파라미터를 받아 서비스에서 분기 처리 필요.
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportStartDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate reportEndDate,
+            Authentication authentication) { // 관리자 권한 확인은 Spring Security에서 처리
+
+        log.info("Admin request: Get reported QnAs. Filters - Search: '{}', ReportStart: {}, ReportEnd: {}",
+                searchTerm, reportStartDate, reportEndDate);
+        Page<ReportedQnaItemResponseDTO> reportedQnaPage = qnaService.getReportedQnasForAdmin(pageable, searchTerm, reportStartDate, reportEndDate);
+        return ResponseEntity.ok(reportedQnaPage);
     }
 }

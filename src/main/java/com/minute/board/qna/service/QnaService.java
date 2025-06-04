@@ -13,6 +13,7 @@ import com.minute.board.qna.dto.response.AdminQnaSummaryResponseDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReplyResponseDTO; // 추가
 import com.minute.board.qna.dto.response.QnaReportResponseDTO; // 추가
 import jakarta.persistence.EntityNotFoundException;
+import com.minute.board.qna.dto.response.ReportedQnaItemResponseDTO; // 추가
 
 import java.io.IOException;
 import java.time.LocalDate; // 추가
@@ -147,4 +148,21 @@ public interface QnaService {
      */
     QnaReportResponseDTO createQnaReportByAdmin(Integer qnaId, String adminUserId);
 
+    // --- (관리자용) 신고된 QnA 목록 조회 메서드 (새로 추가) ---
+    /**
+     * (관리자용) 신고된 QnA 목록을 조회합니다.
+     * QnA는 관리자만 신고할 수 있으므로, 이 목록은 관리자에 의해 신고된 QnA 목록입니다.
+     *
+     * @param pageable        페이징 정보
+     * @param searchTerm      검색어 (QnA 제목, 내용, QnA 작성자 ID/닉네임 대상)
+     * @param reportStartDate 신고일 검색 시작일 (QnaReport의 inquiryReportDate 기준)
+     * @param reportEndDate   신고일 검색 종료일 (QnaReport의 inquiryReportDate 기준)
+     * @return 페이징된 신고된 QnA 아이템 DTO 목록
+     */
+    Page<ReportedQnaItemResponseDTO> getReportedQnasForAdmin(
+            Pageable pageable,
+            String searchTerm,
+            LocalDate reportStartDate,
+            LocalDate reportEndDate
+    );
 }
