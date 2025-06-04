@@ -2,6 +2,7 @@ package com.minute.bookmark.entity;
 
 import com.minute.folder.entity.Folder;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
 @Entity

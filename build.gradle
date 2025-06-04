@@ -53,8 +53,6 @@ dependencies {
     implementation 'jakarta.xml.bind:jakarta.xml.bind-api:3.0.1'
     implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
 
-
-
 }
 
 tasks.named('test') {
