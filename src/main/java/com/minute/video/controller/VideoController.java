@@ -107,4 +107,12 @@ public class VideoController {
     public List<CategoryDTO> getAllCategories() {
         return categoryService.getCategoryList();
     }
+
+    @GetMapping("/mixed")
+    public List<VideoResponseDTO> getMixedVideos(
+            @RequestParam String keyword,
+        @RequestParam(defaultValue = "10") int apiCount
+    ) {
+            return videoService.searchMixedVideos(keyword, apiCount);
+        }
 }
