@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/bookmarks")
+@RequestMapping("/api/v1/bookmarks")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 public class BookmarkController {

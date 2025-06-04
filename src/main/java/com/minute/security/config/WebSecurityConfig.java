@@ -176,6 +176,16 @@ public class WebSecurityConfig {
                                 .requestMatchers("/api/v1/youtube/**").permitAll()
                                 .requestMatchers("/api/v1/videos/**").permitAll()
                                 .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
+
+                                .requestMatchers(HttpMethod.POST,   "/api/folder").authenticated()
+                                .requestMatchers(HttpMethod.GET,    "/api/folder").authenticated()
+                                .requestMatchers(HttpMethod.PUT,    "/api/folder/**").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/folder/**").authenticated()
+
+                                .requestMatchers(HttpMethod.POST,   "/api/bookmarks").authenticated()
+                                .requestMatchers(HttpMethod.DELETE, "/api/bookmarks/**").authenticated()
+                                .requestMatchers(HttpMethod.GET,    "/api/bookmarks/folder/**").authenticated()
+                                .requestMatchers(HttpMethod.GET,    "/api/bookmarks/user/mine").authenticated()
                         //
                                 .anyRequest().authenticated()
 
