@@ -18,7 +18,7 @@ public interface PlanRepository extends JpaRepository<Plan, Integer> {
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 
-    // 특정 날짜 plan 찾기
+    // 날짜별 Plan 전체 조회
     List<Plan> findAllByUser_UserIdAndTravelDate(String userId, LocalDate travelDate);
 
 }

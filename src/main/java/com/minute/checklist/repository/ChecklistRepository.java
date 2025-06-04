@@ -16,8 +16,7 @@ public interface ChecklistRepository extends JpaRepository<Checklist, Integer> {
                                            @Param("startDate") LocalDate startDate,
                                            @Param("endDate") LocalDate endDate);
 
-    //
+    // 날짜별 전체 조회
     List<Checklist> findAllByUser_UserIdAndTravelDate(String userId, LocalDate travelDate);
 
-    List<Checklist> findByPlan_PlanId(Integer planId);
 }
