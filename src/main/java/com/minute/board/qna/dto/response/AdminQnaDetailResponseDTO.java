@@ -45,6 +45,10 @@ public class AdminQnaDetailResponseDTO {
     @Schema(description = "해당 문의에 대한 신고 건수", example = "0")
     private long reportCount; // QnaReport 개수
 
+    // 👇 새로운 필드 추가
+    @Schema(description = "현재 요청한 관리자가 이 문의를 신고했는지 여부", example = "false")
+    private boolean reportedByCurrentUserAdmin; // 필드명은 상황에 맞게 조절 가능
+
     // Qna 엔티티 등에서 이 DTO를 생성하는 정적 메서드 (예시)
     // public static AdminQnaDetailResponseDTO fromEntity(Qna qna, List<QnaAttachmentResponseDTO> attachmentDTOs, QnaReplyResponseDTO replyDTO, long reportCount) {
     //     return AdminQnaDetailResponseDTO.builder()

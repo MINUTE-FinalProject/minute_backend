@@ -21,6 +21,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.AccessDeniedException; // 권한 예외
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils; // StringUtils 임포트
@@ -325,9 +328,28 @@ public class QnaServiceImpl implements QnaService {
 
     @Override
     public AdminQnaDetailResponseDTO getQnaDetailForAdmin(Integer qnaId) {
+        // 1. 현재 요청을 보낸 관리자 정보 가져오기
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String currentAdminUserId = null;
+        User currentAdminUser = null;
+
+        if (authentication != null && authentication.isAuthenticated() && !(authentication instanceof AnonymousAuthenticationToken)) {
+            currentAdminUserId = authentication.getName(); // Principal에서 사용자 ID (일반적으로 username) 가져오기
+            if (currentAdminUserId != null) {
+                // 사용자 ID로 User 엔티티 조회
+                currentAdminUser = userRepository.findById(currentAdminUserId)
+                        .orElse(null); // 사용자를 찾지 못할 경우 null
+            }
+        } else {
+            log.warn("Admin QnA detail requested without proper authentication. Cannot determine current admin user.");
+            // 인증 정보가 없으면 reportedByCurrentUserAdmin은 false로 유지됨
+        }
+
+        // 2. QnA 정보 조회
         Qna qna = qnaRepository.findById(qnaId)
                 .orElseThrow(() -> new EntityNotFoundException("문의를 찾을 수 없습니다: ID " + qnaId));
 
+        // 3. 첨부파일 DTO 목록 생성
         List<QnaAttachmentResponseDTO> attachmentDTOs = qna.getAttachments().stream()
                 .map(att -> QnaAttachmentResponseDTO.builder()
                         .imgId(att.getImgId())
@@ -337,6 +359,7 @@ public class QnaServiceImpl implements QnaService {
                         .build())
                 .collect(Collectors.toList());
 
+        // 4. 답변 DTO 생성
         QnaReplyResponseDTO replyDTO = null;
         if (qna.getQnaReply() != null) {
             replyDTO = QnaReplyResponseDTO.builder()
@@ -348,10 +371,17 @@ public class QnaServiceImpl implements QnaService {
                     .build();
         }
 
-        // Qna 엔티티에 List<QnaReport> reports 필드가 있고, getReports() 메서드가 있다고 가정
-        long reportCount = qna.getReports() != null ? qna.getReports().size() : 0;
+        // 5. 전체 신고 건수 계산
+        long totalReportCount = qna.getReports() != null ? qna.getReports().size() : 0;
 
+        // 6. 현재 로그인한 관리자가 이 QnA를 신고했는지 여부 확인
+        boolean isReportedByThisAdmin = false;
+        if (currentAdminUser != null) { // currentAdminUser가 null이 아닐 때만 (즉, 관리자 정보 조회가 성공했을 때만)
+            // QnaReportRepository에 해당 메서드가 정의되어 있어야 함
+            isReportedByThisAdmin = qnaReportRepository.existsByQnaAndUser(qna, currentAdminUser);
+        }
 
+        // 7. AdminQnaDetailResponseDTO 빌드하여 반환
         return AdminQnaDetailResponseDTO.builder()
                 .inquiryId(qna.getInquiryId())
                 .inquiryTitle(qna.getInquiryTitle())
@@ -363,8 +393,8 @@ public class QnaServiceImpl implements QnaService {
                 .inquiryUpdatedAt(qna.getInquiryUpdatedAt())
                 .attachments(attachmentDTOs)
                 .reply(replyDTO)
-                .reportCount(reportCount) // 신고 건수 추가
-                // .isReportedByAdmin(...) // Qna 엔티티에 관리자 신고 조치 필드가 있다면 추가
+                .reportCount(totalReportCount) // 전체 신고 건수
+                .reportedByCurrentUserAdmin(isReportedByThisAdmin) // ⭐ 현재 관리자의 신고 여부 추가
                 .build();
     }
 
