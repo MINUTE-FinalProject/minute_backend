@@ -41,5 +41,10 @@ public class FreeboardPostResponseDTO {
     @Schema(description = "작성자 닉네임", example = "날씨요정")
     private String userNickName; // User 엔티티에서 가져올 닉네임
 
-    // 필요에 따라 댓글 목록, 좋아요 여부 등 추가 정보 포함 가능
+    // <<< 추가된 필드 >>>
+    @Schema(description = "현재 로그인한 사용자의 해당 게시글 좋아요 여부", example = "true")
+    private boolean isLikedByCurrentUser;
+
+    @Schema(description = "현재 로그인한 사용자의 해당 게시글 신고 여부", example = "false")
+    private boolean isReportedByCurrentUser;
 }

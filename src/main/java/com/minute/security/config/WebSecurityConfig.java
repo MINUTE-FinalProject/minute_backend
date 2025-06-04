@@ -72,15 +72,15 @@ public class WebSecurityConfig {
                 .httpBasic(httpBasic -> httpBasic.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(request -> request
-                                .requestMatchers(
-                                        "/swagger-ui/**",
-                                        "/v3/api-docs/**",
-                                        "/swagger-resources/**",
-                                        "/swagger-ui.html",
-                                        "/api-docs/**",
-                                        "/webjars/**"
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-resources/**",
+                                "/swagger-ui.html",
+                                "/api-docs/**",
+                                "/webjars/**"
 
-                                ).permitAll()
+                        ).permitAll()
                                 .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
                                 .requestMatchers("/api/v1/auth/sign-up").permitAll()
                                 .requestMatchers("/upload/**").permitAll()
@@ -145,7 +145,7 @@ public class WebSecurityConfig {
                                 .requestMatchers("/api/v1/youtube/**").permitAll()
                                 .requestMatchers("/api/v1/videos/**").permitAll()
                                 .requestMatchers("/api/v1/youtube/shorts/save").permitAll()
-                                //
+                        //
                                 .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
