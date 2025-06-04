@@ -33,14 +33,18 @@ public interface QnaService {
     QnaDetailResponseDTO createQna(QnaCreateRequestDTO requestDTO, List<MultipartFile> files, String userId) throws IOException;
 
     /**
-     * 현재 로그인한 사용자의 문의 목록을 검색어와 함께 페이징하여 조회합니다.
+     * 현재 로그인한 사용자의 문의 목록을 검색어 및 필터 조건과 함께 페이징하여 조회합니다. // 설명 수정
      *
-     * @param userId     사용자 ID
-     * @param pageable   페이징 정보
-     * @param searchTerm 검색어 (제목 또는 내용)
+     * @param userId       사용자 ID
+     * @param pageable     페이징 정보
+     * @param searchTerm   검색어 (제목 또는 내용)
+     * @param statusFilter 답변 상태 필터 (PENDING, ANSWERED, null일 경우 전체) // 추가
+     * @param startDate    검색 시작일 (작성일 기준) // 추가
+     * @param endDate      검색 종료일 (작성일 기준) // 추가
      * @return 페이징된 문의 요약 정보 DTO 목록
      */
-    Page<QnaSummaryResponseDTO> getMyQnas(String userId, Pageable pageable, String searchTerm);
+    Page<QnaSummaryResponseDTO> getMyQnas(String userId, Pageable pageable, String searchTerm,
+                                          String statusFilter, LocalDate startDate, LocalDate endDate); // 파라미터 추가
 
     /**
      * 현재 로그인한 사용자의 특정 문의 상세 정보를 조회합니다.

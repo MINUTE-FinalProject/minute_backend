@@ -22,6 +22,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -30,6 +31,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 @Slf4j
@@ -74,7 +76,11 @@ public class QnaController {
             @Parameter(name = "page", description = "페이지 번호 (0부터 시작)", example = "0", in = ParameterIn.QUERY),
             @Parameter(name = "size", description = "페이지 당 항목 수", example = "10", in = ParameterIn.QUERY),
             @Parameter(name = "sort", description = "정렬 조건 (예: inquiryCreatedAt,desc)", example = "inquiryCreatedAt,desc", in = ParameterIn.QUERY),
-            @Parameter(name = "searchTerm", description = "검색어 (제목 또는 내용)", example = "결제", in = ParameterIn.QUERY)
+            @Parameter(name = "searchTerm", description = "검색어 (제목 또는 내용)", example = "결제", in = ParameterIn.QUERY),
+            // 아래 3개 파라미터 추가
+            @Parameter(name = "statusFilter", description = "답변 상태 필터 (PENDING, ANSWERED)", example = "PENDING", in = ParameterIn.QUERY),
+            @Parameter(name = "startDate", description = "검색 시작일 (YYYY-MM-DD)", example = "2024-01-01", in = ParameterIn.QUERY),
+            @Parameter(name = "endDate", description = "검색 종료일 (YYYY-MM-DD)", example = "2024-12-31", in = ParameterIn.QUERY)
     })
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "문의 목록 조회 성공"),
@@ -84,15 +90,23 @@ public class QnaController {
     public ResponseEntity<Page<QnaSummaryResponseDTO>> getMyQnas(
             @PageableDefault(size = 10, sort = "inquiryCreatedAt", direction = Sort.Direction.DESC) Pageable pageable,
             @RequestParam(required = false) String searchTerm,
+            // 아래 3개 파라미터 추가
+            @RequestParam(required = false) String statusFilter,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
             Authentication authentication) {
 
         if (authentication == null || !authentication.isAuthenticated()) {
+            // 이 부분은 Spring Security에서 이미 처리해주므로 사실상 필요 없을 수 있습니다.
+            // 하지만 명시적으로 방어 코드를 두는 것도 좋습니다.
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
         String userId = authentication.getName();
-        log.info("Fetching QnAs for user: {}, page: {}, size: {}, search: {}", userId, pageable.getPageNumber(), pageable.getPageSize(), searchTerm);
+        log.info("Fetching QnAs for user: {}, page: {}, size: {}, search: {}, status: {}, start: {}, end: {}",
+                userId, pageable.getPageNumber(), pageable.getPageSize(), searchTerm, statusFilter, startDate, endDate);
 
-        Page<QnaSummaryResponseDTO> qnaPage = qnaService.getMyQnas(userId, pageable, searchTerm);
+        // 서비스 호출 시 새로운 파라미터 전달
+        Page<QnaSummaryResponseDTO> qnaPage = qnaService.getMyQnas(userId, pageable, searchTerm, statusFilter, startDate, endDate);
         return ResponseEntity.ok(qnaPage);
     }
 

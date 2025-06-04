@@ -125,22 +125,57 @@ public class QnaServiceImpl implements QnaService {
 
     // QnaServiceImpl.java 내 getMyQnas 메서드 수정 예시
     @Override
-    public Page<QnaSummaryResponseDTO> getMyQnas(String userId, Pageable pageable, String searchTerm) {
-        userRepository.findById(userId)
+    public Page<QnaSummaryResponseDTO> getMyQnas(String userId, Pageable pageable, String searchTerm,
+                                                 String statusFilter, LocalDate startDate, LocalDate endDate) { // 파라미터 추가
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자를 찾을 수 없습니다: " + userId));
 
-        Page<Qna> qnaPage;
-        if (StringUtils.hasText(searchTerm)) {
-            // QnaRepository에 새로 추가한 검색 메서드 사용
-            qnaPage = qnaRepository.findByUser_UserIdAndSearchTermOrderByInquiryCreatedAtDesc(userId, searchTerm, pageable);
-        } else {
-            qnaPage = qnaRepository.findByUser_UserIdOrderByInquiryCreatedAtDesc(userId, pageable);
-        }
+        // Specification을 사용한 동적 쿼리 생성
+        Specification<Qna> spec = (root, query, criteriaBuilder) -> {
+            List<Predicate> predicates = new ArrayList<>();
+
+            // 1. 현재 로그인한 사용자(userId)의 문의만 조회
+            predicates.add(criteriaBuilder.equal(root.get("user"), user)); // 또는 root.get("user").get("userId")
+
+            // 2. 검색어 조건 (제목 또는 내용)
+            if (StringUtils.hasText(searchTerm)) {
+                String likePattern = "%" + searchTerm.toLowerCase() + "%";
+                Predicate titleMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryTitle")), likePattern);
+                Predicate contentMatch = criteriaBuilder.like(criteriaBuilder.lower(root.get("inquiryContent")), likePattern);
+                predicates.add(criteriaBuilder.or(titleMatch, contentMatch));
+            }
+
+            // 3. 답변 상태 필터 (statusFilter)
+            if (StringUtils.hasText(statusFilter)) {
+                try {
+                    QnaStatus qnaStatus = QnaStatus.valueOf(statusFilter.toUpperCase());
+                    predicates.add(criteriaBuilder.equal(root.get("inquiryStatus"), qnaStatus));
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid QnaStatus filter value for user QnA list: {}", statusFilter);
+                    // 유효하지 않은 상태 값은 무시하거나 또는 예외 처리 (예: 빈 결과 반환)
+                }
+            }
+
+            // 4. 날짜 범위 필터 (작성일: inquiryCreatedAt 기준)
+            if (startDate != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("inquiryCreatedAt"), LocalDateTime.of(startDate, LocalTime.MIN)));
+            }
+            if (endDate != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("inquiryCreatedAt"), LocalDateTime.of(endDate, LocalTime.MAX)));
+            }
+
+            // Pageable에 정렬 정보가 없으면 기본 정렬 추가 가능 (이미 PageableDefault로 createdAt desc 되어 있음)
+            // query.orderBy(criteriaBuilder.desc(root.get("inquiryCreatedAt")));
+
+            return criteriaBuilder.and(predicates.toArray(new Predicate[0]));
+        };
+
+        Page<Qna> qnaPage = qnaRepository.findAll(spec, pageable);
 
         return qnaPage.map(qna -> QnaSummaryResponseDTO.builder()
                 .inquiryId(qna.getInquiryId())
                 .inquiryTitle(qna.getInquiryTitle())
-                .authorNickname(qna.getUser().getUserNickName())
+                .authorNickname(qna.getUser().getUserNickName()) // 어차피 본인 닉네임
                 .inquiryStatus(qna.getInquiryStatus().name())
                 .inquiryCreatedAt(qna.getInquiryCreatedAt())
                 .hasAttachments(qna.getAttachments() != null && !qna.getAttachments().isEmpty())
