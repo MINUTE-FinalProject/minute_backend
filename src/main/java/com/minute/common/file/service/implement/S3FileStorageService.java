@@ -50,7 +50,7 @@ public class S3FileStorageService implements FileStorageService {
                 .bucket(bucketName)
                 .key(s3Key)
                 .contentType(file.getContentType())
-                .acl(ObjectCannedACL.PUBLIC_READ) // 필요에 따라 ACL 설정 (예: 공개 읽기 가능)
+//                .acl(ObjectCannedACL.PUBLIC_READ) // 필요에 따라 ACL 설정 (예: 공개 읽기 가능)
                 .build();
 
         s3Client.putObject(putObjectRequest, RequestBody.fromInputStream(file.getInputStream(), file.getSize()));
