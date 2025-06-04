@@ -27,8 +27,8 @@ springdoc:
 
 youtube:
   api:
-    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
-#    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
+#    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
+    key: AIzaSyCailrVqblKKNJhmKa9SQgQxYTGQ2L1jHM
 #    key: AIzaSyAu2BnWSdlce00DA2hI27nTIkUs2bv6EN0
 #    key: AIzaSyBM_ppqpSKjfY-v4hZPiZFrki8tSWs0n30
 

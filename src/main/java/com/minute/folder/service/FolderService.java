@@ -25,18 +25,18 @@ import java.util.stream.Collectors;
 public class FolderService {
 
     private final FolderRepository folderRepository;
-    private final BookmarkRepository bookmarkRepository;
+    private final BookmarkRepository bookmarkRepository; // BookmarkRepository 주입 확인
     private static final Logger log = LoggerFactory.getLogger(FolderService.class);
 
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null) {
             log.warn("[FolderService] getCurrentUserId: Authentication 객체가 null입니다.");
-            throw new IllegalStateException("인증 정보를 찾을 수 없습니다. (Auth is null)");
+            throw new RuntimeException("인증 정보를 찾을 수 없습니다. (Authentication is null)");
         }
         if (!authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
             log.warn("[FolderService] getCurrentUserId: 사용자가 인증되지 않았습니다.");
-            throw new IllegalStateException("인증되지 않은 사용자입니다. (Not Authenticated)");
+            throw new RuntimeException("인증되지 않은 사용자입니다. (Not Authenticated)");
         }
         Object principal = authentication.getPrincipal();
         if (principal instanceof UserDetails) {
@@ -44,7 +44,8 @@ public class FolderService {
         } else if (principal instanceof String) {
             return (String) principal;
         }
-        throw new IllegalStateException("사용자 ID를 추출할 수 없는 인증 객체 타입입니다.");
+        log.error("[FolderService] getCurrentUserId: 사용자 ID를 추출할 수 없는 인증 객체 타입: {}", principal.getClass().getName());
+        throw new RuntimeException("사용자 ID를 추출할 수 없는 인증 객체 타입입니다.");
     }
 
     @Transactional
@@ -77,27 +78,32 @@ public class FolderService {
         }
     }
 
-    public List<Folder> getAllFoldersForCurrentUser() {
-        String currentUserId = getCurrentUserId();
-        return folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
-    }
+    // 이 메서드는 더 이상 사용되지 않으므로 제거하거나 private으로 변경하는 것이 좋습니다.
+    // public List<Folder> getAllFoldersForCurrentUser() {
+    //     String currentUserId = getCurrentUserId();
+    //     return folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
+    // }
 
     @Transactional(readOnly = true)
     public List<FolderDTO> getFoldersWithThumbnailsForCurrentUser() {
         String currentUserId = getCurrentUserId();
-        // 참고: 이 부분은 N+1 문제가 발생할 수 있으므로, 나중에 FolderRepository의 이 메서드에
-        // @EntityGraph(attributePaths = {"bookmarks"})를 추가하여 최적화하는 것을 권장합니다.
+        log.info("[FolderService] getFoldersWithThumbnailsForCurrentUser 호출 - 사용자 ID: {}", currentUserId);
+
         List<Folder> folders = folderRepository.findByUserIdOrderByCreatedAtDesc(currentUserId);
         Random random = new Random();
 
         return folders.stream()
                 .map(folder -> {
-                    List<Bookmark> bookmarksInFolder = folder.getBookmarks(); // Fetch Join으로 이미 로드된 데이터를 사용합니다.
+                    // 특정 폴더의 북마크를 명시적으로 조회
+                    List<Bookmark> bookmarksInFolder = bookmarkRepository.findByFolder_FolderIdAndUserIdOrderByBookmarkIdDesc(folder.getFolderId(), currentUserId);
 
                     String thumbnailUrl = null;
                     if (bookmarksInFolder != null && !bookmarksInFolder.isEmpty()) {
                         Bookmark randomBookmark = bookmarksInFolder.get(random.nextInt(bookmarksInFolder.size()));
                         thumbnailUrl = randomBookmark.getThumbnailUrl();
+                    } else {
+                        // 폴더에 북마크가 없는 경우 썸네일을 null로 유지
+                        log.info("[FolderService] 폴더(ID:{})에 북마크가 없습니다. 썸네일 없음.", folder.getFolderId());
                     }
 
                     return FolderDTO.builder()
@@ -125,9 +131,6 @@ public class FolderService {
         return folderRepository.save(folder);
     }
 
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
-    // 여기가 최종적으로 수정된 부분입니다.
-    // ▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼▼
     @Transactional
     public void delete(Integer folderId) {
         String currentUserId = getCurrentUserId();
@@ -140,9 +143,6 @@ public class FolderService {
         //    JPA의 CascadeType.REMOVE 규칙에 따라 북마크와 폴더가 함께 삭제됩니다.
         folderRepository.delete(folder);
     }
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
-    // 여기까지입니다.
-    // ▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲▲
 
 
     @Transactional(readOnly = true)

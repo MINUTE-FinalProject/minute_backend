@@ -34,4 +34,12 @@ public interface VideoRepository extends JpaRepository<Video, String> {
 
     List<Video> findByRegionAndCity(String region, String city);
 
+    @Query("""
+    SELECT v FROM Video v 
+    WHERE LOWER(v.videoTitle) LIKE LOWER(CONCAT('%', :keyword, '%'))
+       OR LOWER(v.region) LIKE LOWER(CONCAT('%', :keyword, '%'))
+       OR LOWER(v.city) LIKE LOWER(CONCAT('%', :keyword, '%'))
+""")
+    List<Video> searchByTitleOrRegionOrCity(@Param("keyword") String keyword);
+
 }
