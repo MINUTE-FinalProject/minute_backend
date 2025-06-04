@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -22,12 +23,15 @@ public class VideoTag {
     @ManyToOne
     @MapsId("videoId")
     @JoinColumn(name = "video_id")
+    @JsonIgnore // 영상-태그의 반대편도 무한루프 방지!
     private Video video;
 
     @ManyToOne
     @MapsId("tagId")
     @JoinColumn(name = "tag_id")
+    @JsonIgnore // 태그 → 비디오 연결도 무한참조 방지
     private Tag tag;
+
 
     @Embeddable
     @Getter

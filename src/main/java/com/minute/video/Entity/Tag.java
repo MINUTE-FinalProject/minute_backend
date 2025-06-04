@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +24,8 @@ public class Tag {
     @Column(length = 100,nullable = false)
     private String tagName;
 
-    @OneToMany(mappedBy = "tag",cascade = CascadeType.ALL,orphanRemoval = true)
+    @OneToMany(mappedBy = "tag", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // Tag의 videoTags도 직렬화에서 무시
     private List<VideoTag> videoTags = new ArrayList<>();
+
 }
