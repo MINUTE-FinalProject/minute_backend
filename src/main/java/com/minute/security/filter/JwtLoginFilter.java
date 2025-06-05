@@ -1,8 +1,7 @@
 package com.minute.security.filter;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.minute.auth.dto.request.auth.LoginDTO;
-import com.minute.auth.service.DetailUser;
+import com.minute.auth.dto.request.LoginDTO;
 import com.minute.security.handler.JwtProvider;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -71,7 +70,7 @@ public class JwtLoginFilter extends UsernamePasswordAuthenticationFilter {
     @Override
     protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
                                               AuthenticationException failed) throws IOException, ServletException {
-        System.out.println("❌ 로그인 실패: " + failed.getMessage());
+
         if (failureHandler != null) {
             failureHandler.onAuthenticationFailure(request, response, failed);
         } else {

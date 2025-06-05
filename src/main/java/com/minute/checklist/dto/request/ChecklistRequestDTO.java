@@ -19,7 +19,7 @@ public class ChecklistRequestDTO {
     @NotNull
     private LocalDate travelDate;
 
-    @Schema(description = "연관된 Plan ID", example = "10", required = true)
+    @Schema(description = "연관된 Plan ID", example = "10")
     private Integer planId;
 
     @Schema(description = "체크리스트 항목 내용", example = "카메라 준비", required = true)

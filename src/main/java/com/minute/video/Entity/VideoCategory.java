@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,6 +25,7 @@ public class VideoCategory {
     @ManyToOne
     @MapsId("videoId")
     @JoinColumn(name = "video_id")
+    @JsonManagedReference
     private Video video;
 
 

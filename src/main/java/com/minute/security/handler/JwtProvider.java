@@ -42,10 +42,12 @@ public class JwtProvider {
         return Jwts.builder()
                 .setHeader(createHeader())
                 .setClaims(createClaims(user))
-                .setSubject(user.getUserName())
+                .setSubject(user.getUserId())
                 .setIssuedAt(new Date(now))
                 .setExpiration(expireDate)
                 .signWith(key, SignatureAlgorithm.HS256)
+
+                
                 .compact();
     }
 
@@ -110,7 +112,8 @@ public class JwtProvider {
     private static Map<String, Object> createClaims(User user) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId",user.getUserId());
-        claims.put("Role", user.getRole());
+        claims.put("role", user.getRole().name());
+
         return claims;
     }
 }
