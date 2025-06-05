@@ -54,6 +54,17 @@ dependencies {
     implementation 'org.glassfish.jaxb:jaxb-runtime:3.0.1'
 
 
+    // AWS SDK v2 - Bill of Materials (BOM)
+    implementation platform('software.amazon.awssdk:bom:2.25.19') // 최신 버전 확인 권장
+
+    // AWS SDK v2 - S3 모듈
+    implementation 'software.amazon.awssdk:s3'
+
+    // (선택 사항) Spring Boot 3.x.x 와 호환되는 Spring Cloud AWS S3 스타터
+    // 이 라이브러리를 사용하면 S3 관련 자동 구성 및 추가적인 편의 기능을 활용할 수 있습니다.
+    // 예: ResourceLoader를 통해 s3:// URI 사용 등
+    // implementation 'io.awspring.cloud:spring-cloud-aws-starter-s3:3.1.1' // 최신 버전 확인 권장
+
 
 }
 

@@ -22,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/bookmarks")
+@RequestMapping("/api/v1/bookmarks")
 @RequiredArgsConstructor
 @SecurityRequirement(name = "bearerAuth")
 public class BookmarkController {
@@ -78,8 +78,7 @@ public class BookmarkController {
         bookmarkService.removeVideoFromUserFolder(currentUserId, folderId, videoId);
         return ResponseEntity.noContent().build();
     }
-
-    @GetMapping("/folder/{folderId}")
+    @GetMapping("/folder/{folderId}/videos") // <-- 이 부분을 수정해야 합니다.
     @Operation(summary = "특정 폴더 내의 모든 북마크(비디오) 목록 조회")
     public ResponseEntity<List<VideoResponseDTO>> getBookmarksInFolder(
             @Parameter(description = "북마크를 조회할 폴더의 ID") @PathVariable Integer folderId) {

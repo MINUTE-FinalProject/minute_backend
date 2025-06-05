@@ -1,5 +1,6 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -19,35 +20,25 @@ public class VideoTag {
     @EmbeddedId
     private VideoTagId id;
 
-    // video_id 컬럼은 VideoTagId.videoId 와 매핑
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @MapsId("videoId")
-    @JoinColumn(name = "video_id", nullable = false)
+    @JoinColumn(name = "video_id")
+    @JsonIgnore // 영상-태그의 반대편도 무한루프 방지!
     private Video video;
 
-    // tag_id 컬럼은 VideoTagId.tagId 와 매핑
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @MapsId("tagId")
-    @JoinColumn(name = "tag_id", nullable = false)
+    @JoinColumn(name = "tag_id")
+    @JsonIgnore // 태그 → 비디오 연결도 무한참조 방지
     private Tag tag;
 
-    // 편의를 위해 생성자 추가 (builder 대신 사용할 때 유용)
-    public VideoTag(Video video, Tag tag) {
-        this.video = video;
-        this.tag = tag;
-        this.id = new VideoTagId(video.getVideoId(), tag.getTagId());
-    }
 
     @Embeddable
     @Getter
     @NoArgsConstructor
     @AllArgsConstructor
     public static class VideoTagId implements Serializable {
-
-        @Column(length = 50)
         private String videoId;
-
-        @Column
         private int tagId;
 
         @Override
@@ -55,8 +46,8 @@ public class VideoTag {
             if (this == o) return true;
             if (o == null || getClass() != o.getClass()) return false;
             VideoTagId that = (VideoTagId) o;
-            return tagId == that.tagId &&
-                    Objects.equals(videoId, that.videoId);
+            return Objects.equals(videoId, that.videoId) &&
+                    Objects.equals(tagId, that.tagId);
         }
 
         @Override

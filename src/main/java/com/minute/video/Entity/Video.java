@@ -1,5 +1,7 @@
 package com.minute.video.Entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.minute.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -40,20 +42,18 @@ public class Video {
     @JoinColumn(name = "channel_id")
     private Channel channel;
 
-    @OneToMany(mappedBy = "video", cascade = CascadeType.ALL,orphanRemoval = true)
-    private List<VideoCategory> videoCategories = new ArrayList<>();
-
     @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // << 이 한 줄로 순환참조 100% 차단!
     private List<VideoTag> videoTags = new ArrayList<>();
 
-    // 추천 로직에 필요한 속성
-    @Builder.Default
-    @Column(name = "likes", nullable = false)
-    private Long likes = 0L;
+    @OneToMany(mappedBy = "video", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore // 카테고리도 마찬가지
+    private List<VideoCategory> videoCategories = new ArrayList<>();
 
-    @Builder.Default
-    @Column(name = "views", nullable = false)
-    private Long views = 0L;
+
+    // 추천 로직에 필요한 속성
+    private Long views;
+    private Long likes;
 
     // 좋아요 증가
     public void increaseLikes() {

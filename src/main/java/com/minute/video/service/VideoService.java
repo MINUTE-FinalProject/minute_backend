@@ -12,6 +12,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -434,16 +435,19 @@ public class VideoService {
     }
 
     /** 필요 시: 지역별 조회, etc. */
+    /** region만 있는 경우, limit개수만큼 조회 */
     public List<Video> getVideosByRegion(String region, int limit) {
-        return videoRepository.findByRegion(region).stream().limit(limit).toList();
+        return videoRepository.findByRegion(region, PageRequest.of(0, limit));
     }
 
+    /** region + city가 있는 경우, limit개수만큼 조회 */
     public List<Video> getVideosByRegionAndCity(String region, String city, int limit) {
-        return videoRepository.findByRegionAndCity(region, city).stream().limit(limit).toList();
+        return videoRepository.findByRegionAndCity(region, city, PageRequest.of(0, limit));
     }
 
+    /** 아무 파라미터도 없을 때, 전체 영상 중 limit개 조회 */
     public List<Video> getAllVideos(int limit) {
-        return videoRepository.findAll().stream().limit(limit).toList();
+        return videoRepository.findAll(PageRequest.of(0, limit)).getContent();
     }
 
     public List<VideoResponseDTO> searchByTitleOrRegionOrCity(String keyword) {

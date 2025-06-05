@@ -6,7 +6,9 @@ import com.minute.video.Entity.Video;
 import com.minute.video.Entity.VideoDislike;
 import com.minute.video.dto.VideoDislikesResponseDTO;
 import com.minute.video.repository.VideoDislikeRepository;
+import com.minute.video.repository.VideoLikesRepository;
 import com.minute.video.repository.VideoRepository;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,9 +20,11 @@ public class VideoDislikeService {
     private final VideoDislikeRepository dislikeRepository;
     private final VideoRepository videoRepository;
     private final UserRepository userRepository;
+    private final VideoLikesRepository likesRepository;
 
+    @Transactional
     public void toggleDislike(String userId, String videoId) {
-        // 존재 확인
+        // (1) user/video 존재 체크
         if (!userRepository.existsById(userId)) {
             throw new ResourceNotFoundException("User", userId);
         }
@@ -28,21 +32,37 @@ public class VideoDislikeService {
             throw new ResourceNotFoundException("Video", videoId);
         }
 
-        // 이미 싫어요 되어 있으면 삭제
-        if (dislikeRepository.existsByUserUserIdAndVideoVideoId(userId, videoId)) {
+        boolean alreadyDisliked = dislikeRepository.existsByUserUserIdAndVideoVideoId(userId, videoId);
+        boolean alreadyLiked    = likesRepository.existsByUserUserIdAndVideoVideoId(userId, videoId);
+
+        if (alreadyDisliked) {
+            // ── “이미 dislike가 있으면” → 단순히 삭제
             dislikeRepository.deleteByUserUserIdAndVideoVideoId(userId, videoId);
+
         } else {
-            // 싫어요 저장
-            User user = userRepository.getReferenceById(userId);
+            // ── “새롭게 dislike 등록 전”에,
+            //     (2) 만약 기존에 like 레코드가 있으면 먼저 삭제
+            if (alreadyLiked) {
+                likesRepository.deleteByUserUserIdAndVideoVideoId(userId, videoId);
+                // 좋아요 수 감소(선택)
+                Video v = videoRepository.getReferenceById(videoId);
+                v.decreaseLikes();
+            }
+
+            // ── 그 후에 디스라이크 저장
+            User user   = userRepository.getReferenceById(userId);
             Video video = videoRepository.getReferenceById(videoId);
 
-            dislikeRepository.save(VideoDislike.builder()
-                    .user(user)
-                    .video(video)
-                    .createdAt(java.time.LocalDateTime.now())
-                    .build());
+            dislikeRepository.save(
+                    VideoDislike.builder()
+                            .user(user)
+                            .video(video)
+                            .createdAt(java.time.LocalDateTime.now())
+                            .build()
+            );
         }
     }
+
 
     public List<VideoDislikesResponseDTO> getUserDislikedVideos(String userId) {
         return dislikeRepository.findByUserUserId(userId).stream()

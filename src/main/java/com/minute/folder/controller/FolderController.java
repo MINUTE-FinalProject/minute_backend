@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/folder")
+@RequestMapping("/api/v1/folder")
 @RequiredArgsConstructor
 @Validated
 @SecurityRequirement(name = "bearerAuth")
