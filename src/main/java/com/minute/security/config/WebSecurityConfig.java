@@ -130,6 +130,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/v1/board/free/admin/**").hasRole("ADMIN") // admin 경로 전체를 ADMIN 권한으로 묶음
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasRole("ADMIN") // 신고된 게시글 목록
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasRole("ADMIN") // 신고된 댓글 목록
+
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasRole("ADMIN") // 신고글 관리 등 (feature/qna 주석 반영)
