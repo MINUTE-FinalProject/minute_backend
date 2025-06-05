@@ -101,10 +101,10 @@ public class WebSecurityConfig {
                         // 5. 공지사항 (GET은 permitAll, POST/PUT/DELETE/PATCH는 ADMIN)
                         // ⭐ 수정: 공지사항 API 경로를 /api/v1/notices/** 로 변경 (feature/qna 브랜치 적용)
                         .requestMatchers(HttpMethod.GET, "/api/v1/notices/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/v1/notices").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/notices/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/notices/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/notices/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.POST, "/api/v1/notices").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/notices/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/notices/**").hasRole("ADMIN")
 
                         // 6. 마이페이지, 날씨 등 공개 API
                         .requestMatchers(HttpMethod.GET, "/api/v1/mypage/**").permitAll()
@@ -127,12 +127,12 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/activity/my").authenticated() // 내 활동 보기
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/comments/by-user").authenticated() // 내가 쓴 댓글 보기
                         // ADMIN 역할 사용자만 접근 가능한 API
-                        .requestMatchers("/api/v1/board/free/admin/**").hasAuthority("ADMIN") // admin 경로 전체를 ADMIN 권한으로 묶음
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasAuthority("ADMIN") // 신고된 게시글 목록
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasAuthority("ADMIN") // 신고된 댓글 목록
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasAuthority("ADMIN") // 신고글 관리 등 (feature/qna 주석 반영)
+                        .requestMatchers("/api/v1/board/free/admin/**").hasRole("ADMIN") // admin 경로 전체를 ADMIN 권한으로 묶음
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/posts").hasRole("ADMIN") // 신고된 게시글 목록
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasRole("ADMIN") // 신고된 댓글 목록
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasRole("ADMIN") // 신고글 관리 등 (feature/qna 주석 반영)
 
                         // 8. QnA (1:1 문의) API paths (Authenticated) - [feature/qna 브랜치 기능 추가]
                         .requestMatchers("/api/v1/qna/**").authenticated()
@@ -148,7 +148,7 @@ public class WebSecurityConfig {
                         .requestMatchers("/api/v1/bookmarks/**").authenticated() // GET, POST, DELETE 모두 포함
 
                         // 12. 관리자 API (공지사항/자유게시판/문의/신고글관리 외의 다른 관리자 기능들)
-                        .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
 
                         // 13. 기타 /api/v1/user/* 관련
                         // 주의: 아래 GET, PATCH, POST가 모두 permitAll로 되어 있습니다.
