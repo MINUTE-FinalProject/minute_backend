@@ -663,6 +663,10 @@ public class QnaServiceImpl implements QnaService {
                 .build();
         QnaReport savedReport = qnaReportRepository.save(newReport);
 
+        User reportedUser = qna.getUser();
+        reportedUser.setUserReport(reportedUser.getUserReport() + 1);
+        userRepository.save(reportedUser);
+
         log.info("Admin {} successfully reported QnA ID: {}. New Report ID: {}", adminUserId, qnaId, savedReport.getInquiryReportId());
         return QnaReportResponseDTO.builder()
                 .reportId(savedReport.getInquiryReportId())
