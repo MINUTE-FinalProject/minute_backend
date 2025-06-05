@@ -83,7 +83,7 @@ public class WebSecurityConfig {
 
                         // 2. 회원가입 및 인증 관련 API (로그인, 회원가입 검증 등)
                         .requestMatchers("/api/v1/auth/sign-up/validate").permitAll()
-                        .requestMatchers("/api/v1/auth/sign-up").permitAll() // 중복 제거: 아래에 통합
+                        // .requestMatchers("/api/v1/auth/sign-up").permitAll() // 아래 /api/v1/auth/** 에 포함됨
                         .requestMatchers("/api/v1/auth/**").permitAll() // /api/v1/auth/ 하위의 모든 요청 허용
 
                         // 3. 파일 업로드/다운로드 관련 (필요한 경우)
@@ -96,20 +96,21 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/youtube/shorts").permitAll()
                         .requestMatchers("/api/v1/watch-history/**").permitAll()
                         .requestMatchers("/api/v1/youtube/**").permitAll()
-                        .requestMatchers("/api/v1/youtube/shorts/save").permitAll() // 이전에 중복 선언된 부분 통합
+                        // .requestMatchers("/api/v1/youtube/shorts/save").permitAll() // /api/v1/youtube/** 에 포함 가능
 
                         // 5. 공지사항 (GET은 permitAll, POST/PUT/DELETE/PATCH는 ADMIN)
-                        .requestMatchers(HttpMethod.GET, "/api/notices/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/notices").hasAuthority("ADMIN") // hasRole 대신 hasAuthority 권장
-                        .requestMatchers(HttpMethod.PUT, "/api/notices/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.DELETE, "/api/notices/**").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, "/api/notices/**").hasAuthority("ADMIN")
+                        // ⭐ 수정: 공지사항 API 경로를 /api/v1/notices/** 로 변경 (feature/qna 브랜치 적용)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/notices/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/v1/notices").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/notices/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.DELETE, "/api/v1/notices/**").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, "/api/v1/notices/**").hasAuthority("ADMIN")
 
                         // 6. 마이페이지, 날씨 등 공개 API
                         .requestMatchers(HttpMethod.GET, "/api/v1/mypage/**").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/weather/**").permitAll()
 
-                        // 7. 자유게시판 (Freeboard) API 경로 권한 설정
+                        // 7. 자유게시판 (Freeboard) API 경로 권한 설정 - [feature/qna 브랜치 기능 추가/정리 반영]
                         // 공개적으로 접근 가능한 API (주로 GET 요청)
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free", "/api/v1/board/free/{postId}", "/api/v1/board/free/{postId}/comments").permitAll()
                         // 인증된 사용자만 접근 가능한 API
@@ -131,35 +132,34 @@ public class WebSecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/v1/board/free/reports/comments").hasAuthority("ADMIN") // 신고된 댓글 목록
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/posts/{postId}/visibility").hasAuthority("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/board/free/comments/{commentId}/visibility").hasAuthority("ADMIN")
-                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasAuthority("ADMIN")
+                        .requestMatchers(HttpMethod.GET, "/api/v1/board/free/admin/reports/all").hasAuthority("ADMIN") // 신고글 관리 등 (feature/qna 주석 반영)
 
-                        // 8. 플랜 캘린더 (인증 필요)
+                        // 8. QnA (1:1 문의) API paths (Authenticated) - [feature/qna 브랜치 기능 추가]
+                        .requestMatchers("/api/v1/qna/**").authenticated()
+
+                        // 9. 플랜 캘린더 (인증 필요)
                         .requestMatchers("/api/v1/plans/**").authenticated() // GET, POST, PUT, DELETE 모두 포함
 
-                        // 9. 체크리스트 (인증 필요)
+                        // 10. 체크리스트 (인증 필요)
                         .requestMatchers("/api/v1/checklists/**").authenticated() // GET, POST, PUT, DELETE 모두 포함
 
-
-                        // 10. 폴더 및 북마크 관련 API (인증 필요) - 문제의 `/api/v1/bookmarks/folder/**` 포함
-                        // 모든 메서드에 대해 authenticated() 적용
+                        // 11. 폴더 및 북마크 관련 API (인증 필요)
                         .requestMatchers("/api/v1/folder/**").authenticated() // GET, POST, PUT, DELETE 모두 포함
                         .requestMatchers("/api/v1/bookmarks/**").authenticated() // GET, POST, DELETE 모두 포함
 
+                        // 12. 관리자 API (공지사항/자유게시판/문의/신고글관리 외의 다른 관리자 기능들)
+                        .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN")
 
-                        // 11. 관리자 API
-                        .requestMatchers("/api/v1/admin/**").hasAuthority("ADMIN") // hasRole 대신 hasAuthority 권장
-
-                        // 12. 기타 /api/v1/user/* 관련 (PUT, POST는 permitAll 되어있었으나, 일반적으로 인증 필요)
-                        // 만약 사용자 정보 조회/수정/생성에 대한 권한이 필요하다면 authenticated()로 변경해야 함.
-                        // 현재 코드는 GET은 permitAll, PATCH/POST도 permitAll로 되어있어 모호함.
-                        // 일반적으로 /api/v1/user/* 는 자신의 정보에만 접근 가능해야 하므로 authenticated()가 맞음.
-                        // 아니면 특정 user/{userId}에 대한 조회만 permitAll일 수 있음.
-                        // 여기서는 일단 permitAll로 유지 (기존 코드 기준)
+                        // 13. 기타 /api/v1/user/* 관련
+                        // 주의: 아래 GET, PATCH, POST가 모두 permitAll로 되어 있습니다.
+                        // 사용자 정보 조회/수정/생성 관련 API는 일반적으로 인증(authenticated())이 필요하며,
+                        // 자신의 정보에만 접근 가능하도록 추가적인 권한 검사가 필요할 수 있습니다.
+                        // 현재는 두 브랜치의 설정을 유지하여 permitAll로 두었으나, 실제 서비스 로직에 맞춰 검토 및 수정이 필요합니다. (main 브랜치 상세 주석 참고 통합)
                         .requestMatchers(HttpMethod.GET, "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.PATCH, "/api/v1/user/*").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/v1/user/*").permitAll()
 
-                        // 13. 모든 요청은 위에 해당하지 않으면 인증 필요
+                        // 14. 위에 명시된 경로 외 모든 요청은 인증 필요
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(ex -> ex.authenticationEntryPoint(new FailedAuthenticationEntryPoint()))
@@ -167,7 +167,6 @@ public class WebSecurityConfig {
                 .addFilterAt(jwtLoginFilter(authenticationManager), UsernamePasswordAuthenticationFilter.class)
                 // JwtAuthenticationFilter는 모든 요청에 대해 토큰 유효성 검사 (JwtLoginFilter 이후)
                 .addFilterAfter(jwtAuthenticationFilter(authenticationManager), JwtLoginFilter.class);
-
 
         return httpSecurity.build();
     }

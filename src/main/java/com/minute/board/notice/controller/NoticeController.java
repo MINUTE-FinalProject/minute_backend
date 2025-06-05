@@ -34,7 +34,7 @@ import java.time.LocalDateTime;
 
 @Tag(name = "01. 공지사항 API", description = "공지사항 관련 API 목록입니다.") // API 그룹화
 @RestController
-@RequestMapping("/api/notices")
+@RequestMapping("/api/v1/notices")
 @RequiredArgsConstructor
 public class NoticeController {
 
