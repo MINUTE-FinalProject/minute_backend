@@ -14,11 +14,11 @@ import com.minute.board.free.repository.FreeboardPostLikeRepository;
 import com.minute.board.free.repository.FreeboardPostReportRepository;
 import com.minute.board.free.repository.FreeboardPostRepository;
 import com.minute.user.entity.User;
-// import com.minute.user.enumpackage.Role; // Role은 여기서 직접 사용 안 함 (필요시 DetailUser 통해 확인)
 import com.minute.user.repository.UserRepository;
 import io.micrometer.common.lang.Nullable;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +41,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j // <<< @Slf4j 어노테이션 추가
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -52,7 +53,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
     private final FreeboardPostReportRepository freeboardPostReportRepository;
     private final FreeboardCommentRepository freeboardCommentRepository;
 
-    // 현재 로그인한 사용자 ID를 가져오는 헬퍼 메서드 (중복될 수 있으므로 유틸리티 클래스로 분리 고려)
     private String getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication != null && authentication.isAuthenticated() &&
@@ -69,7 +69,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         return null;
     }
 
-    // 현재 로그인한 User 엔티티를 가져오는 헬퍼 메서드
     private User getCurrentUserEntity() {
         String currentUserId = getCurrentUserId();
         if (currentUserId != null) {
@@ -87,7 +86,8 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
             @Nullable LocalDate startDate,
             @Nullable LocalDate endDate) {
 
-        String currentLoggedInUserId = getCurrentUserId(); // 현재 로그인 사용자 ID 가져오기
+        String currentLoggedInUserId = getCurrentUserId();
+        log.debug("[getAllPosts] Current logged in user ID: {}", currentLoggedInUserId != null ? currentLoggedInUserId : "null (guest)");
 
         Specification<FreeboardPost> spec = Specification.where(com.minute.board.free.repository.specification.FreeboardPostSpecification.isNotHidden());
 
@@ -112,15 +112,25 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
         if (currentLoggedInUserId != null && !posts.isEmpty()) {
             List<Integer> postIds = posts.stream().map(FreeboardPost::getPostId).collect(Collectors.toList());
+            log.debug("[getAllPosts] Attempting to fetch liked/reported IDs for user {} on posts: {}", currentLoggedInUserId, postIds);
+
             likedPostIds = freeboardPostLikeRepository.findLikedPostIdsByUserIdAndPostIdsIn(currentLoggedInUserId, postIds);
+            log.debug("[getAllPosts] Fetched likedPostIds from repository: {}", likedPostIds);
+
             reportedPostIds = freeboardPostReportRepository.findReportedPostIdsByUserIdAndPostIdsIn(currentLoggedInUserId, postIds);
+            log.debug("[getAllPosts] Fetched reportedPostIds from repository: {}", reportedPostIds);
         }
 
         final Set<Integer> finalLikedPostIds = likedPostIds;
         final Set<Integer> finalReportedPostIds = reportedPostIds;
 
         List<FreeboardPostSimpleResponseDTO> dtoList = posts.stream()
-                .map(post -> convertToSimpleDto(post, finalLikedPostIds, finalReportedPostIds))
+                .map(post -> {
+                    boolean isLiked = finalLikedPostIds.contains(post.getPostId());
+                    boolean isReported = finalReportedPostIds.contains(post.getPostId());
+                    log.debug("[getAllPosts] Post ID: {}, isLiked (for DTO): {}, isReported (for DTO): {}", post.getPostId(), isLiked, isReported);
+                    return convertToSimpleDto(post, finalLikedPostIds, finalReportedPostIds);
+                })
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardPostSimpleResponseDTO>builder()
@@ -142,24 +152,24 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         FreeboardPost post = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("해당 ID의 게시글을 찾을 수 없습니다: " + postId));
 
-        // 조회수 증가
         post.setPostViewCount(post.getPostViewCount() + 1);
 
         boolean isLiked = false;
-        boolean isReported = false; // 초기값 설정
-        User currentUser = getCurrentUserEntity(); // 현재 로그인한 User 엔티티 가져오기
+        boolean isReported = false;
+        User currentUser = getCurrentUserEntity();
 
         if (currentUser != null) {
-            // 현재 사용자가 해당 게시글을 좋아요 했는지 확인
+            log.debug("[getPostById] User {} is logged in. Checking like/report status for post {}.", currentUser.getUserId(), postId);
             isLiked = freeboardPostLikeRepository.existsByUserAndFreeboardPost(currentUser, post);
+            log.debug("[getPostById] existsByUserAndFreeboardPost result for post {}: {}", postId, isLiked);
 
-            // <<< --- 수정된 부분 시작 --- >>>
-            // 현재 사용자가 해당 게시글을 신고했는지 확인
             isReported = freeboardPostReportRepository.existsByUserAndFreeboardPost(currentUser, post);
-            // <<< --- 수정된 부분 끝 --- >>>
+            log.debug("[getPostById] existsByUserAndFreeboardPost (report) result for post {}: {}", postId, isReported);
         }
 
-        return convertToDetailDto(post, isLiked, isReported);
+        FreeboardPostResponseDTO dto = convertToDetailDto(post, isLiked, isReported);
+        log.debug("[getPostById] Final DTO for post {}. isLikedByCurrentUser: {}, isReportedByCurrentUser: {}", post.getPostId(), dto.isLikedByCurrentUser(), dto.isReportedByCurrentUser());
+        return dto;
     }
 
     @Override
@@ -175,7 +185,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
 
         FreeboardPost savedPost = freeboardPostRepository.save(newPost);
-        // 새로 생성된 게시글은 현재 사용자가 좋아요/신고하지 않은 상태
         return convertToDetailDto(savedPost, false, false);
     }
 
@@ -192,7 +201,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         postToUpdate.setPostTitle(requestDto.getPostTitle());
         postToUpdate.setPostContent(requestDto.getPostContent());
 
-        // 수정 시에는 기존 좋아요/신고 상태를 유지해야 하므로, 다시 조회
         boolean isLiked = false;
         boolean isReported = false;
         User currentUser = getCurrentUserEntity();
@@ -203,18 +211,13 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
         return convertToDetailDto(postToUpdate, isLiked, isReported);
     }
 
-    // ... (deletePost, togglePostLike, reportPost, getReportedPosts 등 나머지 메서드는 이전과 거의 동일하게 유지) ...
-    // (단, togglePostLike, reportPost의 반환값 업데이트 시 post 엔티티의 isLiked/ReportedByCurrentUser는 없으므로 DTO만 정확히 반환)
-
     @Override
     @Transactional
-    public void deletePost(Integer postId, String currentUserId /*, DetailUser principal - 역할 확인 필요시 */) {
+    public void deletePost(Integer postId, String currentUserId) {
         FreeboardPost postToDelete = freeboardPostRepository.findById(postId)
                 .orElseThrow(() -> new EntityNotFoundException("삭제할 게시글을 찾을 수 없습니다: " + postId));
 
-        // boolean isAdmin = ... (updatePost와 유사하게 역할 확인 가능)
-
-        if (!postToDelete.getUser().getUserId().equals(currentUserId) /* && !isAdmin */) {
+        if (!postToDelete.getUser().getUserId().equals(currentUserId)) {
             throw new AccessDeniedException("게시글 삭제 권한이 없습니다.");
         }
 
@@ -246,7 +249,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
             post.setPostLikeCount(post.getPostLikeCount() + 1);
             likedByCurrentUser = true;
         }
-        // post 엔티티의 변경사항(postLikeCount)은 @Transactional에 의해 커밋 시점에 DB에 반영됨
 
         return PostLikeResponseDTO.builder()
                 .postId(post.getPostId())
@@ -278,7 +280,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
         freeboardPostReportRepository.save(newReport);
 
-        // ✅ 신고 당한 사용자의 신고 횟수 증가
         User reportedUser = postToReport.getUser();
         reportedUser.setUserReport(reportedUser.getUserReport() + 1);
         userRepository.save(reportedUser);
@@ -288,7 +289,7 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     public PageResponseDTO<ReportedPostEntryDTO> getReportedPosts(AdminReportedPostFilterDTO filter, Pageable pageable) {
-        System.out.println("Service getReportedPosts - Pageable Sort: " + pageable.getSort()); // 디버깅 로그 추가
+        System.out.println("Service getReportedPosts - Pageable Sort: " + pageable.getSort());
         AdminReportedPostFilterDTO queryFilter = new AdminReportedPostFilterDTO();
         queryFilter.setPostId(filter.getPostId());
         queryFilter.setAuthorUserId(filter.getAuthorUserId());
@@ -325,7 +326,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 게시글을 찾을 수 없습니다: " + postId));
         post.setPostIsHidden(requestDto.getIsHidden());
 
-        // 숨김 상태 변경 시에도 좋아요/신고 상태는 유지되어야 함
         boolean isLiked = false;
         boolean isReported = false;
         User currentUser = getCurrentUserEntity();
@@ -338,7 +338,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
 
     @Override
     public PageResponseDTO<FreeboardUserActivityItemDTO> getUserFreeboardActivity(String currentUserId, Pageable pageable) {
-        // ... (이전과 동일한 로직, 필요시 내부 DTO 빌드 시 isLikedByCurrentUser 등 추가 고려 가능하나 현재 DTO 스펙에는 없음) ...
         User user = userRepository.findUserByUserId(currentUserId)
                 .orElseThrow(() -> new EntityNotFoundException("사용자 정보를 찾을 수 없습니다: " + currentUserId));
 
@@ -442,7 +441,6 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .build();
     }
 
-    // convertToDetailDto 시그니처 변경 및 로직 수정
     private FreeboardPostResponseDTO convertToDetailDto(FreeboardPost post, boolean isLikedByCurrentUser, boolean isReportedByCurrentUser) {
         User user = post.getUser();
         return FreeboardPostResponseDTO.builder()
@@ -456,8 +454,8 @@ public class FreeboardPostServiceImpl implements FreeboardPostService {
                 .postUpdatedAt(post.getPostUpdatedAt())
                 .userId(user != null ? user.getUserId() : null)
                 .userNickName(user != null ? user.getUserNickName() : "알 수 없는 사용자")
-                .isLikedByCurrentUser(isLikedByCurrentUser) // 필드 설정
-                .isReportedByCurrentUser(isReportedByCurrentUser) // 필드 설정
+                .isLikedByCurrentUser(isLikedByCurrentUser)
+                .isReportedByCurrentUser(isReportedByCurrentUser)
                 .build();
     }
 }

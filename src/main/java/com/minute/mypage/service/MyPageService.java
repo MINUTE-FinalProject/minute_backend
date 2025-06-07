@@ -1,5 +1,7 @@
 package com.minute.mypage.service;
 
+import com.minute.board.notice.repository.NoticeRepository;
+import com.minute.board.qna.repository.QnaRepository;
 import com.minute.checklist.service.ChecklistService;
 import com.minute.mypage.dto.response.DotResponseDTO;
 import com.minute.plan.dto.response.PlanResponseDTO;
@@ -19,6 +21,9 @@ public class MyPageService {
 
     private final PlanService planService;
     private final ChecklistService checklistService;
+
+    private final QnaRepository qnaRepository;         // <<< Repository 의존성 주입
+    private final NoticeRepository noticeRepository;   // <<< Repository 의존성 주입
 
     public List<DotResponseDTO> getMonthlyDots(String userId, YearMonth ym) {
         List<LocalDate> planDates = planService.getPlanDatesInMonth(userId, ym);
@@ -41,4 +46,22 @@ public class MyPageService {
     public List<PlanResponseDTO> getPlansOnly(String userId, LocalDate date) {
         return planService.getPlansByUserAndDate(userId, date);
     }
+
+    // --- 🚨 새로운 메서드 추가 ---
+    /**
+     * 전체 문의(QnA) 수를 조회합니다.
+     * @return 전체 문의 수
+     */
+    public long getQnaCount() {
+        return qnaRepository.count();
+    }
+
+    /**
+     * 전체 공지사항 수를 조회합니다.
+     * @return 전체 공지사항 수
+     */
+    public long getNoticeCount() {
+        return noticeRepository.count();
+    }
+    // --- 🚨 추가 끝 ---
 }
