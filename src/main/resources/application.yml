@@ -61,6 +61,17 @@ logging:
     org:
       springframework:
         security: DEBUG
+#      hibernate:
+#        type:
+#          descriptor:
+#            sql: TRACE
+    com:
+      minute:
+        board:
+          free:
+            service: DEBUG # 좋아요/신고 로직 디버깅을 위한 패키지 로그 레벨
+      # Hibernate SQL 파라미터 바인딩 로그 보기 (매우 상세함)
+      # org.hibernate.type.descriptor.sql: TRACE
 
 weather:
   api:
@@ -78,4 +89,6 @@ weather:
 #    # 만약 AWS CloudFormation 스택을 사용하지 않는다면 아래 설정도 추가하는 것이 좋습니다.
 #    stack:
 #      auto: false
+
+
 

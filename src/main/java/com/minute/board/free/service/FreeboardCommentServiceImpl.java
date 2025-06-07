@@ -20,6 +20,7 @@ import com.minute.user.entity.User;
 import com.minute.user.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
@@ -32,13 +33,13 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
-// import java.time.LocalTime; // 필요시 주석 해제
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+@Slf4j // <<< @Slf4j 어노테이션 추가
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
@@ -83,17 +84,31 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         Set<Integer> reportedCommentIds = Collections.emptySet();
         String currentUserId = getCurrentUserId();
 
+        log.debug("[getCommentsByPostId] Fetching comments for postId: {}", postId);
+        log.debug("[getCommentsByPostId] Current logged in user ID: {}", currentUserId != null ? currentUserId : "null (guest)");
+        log.debug("[getCommentsByPostId] Number of comments fetched from DB: {}", comments.size());
+
         if (currentUserId != null && !comments.isEmpty()) {
             List<Integer> commentIds = comments.stream().map(FreeboardComment::getCommentId).collect(Collectors.toList());
+            log.debug("[getCommentsByPostId] Passing comment IDs to like/report repo: {}", commentIds);
+
             likedCommentIds = freeboardCommentLikeRepository.findLikedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds);
+            log.debug("[getCommentsByPostId] Fetched likedCommentIds from repository: {}", likedCommentIds);
+
             reportedCommentIds = freeboardCommentReportRepository.findReportedCommentIdsByUserIdAndCommentIdsIn(currentUserId, commentIds);
+            log.debug("[getCommentsByPostId] Fetched reportedCommentIds from repository: {}", reportedCommentIds);
         }
 
         final Set<Integer> finalLikedCommentIds = likedCommentIds;
         final Set<Integer> finalReportedCommentIds = reportedCommentIds;
 
         List<FreeboardCommentResponseDTO> dtoList = comments.stream()
-                .map(comment -> convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds))
+                .map(comment -> {
+                    boolean isLiked = finalLikedCommentIds.contains(comment.getCommentId());
+                    boolean isReported = finalReportedCommentIds.contains(comment.getCommentId());
+                    log.debug("[getCommentsByPostId] Comment ID: {}, isLiked (final in DTO): {}, isReported (final in DTO): {}", comment.getCommentId(), isLiked, isReported);
+                    return convertToDto(comment, finalLikedCommentIds, finalReportedCommentIds);
+                })
                 .collect(Collectors.toList());
 
         return PageResponseDTO.<FreeboardCommentResponseDTO>builder()
@@ -142,8 +157,9 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         boolean isLiked = false;
         boolean isReported = false;
         User currentUser = getCurrentUserEntity();
-        if (currentUser != null && currentUser.getUserId().equals(currentUserIdFromController)) { // 현재 사용자가 수정 요청한 사용자인지 한번 더 확인
+        if (currentUser != null && currentUser.getUserId().equals(currentUserIdFromController)) {
             isLiked = freeboardCommentLikeRepository.findByUserAndFreeboardComment(currentUser, commentToUpdate).isPresent();
+            log.debug("[updateComment] Individual like check for comment {}: {}", commentId, isLiked);
             isReported = freeboardCommentReportRepository.existsByUserAndFreeboardComment(currentUser, commentToUpdate);
         }
         Set<Integer> likedIds = isLiked ? Set.of(commentId) : Collections.emptySet();
@@ -158,7 +174,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         FreeboardComment commentToDelete = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("삭제할 댓글을 찾을 수 없습니다: " + commentId));
 
-        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController) /* && !isAdmin(currentUserIdFromController) */ ) { // 관리자 권한 확인 로직 추가 필요시
+        if (!commentToDelete.getUser().getUserId().equals(currentUserIdFromController)) {
             throw new AccessDeniedException("댓글 삭제 권한이 없습니다.");
         }
 
@@ -190,7 +206,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             comment.setCommentLikeCount(comment.getCommentLikeCount() + 1);
             likedByCurrentUser = true;
         }
-        freeboardCommentRepository.save(comment); // 좋아요 수 변경사항 저장
+        freeboardCommentRepository.save(comment);
 
         return CommentLikeResponseDTO.builder()
                 .commentId(comment.getCommentId())
@@ -222,7 +238,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .build();
         freeboardCommentReportRepository.save(newReport);
 
-        // ✅ 신고 당한 사용자의 신고 횟수 증가
         User reportedUser = commentToReport.getUser();
         reportedUser.setUserReport(reportedUser.getUserReport() + 1);
         userRepository.save(reportedUser);
@@ -240,16 +255,12 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         queryFilter.setAuthorNickname(filter.getAuthorNickname());
         queryFilter.setIsHidden(filter.getIsHidden());
 
-        // --- 날짜 필터링 로직 수정 ---
-        // DTO에서 변경된 필드명(commentCreatedAtStartDate, commentCreatedAtEndDate)을 사용합니다.
         if (filter.getCommentCreatedAtStartDate() != null) {
             queryFilter.setQueryCommentCreatedAtStartDate(filter.getCommentCreatedAtStartDate().atStartOfDay());
         }
         if (filter.getCommentCreatedAtEndDate() != null) {
-            // 끝 날짜를 포함하여 검색하기 위해 +1일 후 시작 시간 미만으로 설정 (JPQL에서 '<' 사용 시)
             queryFilter.setQueryCommentCreatedAtEndDate(filter.getCommentCreatedAtEndDate().plusDays(1).atStartOfDay());
         }
-        // --- 날짜 필터링 로직 수정 끝 ---
 
         Page<AdminReportedCommentEntryDTO> reportedCommentPage = freeboardCommentReportRepository.findReportedCommentSummariesWithFilters(queryFilter, pageable);
 
@@ -272,7 +283,7 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
         FreeboardComment comment = freeboardCommentRepository.findById(commentId)
                 .orElseThrow(() -> new EntityNotFoundException("상태를 변경할 댓글을 찾을 수 없습니다: " + commentId));
         comment.setCommentIsHidden(requestDto.getIsHidden());
-        freeboardCommentRepository.save(comment); // 변경사항 저장
+        freeboardCommentRepository.save(comment);
 
         boolean isLiked = false;
         boolean isReported = false;
@@ -298,7 +309,6 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
             if (StringUtils.hasText(filter.getSearchKeyword())) {
                 spec = spec.and(FreeboardCommentSpecification.contentContains(filter.getSearchKeyword()));
             }
-            // AdminMyCommentFilterDTO의 startDate와 endDate는 댓글 작성일 기준입니다.
             if (filter.getStartDate() != null) {
                 spec = spec.and(FreeboardCommentSpecification.createdAtAfter(filter.getStartDate()));
             }
@@ -346,8 +356,9 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
 
         boolean isLiked = likedCommentIdsForCurrentUser.contains(comment.getCommentId());
         boolean isReported = reportedCommentIdsForCurrentUser.contains(comment.getCommentId());
-        // User 엔티티의 Role enum이 null일 경우를 대비하여 null 체크 추가
-        String authorRole = (author != null && author.getRole() != null) ? author.getRole().name() : "USER"; // 기본값 또는 예외 처리
+        String authorRole = (author != null && author.getRole() != null) ? author.getRole().name() : "USER";
+
+        log.debug("[convertToDto] Final values for DTO - Comment ID: {}, isLikedByCurrentUser: {}, isReportedByCurrentUser: {}", comment.getCommentId(), isLiked, isReported);
 
         return FreeboardCommentResponseDTO.builder()
                 .commentId(comment.getCommentId())
