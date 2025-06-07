@@ -1,5 +1,6 @@
 package com.minute.mypage.controller;
 
+import com.minute.mypage.dto.response.AdminStatsResponseDTO;
 import com.minute.mypage.dto.response.DotResponseDTO;
 import com.minute.mypage.service.MyPageService;
 import com.minute.plan.dto.response.PlanResponseDTO;
@@ -8,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -50,4 +52,21 @@ public class MyPageController {
         String userId = principal.getName();
         return myPageService.getPlansOnly(userId, date);
     }
+
+    // --- 🚨 새로운 API 엔드포인트 추가 ---
+    @Operation(summary = "[관리자] 마이페이지 통계 조회", description = "관리자 마이페이지에 필요한 통계(문의 수, 공지사항 수 등)를 조회합니다.")
+    @GetMapping("/admin/stats")
+    public ResponseEntity<AdminStatsResponseDTO> getAdminStats() {
+        // 이 엔드포인트는 WebSecurityConfig에서 'ADMIN' 역할만 접근 가능하도록 설정해야 합니다.
+        long qnaCount = myPageService.getQnaCount();
+        long noticeCount = myPageService.getNoticeCount();
+
+        AdminStatsResponseDTO response = AdminStatsResponseDTO.builder()
+                .qnaCount(qnaCount)
+                .noticeCount(noticeCount)
+                .build();
+
+        return ResponseEntity.ok(response);
+    }
+    // --- 🚨 추가 끝 ---
 }
