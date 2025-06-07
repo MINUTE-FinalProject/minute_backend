@@ -42,7 +42,7 @@ public class VideoService {
 
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 1) 필터링 로직: “여행 관련 여부” 및 “카테고리별 캠핑 전용 여부”
+    // 1) 필터링 로직: “여행 관련 여부”
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
@@ -50,10 +50,12 @@ public class VideoService {
      * 여행 관련 콘텐츠로 판단해서 true를 리턴합니다.
      */
     private boolean isTravelRelated(Video video) {
+        // 키워드 매칭을 위해 미리 꺼내서 안전하게 보관해 두는 용도
         String title = video.getVideoTitle() != null ? video.getVideoTitle() : "";
         String desc  = video.getVideoDescription() != null ? video.getVideoDescription() : "";
 
-        // 허용 키워드 리스트 (원하시는 키워드를 추가/수정하세요)
+        // 허용 키워드 리스트
+        // “여행” 관련된 콘텐츠만 보여주기 위해, 제목·설명에 포함될 허용 키워드를 하드코딩한 리스트로 관리
         List<String> allowed = List.of("여행", "가볼만", "트레킹", "관광", "바캉스", "맛집", "투어");
 
         // 제목이나 설명에 allowed 리스트 중 하나라도 포함되어 있으면 true
@@ -63,6 +65,12 @@ public class VideoService {
             }
         }
         return false;
+
+        // allowed 리스트에 "여행", "가볼만", "트레킹" 등 검사할 키워드들을 넣어두고
+        // for (String kw : allowed) 로 하나씩 꺼내서
+        // title.contains(kw) || desc.contains(kw) 조건을 검사해요.
+        // 제목이나 설명에 그 키워드가 하나라도 포함되어 있으면 즉시 true를 반환
+        // 반복이 끝날 때까지 한 번도 포함되지 않으면 false를 반환합니다.
     }
 
     /**
@@ -80,12 +88,13 @@ public class VideoService {
     /** 전체 영상 조회 (최신순 50개) */
     public List<VideoResponseDTO> getAllVideos() {
         return videoRepository
-                .findTop50ByOrderByVideoIdDesc()
-                .stream()
+                .findTop50ByOrderByVideoIdDesc() // DB에서 videoId 기준으로 내림차순 정렬(가장 최근 등록된 순)한 최신 50개 Video 엔티티를 가져옴
+                .stream() // 가져온 리스트를 Java Stream 으로 변환해 이어지는 연산을 체이닝할 수 있게 해 줌
                 // ← 이 부분에서 isTravelRelated 체크
-                .filter(video -> isTravelRelated(video))
-                .map(videoResponseMapper::toDtoWithStats)
-                .collect(Collectors.toList());
+                .filter(video -> isTravelRelated(video)) // 여행 관련 콘텐츠 여부를 판별하는 isTravelRelated() 메서드를 호출
+                .map(videoResponseMapper::toDtoWithStats) // 필터를 통과한 Video 엔티티를 DTO로 변환
+                // toDtoWithStats(video)는 조회수·좋아요 수 등 통계 정보도 포함해서 VideoResponseDTO를 만듬
+                .collect(Collectors.toList());  // List<VideoResponseDTO> 형태로 결과를 모아 반환
     }
 
     /**
@@ -119,14 +128,11 @@ public class VideoService {
                 .toList();
 
         // 4) 북마크한 영상 ID 목록
-        List<String> bookmarkedVideoIds = bookmarkRepository.findAll().stream()
-                .filter(bookmark -> bookmark.getUserId().equals(userId))
-                .map(Bookmark::getVideoId)
-                .distinct()
-                .toList();
+        List<String> bookmarkedVideoIds = bookmarkRepository.findVideoIdsByUserId(userId);
 
-        // 0) 시청 이력으로 “카테고리별 시청 횟수” 집계
-        Map<String, Integer> watchedCategoryCount = buildWatchedCategoryCount(userId);
+
+        // 시청 이력으로 "개별 영상(또는 영상별 키워드) 시청 횟수" 집계
+        Map<String,Integer> watchedVideoCount    = buildWatchedVideoCount(userId);
 
         // 5) 추천 후보 영상: 조회수 상위 50, 좋아요 상위 50 중복 제거 후 최대 200개
         List<Video> topByViews = videoRepository.findTop50ByOrderByViewsDesc();
@@ -145,7 +151,7 @@ public class VideoService {
                     likedVideoIds,
                     bookmarkedVideoIds,
                     keywords,
-                    watchedCategoryCount   // ← 카테고리 보정 맵 전달
+                    watchedVideoCount
             );
             scoreMap.put(video.getVideoId(), score);
             log.info("[추천점수] {} ({}) → {}점",
@@ -154,15 +160,9 @@ public class VideoService {
 
         // 7) 점수 기준으로 정렬
         List<Video> scoredList = candidates.stream()
-                .filter(video -> !watchedVideoIds.contains(video.getVideoId()))
-                .sorted(Comparator.comparingInt((Video video) ->
-                        calculateScore(
-                                video,
-                                likedVideoIds,
-                                bookmarkedVideoIds,
-                                keywords,
-                                watchedCategoryCount
-                        )
+                .filter((Video v) -> !watchedVideoIds.contains(v.getVideoId()))
+                .sorted(Comparator.comparingInt(
+                        (Video v) -> scoreMap.getOrDefault(v.getVideoId(), 0)
                 ).reversed())
                 .collect(Collectors.toList());
 
@@ -200,7 +200,7 @@ public class VideoService {
             List<String> likedVideoIds,
             List<String> bookmarkedVideoIds,
             List<String> keywords,
-            Map<String, Integer> watchedCategoryCount   // ← 추가된 파라미터
+            Map<String,Integer> watchedVideoCount
     ) {
         int score = 0;
 
@@ -225,14 +225,15 @@ public class VideoService {
             }
         }
 
-        // ── 새로 추가: 시청 카테고리 기반 +1점 ──
-        if (video.getVideoCategories() != null) {
-            for (VideoCategory vc : video.getVideoCategories()) {
-                String catName = vc.getCategory().getCategoryName();
-                if (watchedCategoryCount.getOrDefault(catName, 0) > 0) {
-                    score += 1;
-                    break;  // 한 카테고리만 매칭되어도 +1점
-                }
+        // 4) 재생 횟수 기반 보정 (예: 1~2회 +1, 3~5회 +2, 6회 이상 +3)
+        int playCount = watchedVideoCount.getOrDefault(video.getVideoId(), 0);
+        if (playCount > 0) {
+            if (playCount <= 2) {
+                score += 1;
+            } else if (playCount <= 5) {
+                score += 2;
+            } else {
+                score += 3;
             }
         }
 
@@ -240,34 +241,23 @@ public class VideoService {
     }
 
     /**
-     * 사용자가 시청한 영상들의 카테고리를 집계해서,
-     * 카테고리명 → 시청 횟수 맵을 리턴
+     * 사용자가 시청한 각 영상의 재생 횟수를
+     * videoId → 재생 횟수 맵으로 반환
      */
-    private Map<String, Integer> buildWatchedCategoryCount(String userId) {
-        // 1) 시청 이력에서 videoId 목록 조회
-        List<String> watchedVideoIds = watchHistoryRepository
-                .findByUserUserIdOrderByWatchedAtDesc(userId)
-                .stream()
-                .map(history -> history.getVideo().getVideoId())
-                .toList();
+    private Map<String, Integer> buildWatchedVideoCount(String userId) {
 
-        if (watchedVideoIds.isEmpty()) {
-            return Collections.emptyMap();
+        // 1) 시청 이력 전체 조회
+        List<WatchHistory> histories = watchHistoryRepository
+                .findByUserUserIdOrderByWatchedAtDesc(userId);
+
+        // 2) videoId별로 카운팅
+        Map<String, Integer> countMap = new HashMap<>();
+        for (WatchHistory h : histories) {
+            String vid = h.getVideo().getVideoId();
+            countMap.put(vid, countMap.getOrDefault(vid, 0) + 1);
         }
+        return countMap;
 
-        // 2) Video 엔티티를 한 번에 조회
-        List<Video> watchedVideos = videoRepository.findAllById(watchedVideoIds);
-
-        // 3) 카테고리별 집계
-        Map<String, Integer> categoryCount = new HashMap<>();
-        for (Video v : watchedVideos) {
-            if (v.getVideoCategories() == null) continue;
-            for (VideoCategory vc : v.getVideoCategories()) {
-                String catName = vc.getCategory().getCategoryName();
-                categoryCount.put(catName, categoryCount.getOrDefault(catName, 0) + 1);
-            }
-        }
-        return categoryCount;
     }
 
     /** 카테고리별 영상 조회 */
