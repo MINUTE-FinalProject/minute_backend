@@ -108,4 +108,12 @@ public interface FreeboardCommentService {
      * @throws jakarta.persistence.EntityNotFoundException 해당 ID의 사용자가 없을 경우
      */
     PageResponseDTO<FreeboardCommentResponseDTO> getCommentsByAuthor(String currentUserId, @Nullable AdminMyCommentFilterDTO filter, Pageable pageable); // <<< userId를 currentUserId로 변경
+
+    /**
+     * 주어진 댓글 ID가 댓글 목록의 몇 번째 페이지에 속하는지 계산합니다.
+     * @param commentId 페이지를 찾을 댓글의 ID
+     * @param size 한 페이지당 댓글 수
+     * @return 1부터 시작하는 페이지 번호
+     */
+    int getCommentPageNumber(Integer commentId, int size);
 }

@@ -9,8 +9,11 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.lang.Nullable; // Spring의 @Nullable 사용
 
+import java.time.LocalDateTime;
 import java.util.List; // List import 추가
 
 public interface FreeboardCommentRepository extends JpaRepository<FreeboardComment, Integer>, JpaSpecificationExecutor<FreeboardComment> {
@@ -46,4 +49,14 @@ public interface FreeboardCommentRepository extends JpaRepository<FreeboardComme
             // 만약 FreeboardCommentReport를 직접 다루는 리포지토리라면, "report.user" (신고자) 등도 포함
     })
     List<FreeboardComment> findAll(@Nullable Specification<FreeboardComment> spec, Sort sort);
+
+    /**
+     * 특정 게시글 내에서, 주어진 생성 시간보다 먼저 작성된 댓글의 개수를 반환합니다.
+     * 댓글은 오래된 순(ASC)으로 정렬된다는 것을 전제로 합니다.
+     * @param postId 게시글 ID
+     * @param createdAt 기준이 되는 댓글의 생성 시간
+     * @return 기준 시간 이전의 댓글 수
+     */
+    @Query("SELECT count(c) FROM FreeboardComment c WHERE c.freeboardPost.postId = :postId AND c.commentCreatedAt < :createdAt")
+    long countPreviousComments(@Param("postId") Integer postId, @Param("createdAt") LocalDateTime createdAt);
 }

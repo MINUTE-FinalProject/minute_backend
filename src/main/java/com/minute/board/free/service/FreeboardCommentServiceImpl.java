@@ -375,4 +375,24 @@ public class FreeboardCommentServiceImpl implements FreeboardCommentService {
                 .authorRole(authorRole)
                 .build();
     }
+
+    @Override
+    @Transactional(readOnly = true) // 이 메소드는 읽기 전용이므로 명시
+    public int getCommentPageNumber(Integer commentId, int size) {
+        // 1. commentId로 대상 댓글 엔티티를 찾습니다.
+        FreeboardComment targetComment = freeboardCommentRepository.findById(commentId)
+                .orElseThrow(() -> new EntityNotFoundException("페이지를 계산할 댓글을 찾을 수 없습니다: " + commentId));
+
+        // 2. 대상 댓글의 게시글 ID와 생성 시간을 가져옵니다.
+        Integer postId = targetComment.getFreeboardPost().getPostId();
+        LocalDateTime createdAt = targetComment.getCommentCreatedAt();
+
+        // 3. 대상 댓글보다 먼저 작성된 댓글의 수를 계산합니다. (1단계에서 추가한 Repository 메소드 호출)
+        long previousCommentsCount = freeboardCommentRepository.countPreviousComments(postId, createdAt);
+
+        // 4. 페이지 번호를 계산합니다. (0부터 시작하는 인덱스를 페이지 크기로 나눔)
+        int pageNumber = (int) (previousCommentsCount / size) + 1;
+
+        return pageNumber;
+    }
 }

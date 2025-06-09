@@ -353,4 +353,20 @@ public class FreeboardPostController {
         PageResponseDTO<AdminReportedActivityItemDTO> response = adminReportViewService.getAllReportedActivities(filter, pageable);
         return ResponseEntity.ok(response);
     }
+
+    @Operation(summary = "특정 댓글의 페이지 번호 조회", description = "댓글 ID를 통해 해당 댓글이 목록의 몇 번째 페이지에 위치하는지 조회합니다.")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "페이지 번호 조회 성공", content = @Content(schema = @Schema(implementation = CommentPageResponseDTO.class))),
+            @ApiResponse(responseCode = "404", description = "해당 댓글을 찾을 수 없음", content = @Content)
+    })
+    @GetMapping("/comments/page")
+    public ResponseEntity<CommentPageResponseDTO> getCommentPage(
+            @Parameter(description = "페이지를 조회할 댓글의 ID", required = true) @RequestParam("commentId") Integer commentId,
+            @Parameter(description = "한 페이지당 댓글 수 (프론트엔드와 동일한 값이어야 함)") @RequestParam(value = "size", defaultValue = "5") int size) {
+
+        int pageNumber = freeboardCommentService.getCommentPageNumber(commentId, size);
+        CommentPageResponseDTO response = new CommentPageResponseDTO(pageNumber);
+
+        return ResponseEntity.ok(response);
+    }
 }
